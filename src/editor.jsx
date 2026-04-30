@@ -267,6 +267,9 @@ function TableSection({ sec, sectionData, onChange }) {
   const columns = sec.columns || [];
   const raw = (typeof sectionData === "object" && sectionData !== null && !Array.isArray(sectionData)) ? sectionData : {};
   const rows = Array.isArray(raw.rows) ? raw.rows : [];
+  const [sortCol, setSortCol] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
+  const [filterText, setFilterText] = useState("");
 
   const getDefaultValue = (col) => {
     if (col.type === "checkbox") return col.defaultValue === true || col.defaultValue === "true";
@@ -281,6 +284,35 @@ function TableSection({ sec, sectionData, onChange }) {
   };
   const removeRow = (idx) => setRows(rows.filter((_, i) => i !== idx));
   const setCellValue = (rowIdx, colId, val) => setRows(rows.map((row, i) => i === rowIdx ? { ...row, [colId]: val } : row));
+
+  const cycleSort = (colId) => {
+    if (sortCol !== colId) { setSortCol(colId); setSortDir("asc"); }
+    else if (sortDir === "asc") setSortDir("desc");
+    else { setSortCol(null); setSortDir("asc"); }
+  };
+
+  const filteredRows = rows.map((row, idx) => ({ row, idx })).filter(({ row }) => {
+    if (!filterText.trim()) return true;
+    const q = filterText.trim().toLowerCase();
+    return columns.some(col => {
+      const v = row[col.id];
+      if (col.type === "checkbox") return (v === true || v === "true") ? "checked".includes(q) : "unchecked".includes(q);
+      return String(v ?? "").toLowerCase().includes(q);
+    });
+  });
+
+  const sortedRows = sortCol
+    ? [...filteredRows].sort((a, b) => {
+        if (sortCol === "__id__") return sortDir === "asc" ? a.idx - b.idx : b.idx - a.idx;
+        const col = columns.find(c => c.id === sortCol);
+        const av = a.row[sortCol]; const bv = b.row[sortCol];
+        let cmp;
+        if (col?.type === "number") cmp = (Number(av) || 0) - (Number(bv) || 0);
+        else if (col?.type === "checkbox") cmp = ((av === true || av === "true") ? 1 : 0) - ((bv === true || bv === "true") ? 1 : 0);
+        else cmp = String(av ?? "").localeCompare(String(bv ?? ""));
+        return sortDir === "asc" ? cmp : -cmp;
+      })
+    : filteredRows;
 
   const summaryValues = columns.map(col => {
     if (!col.summary || col.summary === "none") return "";
@@ -321,16 +353,24 @@ function TableSection({ sec, sectionData, onChange }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
         <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
         <button style={{ ...css.btn(), fontSize: 11 }} onClick={addRow}>+ Row</button>
+        <input style={{ ...css.input, fontSize: 11, flex: 1, maxWidth: 200 }} placeholder="Filter rows..." value={filterText} onChange={e => setFilterText(e.target.value)} />
+        {filterText && <button style={{ ...css.btn(), fontSize: 11, padding: "2px 6px" }} onClick={() => setFilterText("")}>✕</button>}
       </div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "auto" }}>
           <thead>
             <tr>
-              {columns.map(col => (
-                <th key={col.id} style={{ padding: "6px 8px", borderBottom: `2px solid ${T.accent}`, textAlign: "left", fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
-                  {col.label.toUpperCase()}
-                </th>
-              ))}
+              <th onClick={() => cycleSort("__id__")} style={{ padding: "6px 8px", borderBottom: `2px solid ${T.accent}`, textAlign: "left", fontSize: 11, color: sortCol === "__id__" ? T.accentBright : T.accent, fontWeight: "bold", letterSpacing: "0.06em", whiteSpace: "nowrap", width: 36, cursor: "pointer", userSelect: "none" }}>
+                # {sortCol === "__id__" ? (sortDir === "asc" ? "▲" : "▼") : <span style={{ opacity: 0.3 }}>⇅</span>}
+              </th>
+              {columns.map(col => {
+                const isActive = sortCol === col.id;
+                return (
+                  <th key={col.id} onClick={() => cycleSort(col.id)} style={{ padding: "6px 8px", borderBottom: `2px solid ${T.accent}`, textAlign: "left", fontSize: 11, color: isActive ? T.accentBright : T.accent, fontWeight: "bold", letterSpacing: "0.06em", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none" }}>
+                    {col.label.toUpperCase()} {isActive ? (sortDir === "asc" ? "▲" : "▼") : <span style={{ opacity: 0.3 }}>⇅</span>}
+                  </th>
+                );
+              })}
               <th style={{ width: 32, borderBottom: `2px solid ${T.accent}` }} />
             </tr>
           </thead>
@@ -341,8 +381,15 @@ function TableSection({ sec, sectionData, onChange }) {
                   No rows yet — click + Row to add one.
                 </td>
               </tr>
-            ) : rows.map((row, rowIdx) => (
+            ) : sortedRows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length + 1} style={{ padding: "16px 8px", textAlign: "center", color: T.textMuted, fontSize: 11 }}>
+                  No rows match "{filterText}".
+                </td>
+              </tr>
+            ) : sortedRows.map(({ row, idx: rowIdx }) => (
               <tr key={rowIdx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                <td style={{ padding: "4px 6px", verticalAlign: "middle", fontSize: 11, color: T.textDim, textAlign: "center", width: 36 }}>{rowIdx + 1}</td>
                 {columns.map(col => {
                   const rowValue = row[col.id];
                   return (
@@ -352,6 +399,13 @@ function TableSection({ sec, sectionData, onChange }) {
                           type="checkbox"
                           checked={rowValue === true || rowValue === "true"}
                           onChange={e => setCellValue(rowIdx, col.id, e.target.checked)}
+                        />
+                      ) : col.type === "paragraph" ? (
+                        <textarea
+                          style={{ ...css.textarea, fontSize: 12, width: "100%", minWidth: 120, minHeight: 60, boxSizing: "border-box", resize: "vertical" }}
+                          value={rowValue ?? ""}
+                          onChange={e => setCellValue(rowIdx, col.id, e.target.value)}
+                          placeholder={col.defaultValue || ""}
                         />
                       ) : (
                         <input
@@ -375,6 +429,7 @@ function TableSection({ sec, sectionData, onChange }) {
           {hasSummary && (
             <tfoot>
               <tr>
+                <td style={{ borderTop: `2px solid ${T.border}` }} />
                 {summaryValues.map((value, idx) => (
                   <td key={columns[idx].id} style={{ padding: "6px 8px", borderTop: `2px solid ${T.border}`, fontSize: 11, color: T.textDim, whiteSpace: "nowrap" }}>
                     {value !== "" ? value : ""}
@@ -590,6 +645,7 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
                       summary: e.target.value === "number" ? (c.summary || "sum") : e.target.value === "checkbox" ? (c.summary || "count") : "none",
                     } : c))}>
                     <option value="text">Text</option>
+                    <option value="paragraph">Paragraph</option>
                     <option value="number">Number</option>
                     <option value="checkbox">Checkbox</option>
                   </select>
@@ -600,6 +656,7 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
                     onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, defaultValue: e.target.value } : c))} />
                 </div>
               </div>
+              {["text", "number", "checkbox"].includes(col.type) && (
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <span style={{ fontSize: 9, color: T.textDim, fontWeight: "bold" }}>SUMMARY</span>
                 <select style={{ ...css.input, fontSize: 11 }} value={col.summary || "none"}
@@ -621,6 +678,7 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
                   )}
                 </select>
               </div>
+              )}
             </div>
           ))}
           <div style={{ display: "flex", gap: 6 }}>
@@ -629,13 +687,14 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
             <select style={{ ...css.input, flex: 1, fontSize: 11 }} value={newColType}
               onChange={e => setNewColType(e.target.value)}>
               <option value="text">Text</option>
+              <option value="paragraph">Paragraph</option>
               <option value="number">Number</option>
               <option value="checkbox">Checkbox</option>
             </select>
             <button style={{ ...css.btn(), background: "#4caf50", color: "white", padding: "2px 8px", fontSize: 14, minWidth: 32 }} onClick={addColumn}>✓</button>
           </div>
           <div style={{ fontSize: 10, color: T.textDim, marginTop: 12, padding: "8px", background: T.surface2, borderRadius: T.radius }}>
-            <strong style={{ color: T.textMuted }}>Column types:</strong> Text (plain), Number (with Sum/Avg/Min/Max summaries), Checkbox (with count summary). Choose a summary option to show aggregated values below the table.
+            <strong style={{ color: T.textMuted }}>Column types:</strong> Text (single line), Paragraph (multiline, no summary), Number (Sum/Avg/Min/Max), Checkbox (count). Choose a summary option to show aggregated values below the table.
           </div>
         </>
       )}
