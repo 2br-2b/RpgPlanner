@@ -77,7 +77,7 @@ function OutlineCard({ page, schema, showCosts, onSelect, onUpdate }) {
           {schema.map(sec => (
             <div key={sec.id} style={{ marginBottom: 6 }}>
               <div style={{ color: T.textDim, marginBottom: 3, fontSize: 10, letterSpacing: "0.06em" }}>▸ {sec.name.toUpperCase()}</div>
-              {sec.subheaders.length > 0 && (
+              {(sec.type || "text") === "text" && (sec.subheaders || []).length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, paddingLeft: 8 }}>
                   {sec.subheaders.map(sh => (
                     <span key={sh} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, color: T.textDim, fontSize: 9, padding: "1px 6px", letterSpacing: "0.04em" }}>{sh}</span>
@@ -269,8 +269,90 @@ function WaypointsSection({ sec, sectionData, onChange }) {
   );
 }
 
+function TableSection({ sec, sectionData, onChange }) {
+  const T = useTheme(); const css = makeCSS(T);
+  const columns = sec.columns || [];
+  const raw = (typeof sectionData === "object" && sectionData !== null && !Array.isArray(sectionData)) ? sectionData : {};
+  const rows = raw.rows || [];
+
+  const setRows = (newRows) => onChange({ ...raw, rows: newRows });
+
+  const addRow = () => {
+    const newRow = {};
+    columns.forEach(col => { newRow[col.id] = col.defaultValue || ""; });
+    setRows([...rows, newRow]);
+  };
+
+  const removeRow = (idx) => setRows(rows.filter((_, i) => i !== idx));
+
+  const setCellValue = (rowIdx, colId, val) => {
+    setRows(rows.map((row, i) => i === rowIdx ? { ...row, [colId]: val } : row));
+  };
+
+  if (columns.length === 0) {
+    return (
+      <div style={{ ...css.section, marginBottom: 12 }}>
+        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
+        <div style={{ fontSize: 11, color: T.textDim, marginTop: 8 }}>No columns defined. Configure columns in Settings → Section Schema.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...css.section, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
+        <button style={{ ...css.btn(), fontSize: 11 }} onClick={addRow}>+ Row</button>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "auto" }}>
+          <thead>
+            <tr>
+              {columns.map(col => (
+                <th key={col.id} style={{ padding: "6px 8px", borderBottom: `2px solid ${T.accent}`, textAlign: "left", fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+                  {col.label.toUpperCase()}
+                </th>
+              ))}
+              <th style={{ width: 32, borderBottom: `2px solid ${T.accent}` }} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length + 1} style={{ padding: "16px 8px", textAlign: "center", color: T.textMuted, fontSize: 11 }}>
+                  No rows yet — click + Row to add one.
+                </td>
+              </tr>
+            ) : rows.map((row, rowIdx) => (
+              <tr key={rowIdx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                {columns.map(col => (
+                  <td key={col.id} style={{ padding: "4px 6px", verticalAlign: "middle" }}>
+                    <input
+                      style={{ ...css.input, fontSize: 12, width: "100%", minWidth: 80, boxSizing: "border-box" }}
+                      value={row[col.id] ?? (col.defaultValue || "")}
+                      onChange={e => setCellValue(rowIdx, col.id, e.target.value)}
+                      placeholder={col.defaultValue || ""}
+                    />
+                  </td>
+                ))}
+                <td style={{ padding: "4px 6px", verticalAlign: "middle", textAlign: "center" }}>
+                  <button style={{ ...css.btn("danger"), padding: "2px 6px", fontSize: 11 }} onClick={() => removeRow(rowIdx)}>×</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded }) {
   const T = useTheme(); const css = makeCSS(T);
+
+  if (sec.type === "table") {
+    return <TableSection sec={sec} sectionData={sectionData} onChange={(newData) => onChange(undefined, newData)} />;
+  }
 
   // Waypoints section uses a different data shape and different handler
   if (sec.type === "waypoints") {
@@ -298,7 +380,7 @@ function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded })
       <div style={{ marginBottom: 10 }}>
         <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
       </div>
-      {sec.subheaders.length > 0
+      {(sec.subheaders || []).length > 0
         ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
             {sec.subheaders.map(sh => (
@@ -370,6 +452,27 @@ function SchemaEditor({ campaign, onUpdate }) {
     if (j < 0 || j >= arr.length) return c;
     [arr[i], arr[j]] = [arr[j], arr[i]]; return { ...c, sectionSchema: arr };
   });
+  const typeChange = (id, newType) => onUpdate(c => ({
+    ...c,
+    sectionSchema: c.sectionSchema.map(s => s.id !== id ? s : {
+      ...s, type: newType,
+      ...(newType === "table" && !s.columns ? { columns: [] } : {}),
+    }),
+  }));
+  const removeColumn = (sectionId, colId) => {
+    const hasData = campaign.pages.some(page => {
+      const raw = page.sections?.[sectionId];
+      if (typeof raw !== "object" || raw === null) return false;
+      return (raw.rows || []).some(row => row[colId] && row[colId] !== "");
+    });
+    if (hasData && !window.confirm("This column has data in one or more missions. Removing it will permanently delete that data. Continue?")) return;
+    onUpdate(c => ({
+      ...c,
+      sectionSchema: c.sectionSchema.map(s =>
+        s.id === sectionId ? { ...s, columns: (s.columns || []).filter(col => col.id !== colId) } : s
+      ),
+    }));
+  };
 
   return (
     <div style={{ maxWidth: 640 }}>
@@ -382,17 +485,39 @@ function SchemaEditor({ campaign, onUpdate }) {
       <div style={{ marginBottom: 12, padding: 10, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, fontSize: 11, color: T.textDim }}>
         Changes here propagate to all mission pages automatically. Existing section content is preserved.
       </div>
-      {campaign.sectionSchema.map((sec, i) => <SchemaSectionRow key={sec.id} sec={sec} isFirst={i === 0} isLast={i === campaign.sectionSchema.length - 1} onChange={(f, v) => upd(sec.id, f, v)} onRemove={() => del(sec.id)} onMove={d => move(sec.id, d)} />)}
+      {campaign.sectionSchema.map((sec, i) => (
+        <SchemaSectionRow key={sec.id} sec={sec} isFirst={i === 0} isLast={i === campaign.sectionSchema.length - 1}
+          onChange={(f, v) => upd(sec.id, f, v)}
+          onRemove={() => del(sec.id)}
+          onMove={d => move(sec.id, d)}
+          onTypeChange={(newType) => typeChange(sec.id, newType)}
+          onRemoveColumn={(colId) => removeColumn(sec.id, colId)} />
+      ))}
       {campaign.sectionSchema.length === 0 && <div style={{ color: T.textDim, textAlign: "center", padding: 32 }}>No sections defined. Mission pages will be free-form.</div>}
     </div>
   );
 }
 
-function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) {
+function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, onTypeChange, onRemoveColumn }) {
   const T = useTheme(); const css = makeCSS(T);
   const [sub, setSub] = useState("");
-  const isWaypoints = (sec.type || "text") === "waypoints";
-  const addSub = () => { const s = sub.trim(); if (!s || sec.subheaders.includes(s)) { setSub(""); return; } onChange("subheaders", [...sec.subheaders, s]); setSub(""); };
+  const [newColLabel, setNewColLabel] = useState("");
+  const [newColDefault, setNewColDefault] = useState("");
+  const secType = sec.type || "text";
+
+  const addSub = () => {
+    const s = sub.trim();
+    if (!s || (sec.subheaders || []).includes(s)) { setSub(""); return; }
+    onChange("subheaders", [...(sec.subheaders || []), s]); setSub("");
+  };
+
+  const addColumn = () => {
+    const label = newColLabel.trim();
+    if (!label) return;
+    onChange("columns", [...(sec.columns || []), { id: uid(), label, defaultValue: newColDefault }]);
+    setNewColLabel(""); setNewColDefault("");
+  };
+
   return (
     <div style={{ ...css.section, marginBottom: 10 }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
@@ -401,27 +526,53 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
           <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10 }} disabled={isLast} onClick={() => onMove(1)}>▼</button>
         </div>
         <input style={{ ...css.input, fontWeight: "bold", color: T.accentBright, flex: 1 }} value={sec.name} onChange={e => onChange("name", e.target.value)} />
-        <select style={{ ...css.input, width: "auto", fontSize: 11 }} value={sec.type || "text"} onChange={e => onChange("type", e.target.value)}>
+        <select style={{ ...css.input, width: "auto", fontSize: 11 }} value={secType} onChange={e => onTypeChange(e.target.value)}>
           <option value="text">Text</option>
           <option value="waypoints">Waypoints</option>
+          <option value="table">Table</option>
         </select>
         <button style={css.btn("danger")} onClick={onRemove}>Remove</button>
       </div>
-      {isWaypoints
-        ? <div style={{ fontSize: 11, color: T.textDim, padding: "4px 0" }}>Each mission sets its own waypoint count (1–26) and per-waypoint instructions.</div>
-        : (
-          <>
-            <div style={css.label}>Subheaders:</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-              {sec.subheaders.map(sh => <span key={sh} style={{ ...css.tag, cursor: "pointer" }} onClick={() => onChange("subheaders", sec.subheaders.filter(s => s !== sh))}>{sh} ×</span>)}
+      {secType === "waypoints" && (
+        <div style={{ fontSize: 11, color: T.textDim, padding: "4px 0" }}>Each mission sets its own waypoint count (1–26) and per-waypoint instructions.</div>
+      )}
+      {secType === "table" && (
+        <>
+          <div style={{ ...css.label, marginBottom: 6 }}>
+            Columns: <span style={{ color: T.textMuted, fontWeight: "normal", fontSize: 10 }}>label · default value</span>
+          </div>
+          {(sec.columns || []).map(col => (
+            <div key={col.id} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+              <input style={{ ...css.input, flex: 2, fontSize: 11 }} placeholder="Column label" value={col.label}
+                onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, label: e.target.value } : c))} />
+              <input style={{ ...css.input, flex: 1, fontSize: 11 }} placeholder="Default" value={col.defaultValue || ""}
+                onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, defaultValue: e.target.value } : c))} />
+              <button style={{ ...css.btn("danger"), padding: "2px 6px" }} onClick={() => onRemoveColumn(col.id)}>×</button>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <input style={{ ...css.input, fontSize: 11, flex: 1 }} placeholder="Add subheader..." value={sub} onChange={e => setSub(e.target.value)} onKeyDown={e => e.key === "Enter" && addSub()} />
-              <button style={css.btn()} onClick={addSub}>+</button>
-            </div>
-          </>
-        )
-      }
+          ))}
+          <div style={{ display: "flex", gap: 6 }}>
+            <input style={{ ...css.input, flex: 2, fontSize: 11 }} placeholder="New column label..." value={newColLabel}
+              onChange={e => setNewColLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addColumn()} />
+            <input style={{ ...css.input, flex: 1, fontSize: 11 }} placeholder="Default" value={newColDefault}
+              onChange={e => setNewColDefault(e.target.value)} onKeyDown={e => e.key === "Enter" && addColumn()} />
+            <button style={css.btn()} onClick={addColumn}>+</button>
+          </div>
+        </>
+      )}
+      {secType === "text" && (
+        <>
+          <div style={css.label}>Subheaders:</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+            {(sec.subheaders || []).map(sh => (
+              <span key={sh} style={{ ...css.tag, cursor: "pointer" }} onClick={() => onChange("subheaders", (sec.subheaders || []).filter(s => s !== sh))}>{sh} ×</span>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input style={{ ...css.input, fontSize: 11, flex: 1 }} placeholder="Add subheader..." value={sub} onChange={e => setSub(e.target.value)} onKeyDown={e => e.key === "Enter" && addSub()} />
+            <button style={css.btn()} onClick={addSub}>+</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
