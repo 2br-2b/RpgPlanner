@@ -31,6 +31,7 @@ ingress:
   enabled: true
   className: ""          # e.g. "nginx" or "traefik"; leave blank for cluster default
   host: campaign.theboxofwires.com   # e.g. campaign.example.com
+  annotations: {}        # e.g. traefik.ingress.kubernetes.io/router.middlewares: default-bouncer@kubernetescrd
   tls:
     enabled: true
     secretName: campaign-manager-tls   # cert-manager will populate this

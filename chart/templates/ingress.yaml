@@ -5,10 +5,13 @@ metadata:
   name: {{ include "campaign-manager.fullname" . }}
   labels:
     {{- include "campaign-manager.labels" . | nindent 4 }}
-  {{- if .Values.ingress.tls.enabled }}
   annotations:
+    {{- if .Values.ingress.tls.enabled }}
     cert-manager.io/cluster-issuer: letsencrypt
-  {{- end }}
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
