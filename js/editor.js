@@ -169,7 +169,7 @@ function PageEditor({ page, schema, onUpdate, onBack }) {
         <div>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <button style={css.btn(editMode ? "primary" : "default")} onClick={() => setEditMode(!editMode)}>{editMode ? "Preview" : "Edit"}</button>
-            <button style={css.btn()} onClick={() => triggerImg("free")}>⬆ Image</button>
+            <button style={css.btn()} onClick={() => triggerImg("free")}>🖼 Image</button>
           </div>
           {editMode
             ? <textarea style={{ ...css.textarea, minHeight: 400 }} value={page.content || ""} onChange={e => set("content", e.target.value)} placeholder="Markdown supported..." />
@@ -223,7 +223,7 @@ function SubBox({ label, value, onChange, onImageUpload, expanded, T, css }) {
     <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.08em", flex: 1 }}>{label.toUpperCase()}</span>
-        <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={onImageUpload}>⬆</button>
+        <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={onImageUpload}>🖼</button>
         <button style={{ ...css.btn(editMode ? "primary" : "default"), fontSize: 10, padding: "2px 8px" }} onClick={() => setEditMode(!editMode)}>{editMode ? "Preview" : "Edit"}</button>
       </div>
       {editMode

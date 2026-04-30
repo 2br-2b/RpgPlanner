@@ -92,12 +92,12 @@ function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
             <span style={{ fontSize: 10, color: page.type === "mission" ? T.accent : T.textDim, flexShrink: 0 }}>{page.type === "mission" ? "⬟" : "◻"}</span>
             <span style={{ flex: 1, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{page.name}</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 1, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-              <button style={{ ...css.btn(), padding: "0px 4px", fontSize: 8, lineHeight: 1.2, opacity: idx === 0 ? 0.2 : 0.7 }} disabled={idx === 0} onClick={() => movePage(page.id, -1)}>▲</button>
-              <button style={{ ...css.btn(), padding: "0px 4px", fontSize: 8, lineHeight: 1.2, opacity: idx === siblings.length - 1 ? 0.2 : 0.7 }} disabled={idx === siblings.length - 1} onClick={() => movePage(page.id, 1)}>▼</button>
+              <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, lineHeight: 1.3, opacity: idx === 0 ? 0.2 : 0.7 }} disabled={idx === 0} title="Move up" onClick={() => movePage(page.id, -1)}>↑</button>
+              <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, lineHeight: 1.3, opacity: idx === siblings.length - 1 ? 0.2 : 0.7 }} disabled={idx === siblings.length - 1} title="Move down" onClick={() => movePage(page.id, 1)}>↓</button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 1, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-              <button style={{ ...css.btn(), padding: "0px 4px", fontSize: 8, lineHeight: 1.2, opacity: idx === 0 ? 0.2 : 0.7 }} disabled={idx === 0} title="Indent" onClick={() => indentPage(page.id)}>→</button>
-              <button style={{ ...css.btn(), padding: "0px 4px", fontSize: 8, lineHeight: 1.2, opacity: hasParent ? 0.7 : 0.2 }} disabled={!hasParent} title="Unindent" onClick={() => unindentPage(page.id)}>←</button>
+              <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, lineHeight: 1.3, opacity: idx === 0 ? 0.2 : 0.7 }} disabled={idx === 0} title="Indent (nest under previous)" onClick={() => indentPage(page.id)}>⇥</button>
+              <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, lineHeight: 1.3, opacity: hasParent ? 0.7 : 0.2 }} disabled={!hasParent} title="Unindent (promote)" onClick={() => unindentPage(page.id)}>⇤</button>
             </div>
             <button style={{ ...css.btn("danger"), padding: "1px 5px", fontSize: 10, opacity: 0.6, flexShrink: 0 }}
               onClick={e => { e.stopPropagation(); setPendingDelete(isDeleting ? null : page.id); }}>×</button>
