@@ -285,6 +285,68 @@ function TableSection({ sec, sectionData, onChange }) {
   const removeRow = (idx) => setRows(rows.filter((_, i) => i !== idx));
   const setCellValue = (rowIdx, colId, val) => setRows(rows.map((row, i) => i === rowIdx ? { ...row, [colId]: val } : row));
 
+  const exportCSV = () => {
+    const escape = (v) => {
+      const s = String(v ?? "");
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = columns.map(c => escape(c.label)).join(",");
+    const body = rows.map(row => columns.map(col => {
+      const v = row[col.id];
+      if (col.type === "checkbox") return v === true || v === "true" ? "true" : "false";
+      return escape(v);
+    }).join(",")).join("\n");
+    const blob = new Blob([header + "\n" + body], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${sec.name || "table"}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importCSVRef = useRef(null);
+  const importCSV = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+      if (lines.length < 2) return;
+      const parseRow = (line) => {
+        const result = []; let cur = ""; let inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (inQ) { if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; } else if (ch === '"') inQ = false; else cur += ch; }
+          else if (ch === '"') inQ = true;
+          else if (ch === ',') { result.push(cur); cur = ""; }
+          else cur += ch;
+        }
+        result.push(cur);
+        return result;
+      };
+      const headers = parseRow(lines[0]);
+      const colByLabel = {};
+      columns.forEach(c => { colByLabel[c.label.toLowerCase()] = c; });
+      const newRows = lines.slice(1).map(line => {
+        const vals = parseRow(line);
+        const row = {};
+        columns.forEach(c => { row[c.id] = getDefaultValue(c); });
+        headers.forEach((h, i) => {
+          const col = colByLabel[h.toLowerCase()];
+          if (!col) return;
+          const raw = vals[i] ?? "";
+          if (col.type === "checkbox") row[col.id] = raw.toLowerCase() === "true";
+          else if (col.type === "number") row[col.id] = raw === "" ? "" : Number(raw);
+          else row[col.id] = raw;
+        });
+        return row;
+      });
+      setRows(newRows);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
   const cycleSort = (colId) => {
     if (sortCol !== colId) { setSortCol(colId); setSortDir("asc"); }
     else if (sortDir === "asc") setSortDir("desc");
@@ -355,6 +417,11 @@ function TableSection({ sec, sectionData, onChange }) {
         <button style={{ ...css.btn(), fontSize: 11 }} onClick={addRow}>+ Row</button>
         <input style={{ ...css.input, fontSize: 11, flex: 1, maxWidth: 200 }} placeholder="Filter rows..." value={filterText} onChange={e => setFilterText(e.target.value)} />
         {filterText && <button style={{ ...css.btn(), fontSize: 11, padding: "2px 6px" }} onClick={() => setFilterText("")}>✕</button>}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          <button style={{ ...css.btn(), fontSize: 11 }} onClick={exportCSV} title="Export table as CSV">↓ CSV</button>
+          <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => importCSVRef.current?.click()} title="Import rows from CSV">↑ CSV</button>
+          <input ref={importCSVRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={importCSV} />
+        </div>
       </div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "auto" }}>
