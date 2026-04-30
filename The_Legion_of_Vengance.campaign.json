@@ -1,0 +1,143 @@
+{
+  "id": "2c93eb69-77cf-4a6e-acc5-c31b253b3aba",
+  "name": "The Legion of Vengance",
+  "theme": "materialDark",
+  "sectionSchema": [
+    {
+      "id": "9bfd6e91-3e6f-4d78-9ccc-25b24bc13247",
+      "name": "Overview",
+      "subheaders": [
+        "Background",
+        "Objectives"
+      ]
+    },
+    {
+      "id": "bee85ef4-acfe-47e8-9cf5-ca9df37b2b1c",
+      "name": "Setup",
+      "subheaders": [
+        "Map",
+        "Party Team",
+        "Enenmy Team",
+        "Waypoints"
+      ]
+    },
+    {
+      "id": "6f6cdbf0-5af0-4a9b-a9ba-71dc66e18b4b",
+      "name": "Special Rules",
+      "subheaders": []
+    },
+    {
+      "id": "ad64fe5b-fbab-49f3-95ac-91f8c412e045",
+      "name": "End Conditions",
+      "subheaders": []
+    },
+    {
+      "id": "b6006d5e-648e-495d-b10c-ab74417534af",
+      "name": "Waypoints",
+      "subheaders": []
+    }
+  ],
+  "schemaVersion": 2,
+  "pages": [
+    {
+      "id": "aa4e6ff7-f710-4de0-ad1c-593b9347adff",
+      "name": "Background",
+      "type": "free",
+      "tags": [],
+      "content": "Your mission is to take down “The Legion of Vengeance\".",
+      "sections": {},
+      "costs": [],
+      "awards": []
+    },
+    {
+      "id": "f38b9225-30d1-40f9-aa71-ab088d84e90f",
+      "name": "The Welcome Party",
+      "type": "mission",
+      "tags": [],
+      "content": "",
+      "sections": {
+        "9bfd6e91-3e6f-4d78-9ccc-25b24bc13247": "",
+        "bee85ef4-acfe-47e8-9cf5-ca9df37b2b1c": "",
+        "6f6cdbf0-5af0-4a9b-a9ba-71dc66e18b4b": "# Dropping in"
+      },
+      "costs": [],
+      "awards": []
+    },
+    {
+      "id": "6bad21ec-ea1e-4a55-bdc0-584d21da3f32",
+      "name": "Automated Bombs",
+      "type": "mission",
+      "tags": [],
+      "content": "",
+      "sections": {
+        "9bfd6e91-3e6f-4d78-9ccc-25b24bc13247": {
+          "Background": "The enemy is enraged by your previous actions! Out of fury, they decide to attack your base!"
+        }
+      },
+      "costs": [],
+      "awards": []
+    },
+    {
+      "id": "86b7c03e-800e-432e-bd5a-0ae3b6c71b1e",
+      "name": "Find the commander",
+      "type": "mission",
+      "tags": [],
+      "content": "",
+      "sections": {
+        "9bfd6e91-3e6f-4d78-9ccc-25b24bc13247": {
+          "Background": "The opposing commander is in one of the opposing units! You need to destroy opposing units until you destroy the one with the opponent's commander."
+        },
+        "bee85ef4-acfe-47e8-9cf5-ca9df37b2b1c": {
+          "Waypoints": "Shuffle the waypoint markers and place one face down on each mech's card. If a mech is destroyed, flip over the waypoint and read the text."
+        }
+      },
+      "costs": [],
+      "awards": []
+    },
+    {
+      "id": "072d54f8-e53a-487c-90c9-95052702707f",
+      "name": "Hold the hill",
+      "type": "mission",
+      "tags": [],
+      "content": "",
+      "sections": {
+        "9bfd6e91-3e6f-4d78-9ccc-25b24bc13247": {
+          "Background": "Your opponents are targeting a specific base. Your mission is to hold out long enough for air support to get in.\nEach turn, the enemy will send more units into the map, rolling each turn to see which side, etc. After a certain number of turns, friendly air support will arrive. You need to hold off the invaders and destroy them all!\n"
+        },
+        "bee85ef4-acfe-47e8-9cf5-ca9df37b2b1c": {
+          "Map": "Set up a ring of cliffs, and a few buildings in the middle. This is your base. You spawn in the middle of the ring.",
+          "Waypoints": "Put a waypoint A-G on each hex from 1-7. Put Waypoint H onto space 10.\n"
+        },
+        "6f6cdbf0-5af0-4a9b-a9ba-71dc66e18b4b": "The enemy units follow forced withdrawal rules.",
+        "ad64fe5b-fbab-49f3-95ac-91f8c412e045": "You win if:\n- Waypoint H has been revealed, and no enemy units remain on the map\n- At the start of turn 7, all enemy units have been eliminated\n\nYou lose if:\n- The base is destroyed",
+        "b6006d5e-648e-495d-b10c-ab74417534af": "Waypoint Alpha\nWaypoint Bravo\nWaypoint Charlie\nWaypoint Delta - A respite! Are they planning something or just regrouping? Nothing happens this turn.\nWaypoint Echo\nWaypoint Foxtrot - the friendly aerospace forces arrive! Each turn, you get X heavy bombings.\nWaypoint Golf\nWaypoint Hotel - your tireless bombardment has tired out the enemy! All enemy units are now in forced withdrawal"
+      },
+      "costs": [],
+      "awards": []
+    },
+    {
+      "id": "a871f0dc-12f5-42b0-ada3-eb8847aa2d47",
+      "name": "Destroy the enemy base",
+      "type": "mission",
+      "tags": [],
+      "content": "",
+      "sections": {
+        "9bfd6e91-3e6f-4d78-9ccc-25b24bc13247": {
+          "Background": "You’ve discovered an outpost belonging to the Legion of Vengeance!",
+          "Objectives": "Your mission is to obliterate their base and leave no trace behind."
+        },
+        "bee85ef4-acfe-47e8-9cf5-ca9df37b2b1c": {
+          "Map": "Set up a bunch of buildings. This is the Legion’s HQ."
+        },
+        "ad64fe5b-fbab-49f3-95ac-91f8c412e045": "You win if:\n- You destroy all the buildings"
+      },
+      "costs": [],
+      "awards": []
+    }
+  ],
+  "flowchart": {
+    "nodes": [],
+    "edges": []
+  },
+  "exportedAt": "2026-04-30T05:20:56.350Z"
+}

@@ -23,7 +23,7 @@ This git-pushes, triggers Flux reconciliation, restarts the deployment, and wait
 
 ## Architecture
 
-**No build step.** The entire frontend is a single file (`campaign-manager.html`) — React 18 + Babel loaded from CDN, all JSX compiled in-browser at runtime.
+**No build step.** The frontend is `campaign-manager.html` (shell only) + `js/` (JSX source files) — React 18 + Babel loaded from CDN, all JSX compiled in-browser at runtime. Load order in the HTML matters: `theme.js` → `storage.js` → `io.js` → `sidebar.js` → `editor.js` → `flowchart.js` → `simulator.js` → `settings.js` → `app.js`. Each file depends on globals defined by earlier files.
 
 **Backend** (`backend.py`) is a minimal FastAPI app with a single SQLite database at `/data/campaigns.db`. It stores campaign data as JSON blobs keyed by a client-generated GUID. The same GUID is stored in `localStorage` and can be shared via `?guid=` URL param to sync across devices. The backend also serves `campaign-manager.html` for all non-API routes.
 

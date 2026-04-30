@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 DB_PATH = Path("/data/campaigns.db")
@@ -99,7 +100,11 @@ async def save_campaign(guid: str, request: Request, body: SaveBody):
 
 
 # ── Static file serving ───────────────────────────────────────────────────────
-# Serves campaign-manager.html for all non-API routes so the SPA handles routing
+# Serve js/ directory as static files, then fall back to SPA HTML for everything else
+
+_js_dir = STATIC_DIR / "js"
+if _js_dir.exists():
+    app.mount("/js", StaticFiles(directory=str(_js_dir)), name="js")
 
 @app.get("/{full_path:path}")
 def spa_fallback(full_path: str):
