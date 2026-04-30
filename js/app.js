@@ -124,7 +124,7 @@ function App() {
 
         {!isMobile && (
           <div style={css.topbar}>
-            <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", letterSpacing: "0.15em", flexShrink: 0 }}>◈ CAMPAIGN MGR</span>
+            <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", letterSpacing: "0.15em", flexShrink: 0 }}>◈ John's Campaign Manager</span>
             <input style={{ ...css.input, width: 180, fontSize: 13 }} value={campaign.name} onChange={e => update(c => ({ ...c, name: e.target.value }))} />
             <div style={{ flex: 1 }} />
             {NAV_ITEMS.map(({ key, label }) => (
