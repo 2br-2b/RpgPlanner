@@ -233,8 +233,60 @@ function SubBox({ label, value, onChange, onImageUpload, expanded, T, css }) {
   );
 }
 
+const WAYPOINT_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+function WaypointsSection({ sec, sectionData, onChange }) {
+  const T = useTheme(); const css = makeCSS(T);
+  // sectionData shape: { count: number, waypoints: { A: "...", ... } }
+  const raw = (typeof sectionData === "object" && sectionData !== null && !Array.isArray(sectionData)) ? sectionData : {};
+  const count = Math.min(26, Math.max(1, Number(raw.count) || 1));
+  const waypoints = raw.waypoints || {};
+
+  const setCount = (n) => onChange("__waypoints_count__", n);
+  const setWaypoint = (label, text) => onChange("__waypoints_wp__" + label, text);
+
+  return (
+    <div style={{ ...css.section, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
+        <span style={{ fontSize: 11, color: T.textDim }}>Waypoints:</span>
+        <input type="number" min="1" max="26" style={{ ...css.input, width: 56, fontSize: 12 }}
+          value={count} onChange={e => setCount(Math.min(26, Math.max(1, Number(e.target.value) || 1)))} />
+        <span style={{ fontSize: 10, color: T.textMuted }}>A–{WAYPOINT_LABELS[count - 1]}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+        {WAYPOINT_LABELS.slice(0, count).map(label => (
+          <div key={label} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ ...css.tag, alignSelf: "flex-start" }}>{label}</span>
+            <textarea style={{ ...css.textarea, minHeight: 80, resize: "vertical" }}
+              placeholder={`Waypoint ${label}: Do…`}
+              value={waypoints[label] || ""}
+              onChange={e => setWaypoint(label, e.target.value)} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded }) {
   const T = useTheme(); const css = makeCSS(T);
+
+  // Waypoints section uses a different data shape and different handler
+  if (sec.type === "waypoints") {
+    // onChange for waypoints: we overload the subKey param with special keys
+    const handleChange = (specialKey, v) => {
+      const raw = (typeof sectionData === "object" && sectionData !== null && !Array.isArray(sectionData)) ? sectionData : {};
+      if (specialKey === "__waypoints_count__") {
+        onChange(undefined, { ...raw, count: v });
+      } else if (specialKey && specialKey.startsWith("__waypoints_wp__")) {
+        const label = specialKey.slice("__waypoints_wp__".length);
+        onChange(undefined, { ...raw, waypoints: { ...(raw.waypoints || {}), [label]: v } });
+      }
+    };
+    return <WaypointsSection sec={sec} sectionData={sectionData} onChange={handleChange} />;
+  }
+
   const getVal = (sh) => {
     if (typeof sectionData === "object" && sectionData !== null) return sectionData[sh] || "";
     return "";
@@ -310,7 +362,7 @@ function CostsAwards({ costs, awards, onAddCost, onAddAward, onUpdateCost, onUpd
 // ═══════════════════════════════════════════════════════════════════════════════
 function SchemaEditor({ campaign, onUpdate }) {
   const T = useTheme(); const css = makeCSS(T);
-  const add = () => onUpdate(c => ({ ...c, sectionSchema: [...c.sectionSchema, { id: uid(), name: "New Section", subheaders: [] }] }));
+  const add = () => onUpdate(c => ({ ...c, sectionSchema: [...c.sectionSchema, { id: uid(), name: "New Section", type: "text", subheaders: [] }] }));
   const upd = (id, f, v) => onUpdate(c => ({ ...c, sectionSchema: c.sectionSchema.map(s => s.id === id ? { ...s, [f]: v } : s) }));
   const del = (id) => onUpdate(c => ({ ...c, sectionSchema: c.sectionSchema.filter(s => s.id !== id) }));
   const move = (id, d) => onUpdate(c => {
@@ -339,6 +391,7 @@ function SchemaEditor({ campaign, onUpdate }) {
 function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) {
   const T = useTheme(); const css = makeCSS(T);
   const [sub, setSub] = useState("");
+  const isWaypoints = (sec.type || "text") === "waypoints";
   const addSub = () => { const s = sub.trim(); if (!s || sec.subheaders.includes(s)) { setSub(""); return; } onChange("subheaders", [...sec.subheaders, s]); setSub(""); };
   return (
     <div style={{ ...css.section, marginBottom: 10 }}>
@@ -348,16 +401,27 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
           <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10 }} disabled={isLast} onClick={() => onMove(1)}>▼</button>
         </div>
         <input style={{ ...css.input, fontWeight: "bold", color: T.accentBright, flex: 1 }} value={sec.name} onChange={e => onChange("name", e.target.value)} />
+        <select style={{ ...css.input, width: "auto", fontSize: 11 }} value={sec.type || "text"} onChange={e => onChange("type", e.target.value)}>
+          <option value="text">Text</option>
+          <option value="waypoints">Waypoints</option>
+        </select>
         <button style={css.btn("danger")} onClick={onRemove}>Remove</button>
       </div>
-      <div style={css.label}>Subheaders:</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-        {sec.subheaders.map(sh => <span key={sh} style={{ ...css.tag, cursor: "pointer" }} onClick={() => onChange("subheaders", sec.subheaders.filter(s => s !== sh))}>{sh} ×</span>)}
-      </div>
-      <div style={{ display: "flex", gap: 6 }}>
-        <input style={{ ...css.input, fontSize: 11, flex: 1 }} placeholder="Add subheader..." value={sub} onChange={e => setSub(e.target.value)} onKeyDown={e => e.key === "Enter" && addSub()} />
-        <button style={css.btn()} onClick={addSub}>+</button>
-      </div>
+      {isWaypoints
+        ? <div style={{ fontSize: 11, color: T.textDim, padding: "4px 0" }}>Each mission sets its own waypoint count (1–26) and per-waypoint instructions.</div>
+        : (
+          <>
+            <div style={css.label}>Subheaders:</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              {sec.subheaders.map(sh => <span key={sh} style={{ ...css.tag, cursor: "pointer" }} onClick={() => onChange("subheaders", sec.subheaders.filter(s => s !== sh))}>{sh} ×</span>)}
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input style={{ ...css.input, fontSize: 11, flex: 1 }} placeholder="Add subheader..." value={sub} onChange={e => setSub(e.target.value)} onKeyDown={e => e.key === "Enter" && addSub()} />
+              <button style={css.btn()} onClick={addSub}>+</button>
+            </div>
+          </>
+        )
+      }
     </div>
   );
 }

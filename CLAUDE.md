@@ -31,7 +31,7 @@ This git-pushes, triggers Flux reconciliation, restarts the deployment, and wait
 
 **Persistence flow**: the frontend writes to `localStorage` immediately as a local backup, then async-syncs to `/api/campaign/{guid}` with a debounced 800ms save.
 
-**Sections vs subheaders**: Mission pages have a `sectionSchema` (array of sections, each with optional `subheaders`). Section content is stored in `page.sections[sectionId]` — either a flat string (no subheaders) or an object keyed by subheader name when subheaders exist.
+**Sections vs subheaders**: Mission pages have a `sectionSchema` (array of sections, each with `type: "text" | "waypoints"` and optional `subheaders`). Section content is stored in `page.sections[sectionId]` — either a flat string (no subheaders), an object keyed by subheader name, or for waypoints: `{ count: N, waypoints: { A: "...", B: "..." } }`.
 
 **Page tree**: Pages have `parentId` (null for top-level) and `order` (integer, scoped to siblings). Use `getSiblings(pages, parentId)` to get a sorted sibling list. The sidebar renders the tree recursively with indent (→) / unindent (←) and ↑↓ reorder buttons. Deleting a page also deletes all descendants.
 

@@ -57,7 +57,8 @@ const uid = () => crypto.randomUUID();
 // v1: original (no version field)
 // v2: edges gain .events[], nodes gain .isStart/.isEnd
 // v3: pages gain .parentId (null) and .order (integer)
-const SCHEMA_VERSION = 3;
+// v4: sectionSchema entries gain .type ("text" | "waypoints")
+const SCHEMA_VERSION = 4;
 
 function migrateCampaign(data) {
   const v = data.schemaVersion || 1;
@@ -81,6 +82,13 @@ function migrateCampaign(data) {
     };
   }
 
+  if (v < 4) {
+    d = {
+      ...d,
+      sectionSchema: (d.sectionSchema || []).map(s => ({ type: "text", ...s })),
+    };
+  }
+
   return { ...d, schemaVersion: SCHEMA_VERSION };
 }
 
@@ -93,9 +101,9 @@ function defaultCampaign() {
   return {
     id: uid(), name: "New Campaign", theme: preferredTheme(),
     sectionSchema: [
-      { id: uid(), name: "Overview", subheaders: ["Background", "Objectives"] },
-      { id: uid(), name: "Setup", subheaders: ["Deployment", "Special Rules"] },
-      { id: uid(), name: "Rewards", subheaders: ["C-Bills", "XP", "Salvage"] },
+      { id: uid(), name: "Overview", type: "text", subheaders: ["Background", "Objectives"] },
+      { id: uid(), name: "Setup", type: "text", subheaders: ["Deployment", "Special Rules"] },
+      { id: uid(), name: "Rewards", type: "text", subheaders: ["C-Bills", "XP", "Salvage"] },
     ],
     schemaVersion: SCHEMA_VERSION,
     pages: [], flowchart: { nodes: [], edges: [] },

@@ -19,8 +19,11 @@ function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
   const [pendingDelete, setPendingDelete] = useState(null);
   useEffect(() => { setType(campaign.defaultPageType || "mission"); }, [campaign.defaultPageType]);
 
+  const [nameError, setNameError] = useState(false);
+
   const add = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) { setNameError(true); return; }
+    setNameError(false);
     const siblings = getSiblings(campaign.pages, null);
     const order = siblings.length;
     onUpdate(c => ({ ...c, pages: [...c.pages, { id: uid(), name: name.trim(), type, tags: [], content: "", sections: {}, costs: [], awards: [], parentId: null, order }] }));
@@ -122,8 +125,10 @@ function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
     <div style={css.sidebar}>
       <div style={{ padding: "10px 12px", borderBottom: `1px solid ${T.border}` }}>
         <div style={css.label}>Pages</div>
-        <input style={{ ...css.input, fontSize: 11, marginBottom: 6 }} placeholder="Page name..." value={name}
-          onChange={e => setName(e.target.value)} onKeyDown={e => e.key === "Enter" && add()} />
+        <input style={{ ...css.input, fontSize: 11, marginBottom: nameError ? 2 : 6, borderColor: nameError ? T.danger : undefined, outline: nameError ? `1px solid ${T.danger}` : undefined }} placeholder="Page name..." value={name}
+          onChange={e => { setName(e.target.value); if (e.target.value.trim()) setNameError(false); }}
+          onKeyDown={e => e.key === "Enter" && add()} />
+        {nameError && <div style={{ fontSize: 10, color: T.danger, marginBottom: 4 }}>Name is required</div>}
         <div style={{ display: "flex", gap: 4 }}>
           <select style={{ ...css.input, fontSize: 11, flex: 1 }} value={type} onChange={e => setType(e.target.value)}>
             <option value="mission">Mission</option>
