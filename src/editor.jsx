@@ -265,6 +265,10 @@ function WaypointsSection({ sec, sectionData, onChange }) {
 function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded }) {
   const T = useTheme(); const css = makeCSS(T);
 
+  if (sec.type === "table") {
+    return <TableSection sec={sec} sectionData={sectionData} onChange={(newData) => onChange(undefined, newData)} />;
+  }
+
   if (sec.type === "waypoints") {
     const handleChange = (specialKey, v) => {
       const raw = (typeof sectionData === "object" && sectionData !== null && !Array.isArray(sectionData)) ? sectionData : {};
@@ -373,8 +377,31 @@ export function SchemaEditor({ campaign, onUpdate }) {
 function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) {
   const T = useTheme(); const css = makeCSS(T);
   const [sub, setSub] = useState("");
-  const isWaypoints = (sec.type || "text") === "waypoints";
-  const addSub = () => { const s = sub.trim(); if (!s || sec.subheaders.includes(s)) { setSub(""); return; } onChange("subheaders", [...sec.subheaders, s]); setSub(""); };
+  const [newColLabel, setNewColLabel] = useState("");
+  const [newColDefault, setNewColDefault] = useState("");
+  const secType = sec.type || "text";
+  const isWaypoints = secType === "waypoints";
+  const isTable = secType === "table";
+
+  const addSub = () => {
+    const s = sub.trim();
+    if (!s || (sec.subheaders || []).includes(s)) { setSub(""); return; }
+    onChange("subheaders", [...(sec.subheaders || []), s]);
+    setSub("");
+  };
+
+  const addColumn = () => {
+    const label = newColLabel.trim();
+    if (!label) return;
+    onChange("columns", [...(sec.columns || []), { id: uid(), label, defaultValue: newColDefault }]);
+    setNewColLabel("");
+    setNewColDefault("");
+  };
+
+  const removeColumn = (colId) => {
+    onChange("columns", (sec.columns || []).filter(c => c.id !== colId));
+  };
+
   return (
     <div style={{ ...css.section, marginBottom: 10 }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
@@ -383,27 +410,57 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
           <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10 }} disabled={isLast} onClick={() => onMove(1)}>▼</button>
         </div>
         <input style={{ ...css.input, fontWeight: "bold", color: T.accentBright, flex: 1 }} value={sec.name} onChange={e => onChange("name", e.target.value)} />
-        <select style={{ ...css.input, width: "auto", fontSize: 11 }} value={sec.type || "text"} onChange={e => onChange("type", e.target.value)}>
+        <select style={{ ...css.input, width: "auto", fontSize: 11 }} value={secType} onChange={e => {
+          const value = e.target.value;
+          onChange("type", value);
+          if (value === "table" && !sec.columns) onChange("columns", []);
+        }}>
           <option value="text">Text</option>
           <option value="waypoints">Waypoints</option>
+          <option value="table">Table</option>
         </select>
         <button style={css.btn("danger")} onClick={onRemove}>Remove</button>
       </div>
-      {isWaypoints
-        ? <div style={{ fontSize: 11, color: T.textDim, padding: "4px 0" }}>Each mission sets its own waypoint count (1–26) and per-waypoint instructions.</div>
-        : (
-          <>
-            <div style={css.label}>Subheaders:</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-              {sec.subheaders.map(sh => <span key={sh} style={{ ...css.tag, cursor: "pointer" }} onClick={() => onChange("subheaders", sec.subheaders.filter(s => s !== sh))}>{sh} ×</span>)}
+      {isWaypoints && (
+        <div style={{ fontSize: 11, color: T.textDim, padding: "4px 0" }}>Each mission sets its own waypoint count (1–26) and per-waypoint instructions.</div>
+      )}
+      {isTable && (
+        <>
+          <div style={{ ...css.label, marginBottom: 6 }}>
+            Columns: <span style={{ color: T.textMuted, fontWeight: "normal", fontSize: 10 }}>label · default value</span>
+          </div>
+          {(sec.columns || []).map(col => (
+            <div key={col.id} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+              <input style={{ ...css.input, flex: 2, fontSize: 11 }} placeholder="Column label" value={col.label}
+                onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, label: e.target.value } : c))} />
+              <input style={{ ...css.input, flex: 1, fontSize: 11 }} placeholder="Default" value={col.defaultValue || ""}
+                onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, defaultValue: e.target.value } : c))} />
+              <button style={{ ...css.btn("danger"), minWidth: 32, padding: "2px 6px" }} onClick={() => removeColumn(col.id)}>×</button>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <input style={{ ...css.input, fontSize: 11, flex: 1 }} placeholder="Add subheader..." value={sub} onChange={e => setSub(e.target.value)} onKeyDown={e => e.key === "Enter" && addSub()} />
-              <button style={css.btn()} onClick={addSub}>+</button>
-            </div>
-          </>
-        )
-      }
+          ))}
+          <div style={{ display: "flex", gap: 6 }}>
+            <input style={{ ...css.input, flex: 2, fontSize: 11 }} placeholder="New column label..." value={newColLabel}
+              onChange={e => setNewColLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addColumn()} />
+            <input style={{ ...css.input, flex: 1, fontSize: 11 }} placeholder="Default" value={newColDefault}
+              onChange={e => setNewColDefault(e.target.value)} onKeyDown={e => e.key === "Enter" && addColumn()} />
+            <button style={{ ...css.btn(), minWidth: 32, padding: "2px 6px" }} onClick={addColumn}>+</button>
+          </div>
+        </>
+      )}
+      {!isWaypoints && !isTable && (
+        <>
+          <div style={css.label}>Subheaders:</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+            {(sec.subheaders || []).map(sh => (
+              <span key={sh} style={{ ...css.tag, cursor: "pointer" }} onClick={() => onChange("subheaders", (sec.subheaders || []).filter(s => s !== sh))}>{sh} ×</span>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input style={{ ...css.input, fontSize: 11, flex: 1 }} placeholder="Add subheader..." value={sub} onChange={e => setSub(e.target.value)} onKeyDown={e => e.key === "Enter" && addSub()} />
+            <button style={css.btn()} onClick={addSub}>+</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
