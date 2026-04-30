@@ -1,7 +1,22 @@
 import { THEMES } from "./theme.js";
 
+const normalizeMarkdownHeadingLevels = (text) => {
+  const matches = [...text.matchAll(/^(#{1,6})\s+/gm)];
+  if (!matches.length) return text;
+
+  const minLevel = Math.min(...matches.map((m) => m[1].length));
+  const shift = Math.max(0, 3 - minLevel);
+  if (!shift) return text;
+
+  return text.replace(/^(#{1,6})\s+/gm, (match, hashes) => {
+    const level = Math.min(6, hashes.length + shift);
+    return "#".repeat(level) + " ";
+  });
+};
+
 export function renderMarkdown(text, theme) {
   if (!text) return "";
+  text = normalizeMarkdownHeadingLevels(text);
   const t = theme || THEMES.tactical;
   let html = text
     .replace(/&/g, "&amp;")
