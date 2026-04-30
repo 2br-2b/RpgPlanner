@@ -16,7 +16,7 @@ const dataDir = process.env.DATA_DIR || path.join(repoRoot, "data");
 const dbPath = process.env.DB_PATH || path.join(dataDir, "campaigns.db");
 
 const saveBodySchema = z.object({
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
 });
 
 type CampaignRecord = {
