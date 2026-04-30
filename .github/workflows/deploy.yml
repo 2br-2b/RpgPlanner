@@ -1,0 +1,113 @@
+name: Build and push to GHCR
+
+# ── CONFIGURE THESE ──────────────────────────────────────────────────────────
+# No secrets or variables need to be set for the build step — GITHUB_TOKEN is
+# built in. For the optional deploy steps, see the comments below.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend.py"
+      - "campaign-manager.html"
+      - "Dockerfile"
+      - "chart/**"
+      - ".github/workflows/deploy.yml"
+
+env:
+  REGISTRY: ghcr.io
+  # github.repository resolves to "2br-2b/RpgPlanner" automatically
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      # Expose the short SHA tag so the deploy job can reference it
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+            type=raw,value={{date 'YYYY-MM-DD'}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  # ── Optional: deploy to k3s via Helm ───────────────────────────────────────
+  #
+  # Prerequisites (one-time setup):
+  #   1. Add KUBECONFIG_B64 secret:
+  #        cat ~/.kube/config | base64 | tr -d '\n'
+  #        → GitHub repo → Settings → Secrets → Actions → New repository secret
+  #
+  #   2. On first deploy only, run this from your machine to install:
+  #        helm upgrade --install campaign-manager ./chart \
+  #          --set image.repository=ghcr.io/2br-2b/RpgPlanner \
+  #          --set ingress.host=campaign.theboxofwires.com \
+  #          --namespace default --create-namespace
+  #
+  #   Subsequent pushes to main will upgrade automatically via this job.
+  #
+  # To enable: uncomment this entire job block.
+  #
+  # deploy:
+  #   needs: build-and-push
+  #   runs-on: ubuntu-latest
+  #   environment: production   # optional: adds a manual approval gate in GitHub UI
+  #
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Install Helm
+  #       uses: azure/setup-helm@v4
+  #
+  #     - name: Configure kubectl
+  #       env:
+  #         KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+  #       run: |
+  #         mkdir -p ~/.kube
+  #         echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config
+  #         chmod 600 ~/.kube/config
+  #
+  #     - name: Helm upgrade
+  #       env:
+  #         IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+  #       run: |
+  #         helm upgrade campaign-manager ./chart \
+  #           --set image.tag="$IMAGE_TAG" \
+  #           --namespace default \
+  #           --wait \
+  #           --timeout 2m

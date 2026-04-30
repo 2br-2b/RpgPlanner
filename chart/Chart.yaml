@@ -1,0 +1,15 @@
+apiVersion: v2
+name: campaign-manager
+description: Self-hosted BattleTech campaign manager with GUID-based sync
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - battletech
+  - campaign
+  - tabletop
+home: https://github.com/2br-2b/RpgPlanner
+sources:
+  - https://github.com/2br-2b/RpgPlanner
+maintainers:
+  - name: 2br-2b

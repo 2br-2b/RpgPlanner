@@ -1,0 +1,55 @@
+# ── Image ─────────────────────────────────────────────────────────────────────
+image:
+  # Replace with your actual GHCR path, e.g.:
+  #   ghcr.io/2br-2b/RpgPlanner
+  repository: ghcr.io/2br-2b/RpgPlanner
+  tag: latest
+  pullPolicy: Always
+
+# imagePullSecrets: []   # uncomment + add a secret name if your GHCR package is private
+
+# ── Deployment ────────────────────────────────────────────────────────────────
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# ── Persistent storage (SQLite database) ──────────────────────────────────────
+persistence:
+  enabled: true
+  size: 1Gi
+  # storageClass: ""   # leave blank to use cluster default
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
+ingress:
+  # Standard Kubernetes Ingress (works with nginx-ingress, Traefik in Ingress mode, etc.)
+  enabled: true
+  className: ""          # e.g. "nginx" or "traefik"; leave blank for cluster default
+  host: campaign.theboxofwires.com   # e.g. campaign.example.com
+  tls:
+    enabled: true
+    secretName: campaign-manager-tls   # cert-manager will populate this
+
+# Traefik-native IngressRoute (only needed if you use Traefik CRDs directly)
+ingressRoute:
+  enabled: false
+  host: campaign.theboxofwires.com
+  entryPoints:
+    - websecure
+  certResolver: letsencrypt   # name of your Traefik ACME resolver
+
+# ── Probes ────────────────────────────────────────────────────────────────────
+livenessProbe:
+  path: /api/health
+  initialDelaySeconds: 5
+  periodSeconds: 30
+
+# ── Service ───────────────────────────────────────────────────────────────────
+service:
+  port: 80
+  targetPort: 8000

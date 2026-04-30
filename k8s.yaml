@@ -1,0 +1,95 @@
+---
+# Persistent volume for SQLite database
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: campaign-manager-data
+  namespace: default
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campaign-manager
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: campaign-manager
+  template:
+    metadata:
+      labels:
+        app: campaign-manager
+    spec:
+      containers:
+        - name: campaign-manager
+          # Replace 2br-2b and RpgPlanner below.
+          # GHCR image names must be lowercase.
+          image: ghcr.io/2br-2b/RpgPlanner:latest
+          imagePullPolicy: Always   # Always pull so :latest stays current
+          # imagePullSecrets are NOT needed for public GHCR packages.
+          # If you keep the package private, add a secret:
+          #   kubectl create secret docker-registry ghcr-secret \
+          #     --docker-server=ghcr.io \
+          #     --docker-username=2br-2b \
+          #     --docker-password=YOUR_PAT  (needs read:packages scope)
+          # Then add to the pod spec: imagePullSecrets: [{name: ghcr-secret}]
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: campaign-manager-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: campaign-manager
+  namespace: default
+spec:
+  selector:
+    app: campaign-manager
+  ports:
+    - port: 80
+      targetPort: 8000
+
+---
+# Traefik IngressRoute (adjust host to match your k3s setup)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: campaign-manager
+  namespace: default
+spec:
+  entryPoints: [websecure]
+  routes:
+    - match: Host(`campaign.theboxofwires.com`)
+      kind: Rule
+      services:
+        - name: campaign-manager
+          port: 80
+  tls:
+    certResolver: letsencrypt   # adjust to your cert-manager/Traefik resolver name

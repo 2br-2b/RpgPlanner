@@ -1,0 +1,37 @@
+Campaign Manager deployed successfully.
+
+  Release:   {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+  Image:     {{ include "campaign-manager.image" . }}
+
+{{- if .Values.ingress.enabled }}
+
+Access your campaign manager at:
+  https://{{ .Values.ingress.host }}
+
+{{- else if .Values.ingressRoute.enabled }}
+
+Access your campaign manager at:
+  https://{{ .Values.ingressRoute.host }}
+
+{{- else }}
+
+No ingress is enabled. Forward the service to access it locally:
+  kubectl port-forward svc/{{ include "campaign-manager.fullname" . }} 8080:80 -n {{ .Release.Namespace }}
+  Then open: http://localhost:8080
+
+{{- end }}
+
+Sync ID:
+  Each browser generates its own GUID on first visit, stored in localStorage.
+  Go to Settings → Sync & Sharing to copy your share link or adopt another device's ID.
+
+Health check:
+  curl https://{{ .Values.ingress.host }}/api/health
+
+To upgrade after a new image push:
+  helm upgrade {{ .Release.Name }} ./chart --reuse-values --set image.tag=sha-<new-sha>
+
+To uninstall (note: PVC is kept by default to protect your data):
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
+  # To also delete data: kubectl delete pvc {{ include "campaign-manager.fullname" . }}-data -n {{ .Release.Namespace }}
