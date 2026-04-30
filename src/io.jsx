@@ -18,17 +18,41 @@ function exportMarkdown(campaign) {
       for (const sec of campaign.sectionSchema) {
         const raw = page.sections?.[sec.id];
         lines.push(`### ${sec.name}`);
-        if (typeof raw === "object" && raw !== null) {
-          const hasAny = sec.subheaders.some(sh => raw[sh]);
-          if (hasAny) {
-            sec.subheaders.forEach(sh => {
-              if (raw[sh]) lines.push(`#### ${sh}\n${raw[sh].replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]")}`);
-            });
+        if (sec.type === "table") {
+          const columns = sec.columns || [];
+          if (columns.length === 0) {
+            lines.push("_No columns defined_");
+          } else if (typeof raw === "object" && raw !== null && Array.isArray(raw.rows) && raw.rows.length > 0) {
+            lines.push("| " + columns.map(c => c.label).join(" | ") + " |");
+            lines.push("| " + columns.map(() => "---").join(" | ") + " |");
+            for (const row of raw.rows) {
+              lines.push("| " + columns.map(c => (row[c.id] || "").replace(/\|/g, "\\|").replace(/\n/g, " ")).join(" | ") + " |");
+            }
+          } else {
+            lines.push("_No content_");
+          }
+        } else if (sec.type === "waypoints") {
+          if (typeof raw === "object" && raw !== null) {
+            const count = Math.min(26, Math.max(1, Number(raw.count) || 1));
+            const wps = raw.waypoints || {};
+            const entries = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".slice(0, count).split("").filter(l => wps[l]).map(l => `- **${l}**: ${wps[l].replace(/\n/g, " ")}`);
+            entries.length > 0 ? lines.push(...entries) : lines.push("_No content_");
           } else {
             lines.push("_No content_");
           }
         } else {
-          lines.push(raw ? raw.replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]") : "_No content_");
+          if (typeof raw === "object" && raw !== null) {
+            const hasAny = sec.subheaders.some(sh => raw[sh]);
+            if (hasAny) {
+              sec.subheaders.forEach(sh => {
+                if (raw[sh]) lines.push(`#### ${sh}\n${raw[sh].replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]")}`);
+              });
+            } else {
+              lines.push("_No content_");
+            }
+          } else {
+            lines.push(raw ? raw.replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]") : "_No content_");
+          }
         }
         lines.push("");
       }

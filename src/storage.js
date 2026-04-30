@@ -4,7 +4,9 @@ export const uid = () => crypto.randomUUID();
 // v2: edges gain .events[], nodes gain .isStart/.isEnd
 // v3: pages gain .parentId (null) and .order (integer)
 // v4: sectionSchema entries gain .type ("text" | "waypoints")
-export const SCHEMA_VERSION = 4;
+// v5: sectionSchema entries with type "table" gain .columns ([])
+// v6: table columns gain .type (text|number|checkbox) and .summary
+export const SCHEMA_VERSION = 6;
 
 export function migrateCampaign(data) {
   const v = data.schemaVersion || 1;
@@ -25,6 +27,34 @@ export function migrateCampaign(data) {
   }
   if (v < 4) {
     d = { ...d, sectionSchema: (d.sectionSchema || []).map(s => ({ type: "text", ...s })) };
+  }
+
+  if (v < 5) {
+    d = {
+      ...d,
+      sectionSchema: (d.sectionSchema || []).map(s =>
+        s.type === "table" ? { columns: [], ...s } : s
+      ),
+    };
+  }
+
+  if (v < 6) {
+    d = {
+      ...d,
+      sectionSchema: (d.sectionSchema || []).map(s => {
+        if (s.type !== "table") return s;
+        return {
+          ...s,
+          columns: (s.columns || []).map(c => ({
+            id: c.id,
+            label: c.label,
+            defaultValue: c.defaultValue ?? "",
+            type: c.type || "text",
+            summary: c.summary || "none",
+          })),
+        };
+      }),
+    };
   }
 
   return { ...d, schemaVersion: SCHEMA_VERSION };
