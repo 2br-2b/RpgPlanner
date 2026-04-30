@@ -1,21 +1,14 @@
-FROM node:22-slim AS frontend
+FROM node:22-slim
 
 WORKDIR /app
+ENV DATA_DIR=/data
 COPY package*.json ./
 RUN npm ci
-COPY index.html vite.config.js ./
+COPY index.html vite.config.js tsconfig.server.json ./
 COPY src/ src/
+COPY server/ server/
 RUN npm run build
-
-FROM python:3.14-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY backend.py .
-COPY --from=frontend /app/dist ./dist
+RUN npm prune --omit=dev
 
 EXPOSE 8000
-CMD ["uvicorn", "backend:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["node", "build/server/index.js"]

@@ -5,15 +5,26 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "dev:server": "tsx watch server/index.ts",
+    "build": "vite build && tsc -p tsconfig.server.json",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit",
+    "start": "node build/server/index.js",
     "preview": "vite preview"
   },
   "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "express": "^5.1.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.15.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
     "vite": "^6.3.4"
   }
 }

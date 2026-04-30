@@ -1,6 +1,10 @@
 deploy.ps1
 node_modules/
 dist/
+build/
+data/
+*.db
+*.db-journal
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
