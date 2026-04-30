@@ -5,7 +5,8 @@ export const uid = () => crypto.randomUUID();
 // v3: pages gain .parentId (null) and .order (integer)
 // v4: sectionSchema entries gain .type ("text" | "waypoints")
 // v5: sectionSchema entries with type "table" gain .columns ([])
-export const SCHEMA_VERSION = 5;
+// v6: table columns gain .type (text|number|checkbox) and .summary
+export const SCHEMA_VERSION = 6;
 
 export function migrateCampaign(data) {
   const v = data.schemaVersion || 1;
@@ -34,6 +35,25 @@ export function migrateCampaign(data) {
       sectionSchema: (d.sectionSchema || []).map(s =>
         s.type === "table" ? { columns: [], ...s } : s
       ),
+    };
+  }
+
+  if (v < 6) {
+    d = {
+      ...d,
+      sectionSchema: (d.sectionSchema || []).map(s => {
+        if (s.type !== "table") return s;
+        return {
+          ...s,
+          columns: (s.columns || []).map(c => ({
+            id: c.id,
+            label: c.label,
+            defaultValue: c.defaultValue ?? "",
+            type: c.type || "text",
+            summary: c.summary || "none",
+          })),
+        };
+      }),
     };
   }
 

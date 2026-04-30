@@ -262,6 +262,134 @@ function WaypointsSection({ sec, sectionData, onChange }) {
   );
 }
 
+function TableSection({ sec, sectionData, onChange }) {
+  const T = useTheme(); const css = makeCSS(T);
+  const columns = sec.columns || [];
+  const raw = (typeof sectionData === "object" && sectionData !== null && !Array.isArray(sectionData)) ? sectionData : {};
+  const rows = Array.isArray(raw.rows) ? raw.rows : [];
+
+  const getDefaultValue = (col) => {
+    if (col.type === "checkbox") return col.defaultValue === true || col.defaultValue === "true";
+    return col.defaultValue ?? "";
+  };
+
+  const setRows = (newRows) => onChange({ ...raw, rows: newRows });
+  const addRow = () => {
+    const newRow = {};
+    columns.forEach(col => { newRow[col.id] = getDefaultValue(col); });
+    setRows([...rows, newRow]);
+  };
+  const removeRow = (idx) => setRows(rows.filter((_, i) => i !== idx));
+  const setCellValue = (rowIdx, colId, val) => setRows(rows.map((row, i) => i === rowIdx ? { ...row, [colId]: val } : row));
+
+  const summaryValues = columns.map(col => {
+    if (!col.summary || col.summary === "none") return "";
+    const rawValues = rows.map(row => row[col.id]).filter(v => v !== undefined && v !== null && v !== "");
+    if (col.type === "text") {
+      if (col.summary === "count") return rawValues.length;
+      return "";
+    }
+    if (col.type === "number") {
+      const nums = rawValues.map(v => Number(v)).filter(n => !Number.isNaN(n));
+      if (!nums.length) return "";
+      switch (col.summary) {
+        case "sum": return nums.reduce((sum, n) => sum + n, 0);
+        case "average": return nums.reduce((sum, n) => sum + n, 0) / nums.length;
+        case "min": return Math.min(...nums);
+        case "max": return Math.max(...nums);
+        default: return "";
+      }
+    }
+    if (col.type === "checkbox") {
+      return rawValues.filter(v => v === true || v === "true").length;
+    }
+    return "";
+  });
+  const hasSummary = summaryValues.some(value => value !== "");
+
+  if (columns.length === 0) {
+    return (
+      <div style={{ ...css.section, marginBottom: 12 }}>
+        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
+        <div style={{ fontSize: 11, color: T.textDim, marginTop: 8 }}>No columns defined. Configure columns in the Section Schema.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...css.section, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
+        <button style={{ ...css.btn(), fontSize: 11 }} onClick={addRow}>+ Row</button>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "auto" }}>
+          <thead>
+            <tr>
+              {columns.map(col => (
+                <th key={col.id} style={{ padding: "6px 8px", borderBottom: `2px solid ${T.accent}`, textAlign: "left", fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+                  {col.label.toUpperCase()}
+                </th>
+              ))}
+              <th style={{ width: 32, borderBottom: `2px solid ${T.accent}` }} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length + 1} style={{ padding: "16px 8px", textAlign: "center", color: T.textMuted, fontSize: 11 }}>
+                  No rows yet — click + Row to add one.
+                </td>
+              </tr>
+            ) : rows.map((row, rowIdx) => (
+              <tr key={rowIdx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                {columns.map(col => {
+                  const rowValue = row[col.id];
+                  return (
+                    <td key={col.id} style={{ padding: "4px 6px", verticalAlign: "middle" }}>
+                      {col.type === "checkbox" ? (
+                        <input
+                          type="checkbox"
+                          checked={rowValue === true || rowValue === "true"}
+                          onChange={e => setCellValue(rowIdx, col.id, e.target.checked)}
+                        />
+                      ) : (
+                        <input
+                          type={col.type === "number" ? "number" : "text"}
+                          step={col.type === "number" ? "any" : undefined}
+                          style={{ ...css.input, fontSize: 12, width: "100%", minWidth: 80, boxSizing: "border-box" }}
+                          value={rowValue ?? ""}
+                          onChange={e => setCellValue(rowIdx, col.id, e.target.value)}
+                          placeholder={col.defaultValue || ""}
+                        />
+                      )}
+                    </td>
+                  );
+                })}
+                <td style={{ padding: "4px 6px", verticalAlign: "middle", textAlign: "center" }}>
+                  <button style={{ ...css.btn("danger"), padding: "2px 6px", fontSize: 11 }} onClick={() => removeRow(rowIdx)}>×</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {hasSummary && (
+            <tfoot>
+              <tr>
+                {summaryValues.map((value, idx) => (
+                  <td key={columns[idx].id} style={{ padding: "6px 8px", borderTop: `2px solid ${T.border}`, fontSize: 11, color: T.textDim, whiteSpace: "nowrap" }}>
+                    {value !== "" ? value : ""}
+                  </td>
+                ))}
+                <td style={{ borderTop: `2px solid ${T.border}` }} />
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded }) {
   const T = useTheme(); const css = makeCSS(T);
 
@@ -378,7 +506,7 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
   const T = useTheme(); const css = makeCSS(T);
   const [sub, setSub] = useState("");
   const [newColLabel, setNewColLabel] = useState("");
-  const [newColDefault, setNewColDefault] = useState("");
+  const [newColType, setNewColType] = useState("text");
   const secType = sec.type || "text";
   const isWaypoints = secType === "waypoints";
   const isTable = secType === "table";
@@ -393,13 +521,23 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
   const addColumn = () => {
     const label = newColLabel.trim();
     if (!label) return;
-    onChange("columns", [...(sec.columns || []), { id: uid(), label, defaultValue: newColDefault }]);
+    onChange("columns", [...(sec.columns || []), { id: uid(), label, defaultValue: "", type: newColType, summary: newColType === "number" ? "sum" : newColType === "checkbox" ? "count" : "none" }]);
     setNewColLabel("");
-    setNewColDefault("");
+    setNewColType("text");
   };
 
   const removeColumn = (colId) => {
     onChange("columns", (sec.columns || []).filter(c => c.id !== colId));
+  };
+
+  const moveColumn = (colId, direction) => {
+    const idx = (sec.columns || []).findIndex(c => c.id === colId);
+    if (idx < 0) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= (sec.columns || []).length) return;
+    const arr = [...(sec.columns || [])];
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    onChange("columns", arr);
   };
 
   return (
@@ -427,23 +565,77 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
       {isTable && (
         <>
           <div style={{ ...css.label, marginBottom: 6 }}>
-            Columns: <span style={{ color: T.textMuted, fontWeight: "normal", fontSize: 10 }}>label · default value</span>
+            Columns: <span style={{ color: T.textMuted, fontWeight: "normal", fontSize: 10 }}>type and configure each column</span>
           </div>
-          {(sec.columns || []).map(col => (
-            <div key={col.id} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
-              <input style={{ ...css.input, flex: 2, fontSize: 11 }} placeholder="Column label" value={col.label}
-                onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, label: e.target.value } : c))} />
-              <input style={{ ...css.input, flex: 1, fontSize: 11 }} placeholder="Default" value={col.defaultValue || ""}
-                onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, defaultValue: e.target.value } : c))} />
-              <button style={{ ...css.btn("danger"), minWidth: 32, padding: "2px 6px" }} onClick={() => removeColumn(col.id)}>×</button>
+          {(sec.columns || []).map((col, colIdx) => (
+            <div key={col.id} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 8, marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <button style={{ ...css.btn(), padding: "1px 4px", fontSize: 10, minWidth: 24 }} disabled={colIdx === 0} onClick={() => moveColumn(col.id, -1)}>▲</button>
+                  <button style={{ ...css.btn(), padding: "1px 4px", fontSize: 10, minWidth: 24 }} disabled={colIdx === (sec.columns || []).length - 1} onClick={() => moveColumn(col.id, 1)}>▼</button>
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <input style={{ ...css.input, fontSize: 11 }} placeholder="Column label" value={col.label}
+                    onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, label: e.target.value } : c))} />
+                </div>
+                <button style={{ ...css.btn("danger"), padding: "2px 6px", fontSize: 11 }} onClick={() => removeColumn(col.id)}>Remove</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ fontSize: 9, color: T.textDim, fontWeight: "bold" }}>TYPE</span>
+                  <select style={{ ...css.input, fontSize: 11 }} value={col.type || "text"}
+                    onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? {
+                      ...c,
+                      type: e.target.value,
+                      summary: e.target.value === "number" ? (c.summary || "sum") : e.target.value === "checkbox" ? (c.summary || "count") : "none",
+                    } : c))}>
+                    <option value="text">Text</option>
+                    <option value="number">Number</option>
+                    <option value="checkbox">Checkbox</option>
+                  </select>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ fontSize: 9, color: T.textDim, fontWeight: "bold" }}>DEFAULT</span>
+                  <input style={{ ...css.input, fontSize: 11 }} placeholder="Default value" value={col.defaultValue || ""}
+                    onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, defaultValue: e.target.value } : c))} />
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: 9, color: T.textDim, fontWeight: "bold" }}>SUMMARY</span>
+                <select style={{ ...css.input, fontSize: 11 }} value={col.summary || "none"}
+                  onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, summary: e.target.value } : c))}>
+                  <option value="none">None</option>
+                  {col.type === "text" && (
+                    <option value="count">Entry count</option>
+                  )}
+                  {col.type === "number" && (
+                    <>
+                      <option value="sum">Sum</option>
+                      <option value="average">Average</option>
+                      <option value="min">Min</option>
+                      <option value="max">Max</option>
+                    </>
+                  )}
+                  {col.type === "checkbox" && (
+                    <option value="count">Checked count</option>
+                  )}
+                </select>
+              </div>
             </div>
           ))}
           <div style={{ display: "flex", gap: 6 }}>
             <input style={{ ...css.input, flex: 2, fontSize: 11 }} placeholder="New column label..." value={newColLabel}
               onChange={e => setNewColLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addColumn()} />
-            <input style={{ ...css.input, flex: 1, fontSize: 11 }} placeholder="Default" value={newColDefault}
-              onChange={e => setNewColDefault(e.target.value)} onKeyDown={e => e.key === "Enter" && addColumn()} />
-            <button style={{ ...css.btn(), minWidth: 32, padding: "2px 6px" }} onClick={addColumn}>+</button>
+            <select style={{ ...css.input, flex: 1, fontSize: 11 }} value={newColType}
+              onChange={e => setNewColType(e.target.value)}>
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+              <option value="checkbox">Checkbox</option>
+            </select>
+            <button style={{ ...css.btn(), background: "#4caf50", color: "white", padding: "2px 8px", fontSize: 14, minWidth: 32 }} onClick={addColumn}>✓</button>
+          </div>
+          <div style={{ fontSize: 10, color: T.textDim, marginTop: 12, padding: "8px", background: T.surface2, borderRadius: T.radius }}>
+            <strong style={{ color: T.textMuted }}>Column types:</strong> Text (plain), Number (with Sum/Avg/Min/Max summaries), Checkbox (with count summary). Choose a summary option to show aggregated values below the table.
           </div>
         </>
       )}
