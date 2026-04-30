@@ -17,8 +17,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # github.repository resolves to "2br-2b/RpgPlanner" automatically
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push:
@@ -35,6 +33,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set lowercase image name
+        id: image
+        # github.repository preserves case (e.g. "2br-2b/RpgPlanner") but
+        # Docker requires fully lowercase image names, including the cache ref.
+        run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -46,7 +50,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=sha-,format=short
@@ -62,8 +66,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache,mode=max
 
   # ── Optional: deploy to k3s via Helm ───────────────────────────────────────
   #
@@ -74,8 +78,8 @@ jobs:
   #
   #   2. On first deploy only, run this from your machine to install:
   #        helm upgrade --install campaign-manager ./chart \
-  #          --set image.repository=ghcr.io/2br-2b/RpgPlanner \
-  #          --set ingress.host=campaign.theboxofwires.com \
+  #          --set image.repository=ghcr.io/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME \
+  #          --set ingress.host=campaign.YOUR_DOMAIN \
   #          --namespace default --create-namespace
   #
   #   Subsequent pushes to main will upgrade automatically via this job.
