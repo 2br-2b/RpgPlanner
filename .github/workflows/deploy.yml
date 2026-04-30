@@ -8,12 +8,6 @@ name: Build and push to GHCR
 on:
   push:
     branches: [main]
-    paths:
-      - "backend.py"
-      - "campaign-manager.html"
-      - "Dockerfile"
-      - "chart/**"
-      - ".github/workflows/deploy.yml"
 
 env:
   REGISTRY: ghcr.io
