@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Campaign Manager</title>
+  <title>John's Campaign Manager</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     html, body, #root { margin: 0; padding: 0; min-height: 100dvh; }
@@ -304,9 +304,20 @@ function exportMarkdown(campaign) {
     lines.push(`**Type:** ${page.type}${page.tags?.length ? `  |  **Tags:** ${page.tags.join(", ")}` : ""}\n`);
     if (page.type === "mission") {
       for (const sec of campaign.sectionSchema) {
-        const content = page.sections?.[sec.id];
+        const raw = page.sections?.[sec.id];
         lines.push(`### ${sec.name}`);
-        lines.push(content ? content.replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]") : "_No content_");
+        if (typeof raw === "object" && raw !== null) {
+          const hasAny = sec.subheaders.some(sh => raw[sh]);
+          if (hasAny) {
+            sec.subheaders.forEach(sh => {
+              if (raw[sh]) lines.push(`#### ${sh}\n${raw[sh].replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]")}`);
+            });
+          } else {
+            lines.push("_No content_");
+          }
+        } else {
+          lines.push(raw ? raw.replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]") : "_No content_");
+        }
         lines.push("");
       }
       const costs = page.costs || [], awards = page.awards || [];
@@ -522,7 +533,7 @@ function App() {
         {/* ── Desktop topbar ── */}
         {!isMobile && (
           <div style={css.topbar}>
-            <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", letterSpacing: "0.15em", flexShrink: 0 }}>◈ CAMPAIGN MGR</span>
+            <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", letterSpacing: "0.15em", flexShrink: 0 }}>◈ John's Campaign Manager</span>
             <input style={{ ...css.input, width: 180, fontSize: 13 }} value={campaign.name} onChange={e => update(c => ({ ...c, name: e.target.value }))} />
             <div style={{ flex: 1 }} />
             {NAV_ITEMS.map(({ key, label }) => (
@@ -775,7 +786,22 @@ function PageEditor({ page, schema, onUpdate, onBack }) {
   const [imgTarget, setImgTarget] = useState(null);
 
   const set = (k, v) => onUpdate({ ...page, [k]: v });
-  const setSection = (sid, v) => onUpdate({ ...page, sections: { ...page.sections, [sid]: v } });
+  // sid: section id; subKey: optional subheader name for per-subheader storage
+  const setSection = (sid, subKey, v) => {
+    if (subKey === undefined) {
+      onUpdate({ ...page, sections: { ...page.sections, [sid]: v } });
+    } else {
+      const prev = (typeof page.sections[sid] === "object" && page.sections[sid] !== null) ? page.sections[sid] : {};
+      onUpdate({ ...page, sections: { ...page.sections, [sid]: { ...prev, [subKey]: v } } });
+    }
+  };
+  // Get value for a section/subheader combo; handles legacy flat strings
+  const getSectionValue = (sid, subKey) => {
+    const raw = page.sections[sid];
+    if (subKey === undefined) return raw || "";
+    if (typeof raw === "object" && raw !== null) return raw[subKey] || "";
+    return "";
+  };
 
   const addTag = () => {
     const t = editTag.trim().toLowerCase();
@@ -788,8 +814,14 @@ function PageEditor({ page, schema, onUpdate, onBack }) {
     const r = new FileReader();
     r.onload = (ev) => {
       const md = `\n![${file.name}](${ev.target.result})\n`;
-      if (imgTarget === "free") set("content", (page.content || "") + md);
-      else if (imgTarget) setSection(imgTarget, (page.sections[imgTarget] || "") + md);
+      if (imgTarget === "free") {
+        set("content", (page.content || "") + md);
+      } else if (imgTarget && imgTarget.includes("::")) {
+        const [sid, subKey] = imgTarget.split("::");
+        setSection(sid, subKey, getSectionValue(sid, subKey) + md);
+      } else if (imgTarget) {
+        setSection(imgTarget, undefined, getSectionValue(imgTarget) + md);
+      }
     };
     r.readAsDataURL(file); e.target.value = "";
   };
@@ -835,12 +867,15 @@ function PageEditor({ page, schema, onUpdate, onBack }) {
               onClick={() => setActiveSection(activeSection === "__costs" ? null : "__costs")}>Costs / Awards</button>
           </div>
           {activeSection === null && schema.map(sec => (
-            <MissionSection key={sec.id} sec={sec} value={page.sections[sec.id] || ""}
-              onChange={v => setSection(sec.id, v)} onImageUpload={() => triggerImg(sec.id)} />
+            <MissionSection key={sec.id} sec={sec} sectionData={page.sections[sec.id]}
+              onChange={(subKey, v) => setSection(sec.id, subKey, v)}
+              onImageUpload={(subKey) => triggerImg(subKey !== undefined ? `${sec.id}::${subKey}` : sec.id)} />
           ))}
           {activeSection !== null && activeSection !== "__costs" && (() => {
             const sec = schema.find(s => s.id === activeSection);
-            return sec ? <MissionSection sec={sec} value={page.sections[sec.id] || ""} onChange={v => setSection(sec.id, v)} onImageUpload={() => triggerImg(sec.id)} expanded /> : null;
+            return sec ? <MissionSection sec={sec} sectionData={page.sections[sec.id]}
+              onChange={(subKey, v) => setSection(sec.id, subKey, v)}
+              onImageUpload={(subKey) => triggerImg(subKey !== undefined ? `${sec.id}::${subKey}` : sec.id)} expanded /> : null;
           })()}
           {activeSection === "__costs" && (
             <CostsAwards
@@ -859,23 +894,57 @@ function PageEditor({ page, schema, onUpdate, onBack }) {
   );
 }
 
-function MissionSection({ sec, value, onChange, onImageUpload, expanded }) {
-  const T = useTheme(); const css = makeCSS(T);
-  // Default to edit mode when section is empty
+// SubBox: individual mini box for a single subheader (or a flat section)
+function SubBox({ label, value, onChange, onImageUpload, expanded, T, css }) {
   const [editMode, setEditMode] = useState(!value);
   return (
-    <div style={{ ...css.section, marginBottom: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
-        {sec.subheaders.map(sh => <span key={sh} style={{ fontSize: 10, color: T.textDim, background: T.surface2, padding: "1px 6px", borderRadius: T.radius }}>{sh}</span>)}
-        <div style={{ flex: 1 }} />
-        <button style={{ ...css.btn(), fontSize: 10 }} onClick={onImageUpload}>⬆</button>
-        <button style={css.btn(editMode ? "primary" : "default")} onClick={() => setEditMode(!editMode)}>{editMode ? "Preview" : "Edit"}</button>
+    <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.08em", flex: 1 }}>{label.toUpperCase()}</span>
+        <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={onImageUpload}>⬆</button>
+        <button style={{ ...css.btn(editMode ? "primary" : "default"), fontSize: 10, padding: "2px 8px" }} onClick={() => setEditMode(!editMode)}>{editMode ? "Preview" : "Edit"}</button>
       </div>
-      {sec.subheaders.length > 0 && editMode && <div style={{ marginBottom: 6, fontSize: 10, color: T.textMuted }}>Suggested: {sec.subheaders.map(sh => `### ${sh}`).join("  ")}</div>}
       {editMode
-        ? <textarea style={{ ...css.textarea, minHeight: expanded ? 350 : 180 }} value={value} onChange={e => onChange(e.target.value)} placeholder={`## ${sec.name}\n${sec.subheaders.map(sh => `### ${sh}\n\n`).join("")}`} />
-        : <div style={{ minHeight: 40, color: value ? T.text : T.textMuted, fontSize: 13 }} dangerouslySetInnerHTML={{ __html: value ? renderMarkdown(value, T) : `<em>${sec.name} — click Edit to add content</em>` }} />}
+        ? <textarea style={{ ...css.textarea, minHeight: expanded ? 260 : 120 }} value={value} onChange={e => onChange(e.target.value)} placeholder={`${label}…`} />
+        : <div style={{ minHeight: 32, color: value ? T.text : T.textMuted, fontSize: 12, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: value ? renderMarkdown(value, T) : `<em style="color:${T.textMuted}">${label} — click Edit to add content</em>` }} />}
+    </div>
+  );
+}
+
+function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded }) {
+  const T = useTheme(); const css = makeCSS(T);
+
+  // Resolve per-subheader values; handle legacy flat strings
+  const getVal = (sh) => {
+    if (typeof sectionData === "object" && sectionData !== null) return sectionData[sh] || "";
+    return "";
+  };
+  // Flat fallback value (legacy data with no subheaders)
+  const flatVal = typeof sectionData === "string" ? sectionData : (typeof sectionData === "object" && sectionData !== null ? "" : sectionData || "");
+
+  return (
+    <div style={{ ...css.section, marginBottom: 12 }}>
+      <div style={{ marginBottom: 10 }}>
+        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
+      </div>
+      {sec.subheaders.length > 0
+        ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+            {sec.subheaders.map(sh => (
+              <SubBox key={sh} label={sh} value={getVal(sh)}
+                onChange={v => onChange(sh, v)}
+                onImageUpload={() => onImageUpload(sh)}
+                expanded={expanded} T={T} css={css} />
+            ))}
+          </div>
+        )
+        : (
+          <SubBox label={sec.name} value={flatVal}
+            onChange={v => onChange(undefined, v)}
+            onImageUpload={() => onImageUpload(undefined)}
+            expanded={expanded} T={T} css={css} />
+        )
+      }
     </div>
   );
 }
