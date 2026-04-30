@@ -16,7 +16,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 DB_PATH = Path("/data/campaigns.db")
-STATIC_DIR = Path("/app/static") if Path("/app/static").exists() else Path(__file__).parent
+# Prefer /app/dist (Docker), then a local dist/ sibling, then the script's own directory
+_here = Path(__file__).parent
+DIST_DIR = (
+    Path("/app/dist") if Path("/app/dist").exists()
+    else (_here / "dist") if (_here / "dist").exists()
+    else _here
+)
 GUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 MAX_PAYLOAD_MB = 10
 
@@ -100,15 +106,19 @@ async def save_campaign(guid: str, request: Request, body: SaveBody):
 
 
 # ── Static file serving ───────────────────────────────────────────────────────
-# Serve js/ directory as static files, then fall back to SPA HTML for everything else
+# Serve Vite assets, then fall back to SPA HTML for everything else
 
-_js_dir = STATIC_DIR / "js"
-if _js_dir.exists():
-    app.mount("/js", StaticFiles(directory=str(_js_dir)), name="js")
+_assets_dir = DIST_DIR / "assets"
+if _assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
 
 @app.get("/{full_path:path}")
 def spa_fallback(full_path: str):
-    index = STATIC_DIR / "campaign-manager.html"
+    requested = (DIST_DIR / full_path).resolve()
+    dist_root = DIST_DIR.resolve()
+    if full_path and requested.is_file() and dist_root in requested.parents:
+        return FileResponse(requested)
+    index = DIST_DIR / "index.html"
     if index.exists():
         return FileResponse(index)
-    return JSONResponse({"error": "Frontend not found. Copy campaign-manager.html to /app/static/"}, status_code=404)
+    return JSONResponse({"error": "Frontend not found. Run npm run build and serve dist/."}, status_code=404)
