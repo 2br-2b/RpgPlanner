@@ -116,14 +116,14 @@
   overflow: visible !important;
 }
 
-/* Peeled corner — shows curled underside of note (bottom-left avoids action buttons) */
+/* Peeled corner — small so it doesn't obscure buttons in the bottom-right */
 [data-theme="parchment"] .sk-section::after {
   content: '';
   position: absolute;
   bottom: 0;
-  left: 0;
-  width: 34px;
-  height: 34px;
+  right: 0;
+  width: 20px;
+  height: 20px;
   pointer-events: none;
 }
 
@@ -133,12 +133,7 @@
   border: 1px solid #e8d870 !important;
 }
 [data-theme="parchment"] .sk-section:nth-child(4n+1)::after {
-  background: linear-gradient(
-    315deg,
-    transparent 50%,
-    #c8aa30 55%,
-    #f5f0a8 60%
-  );
+  background: linear-gradient(135deg, transparent 50%, #c8aa30 54%, #f5f0a8 58%);
   box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.14);
 }
 
@@ -148,12 +143,7 @@
   border: 1px solid #f0b8b8 !important;
 }
 [data-theme="parchment"] .sk-section:nth-child(4n+2)::after {
-  background: linear-gradient(
-    315deg,
-    transparent 50%,
-    #c07878 55%,
-    #f8d8d8 60%
-  );
+  background: linear-gradient(135deg, transparent 50%, #c07878 54%, #f8d8d8 58%);
   box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.14);
 }
 
@@ -163,12 +153,7 @@
   border: 1px solid #b0deb0 !important;
 }
 [data-theme="parchment"] .sk-section:nth-child(4n+3)::after {
-  background: linear-gradient(
-    315deg,
-    transparent 50%,
-    #70b070 55%,
-    #d0eed0 60%
-  );
+  background: linear-gradient(135deg, transparent 50%, #70b070 54%, #d0eed0 58%);
   box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.14);
 }
 
@@ -178,12 +163,7 @@
   border: 1px solid #b8c8f0 !important;
 }
 [data-theme="parchment"] .sk-section:nth-child(4n)::after {
-  background: linear-gradient(
-    315deg,
-    transparent 50%,
-    #7888d0 55%,
-    #d0d8f8 60%
-  );
+  background: linear-gradient(135deg, transparent 50%, #7888d0 54%, #d0d8f8 58%);
   box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.14);
 }
 
