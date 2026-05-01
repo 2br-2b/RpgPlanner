@@ -1,16 +1,16 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
-// Pointy-top hex grid tile (52×90px, two hexes per tile for proper staggered tiling)
-const _hexSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="90"><polygon points="0,-30 26,-15 26,15 0,30 -26,15 -26,-15" fill="none" stroke="rgba(180,150,60,0.16)" stroke-width="0.8"/><polygon points="52,-30 78,-15 78,15 52,30 26,15 26,-15" fill="none" stroke="rgba(180,150,60,0.16)" stroke-width="0.8"/><polygon points="0,60 26,75 26,105 0,120 -26,105 -26,75" fill="none" stroke="rgba(180,150,60,0.16)" stroke-width="0.8"/><polygon points="52,60 78,75 78,105 52,120 26,105 26,75" fill="none" stroke="rgba(180,150,60,0.16)" stroke-width="0.8"/><polygon points="26,15 52,30 52,60 26,75 0,60 0,30" fill="none" stroke="rgba(180,150,60,0.16)" stroke-width="0.8"/></svg>`;
-const HEX_BG = `url("data:image/svg+xml,${encodeURIComponent(_hexSvg)}")`;
+function makeHexBg(strokeColor) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="90"><polygon points="0,-30 26,-15 26,15 0,30 -26,15 -26,-15" fill="none" stroke="${strokeColor}" stroke-width="0.8"/><polygon points="52,-30 78,-15 78,15 52,30 26,15 26,-15" fill="none" stroke="${strokeColor}" stroke-width="0.8"/><polygon points="0,60 26,75 26,105 0,120 -26,105 -26,75" fill="none" stroke="${strokeColor}" stroke-width="0.8"/><polygon points="52,60 78,75 78,105 52,120 26,105 26,75" fill="none" stroke="${strokeColor}" stroke-width="0.8"/><polygon points="26,15 52,30 52,60 26,75 0,60 0,30" fill="none" stroke="${strokeColor}" stroke-width="0.8"/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
 
-// Adds four small "rivet" dots at panel corners via stacked radial gradients
-function rivetPanel(mainGrad) {
+function rivetPanel(mainGrad, rivetColor) {
   return [
-    "radial-gradient(circle at 10px 10px, #5c5c32 3px, transparent 3px)",
-    "radial-gradient(circle at calc(100% - 10px) 10px, #5c5c32 3px, transparent 3px)",
-    "radial-gradient(circle at 10px calc(100% - 10px), #5c5c32 3px, transparent 3px)",
-    "radial-gradient(circle at calc(100% - 10px) calc(100% - 10px), #5c5c32 3px, transparent 3px)",
+    `radial-gradient(circle at 10px 10px, ${rivetColor} 3px, transparent 3px)`,
+    `radial-gradient(circle at calc(100% - 10px) 10px, ${rivetColor} 3px, transparent 3px)`,
+    `radial-gradient(circle at 10px calc(100% - 10px), ${rivetColor} 3px, transparent 3px)`,
+    `radial-gradient(circle at calc(100% - 10px) calc(100% - 10px), ${rivetColor} 3px, transparent 3px)`,
     mainGrad,
   ].join(", ");
 }
@@ -24,6 +24,11 @@ export const THEMES = {
     accentBright: "#6dbb5a", text: "#c8ddb8", textDim: "#6a8a6a",
     textMuted: "#3a5a3a", danger: "#9a3a3a", warn: "#8a7a2a",
     tag: "#1a3a2a", tagText: "#7abf7a", tagBorder: "#2a5a3a", radius: 3,
+    skeuomorphic: true,
+    rivetColor: "#2a5c2a",
+    hexStroke: "rgba(74,154,58,0.15)",
+    skPrimaryHighlight: "#8add6a",
+    skPrimaryText: "#051005",
   },
   industrial: {
     label: "Industrial",
@@ -45,6 +50,10 @@ export const THEMES = {
     tagBorder: "#5a4a18",
     radius: 2,
     skeuomorphic: true,
+    rivetColor: "#5c5c32",
+    hexStroke: "rgba(180,150,60,0.16)",
+    skPrimaryHighlight: "#ffcc55",
+    skPrimaryText: "#1a0e00",
   },
   cyber: {
     label: "Cyber",
@@ -54,6 +63,12 @@ export const THEMES = {
     accentBright: "#40d4ff", text: "#a0d8f8", textDim: "#3a6888",
     textMuted: "#0a2840", danger: "#ff3a5a", warn: "#ffaa00",
     tag: "#001828", tagText: "#00b4ff", tagBorder: "#004878", radius: 0,
+    skeuomorphic: true,
+    rivetColor: "#004488",
+    hexStroke: "rgba(0,180,255,0.15)",
+    skPrimaryHighlight: "#80eaff",
+    skPrimaryText: "#001020",
+    skScanLine: "rgba(0,180,255,0.03)",
   },
   materialLight: {
     label: "Material Light",
@@ -81,6 +96,14 @@ export const THEMES = {
     accentBright: "#5a3010", text: "#3a2810", textDim: "#8a7050",
     textMuted: "#c8b48a", danger: "#8a2a1a", warn: "#7a6a1a",
     tag: "#e8d8b0", tagText: "#5a3010", tagBorder: "#a87840", radius: 2,
+    skeuomorphic: true,
+    rivetColor: "#7a5030",
+    hexStroke: "rgba(160,120,60,0.12)",
+    skPrimaryHighlight: "#d4aa78",
+    skPrimaryText: "#1a0800",
+    skDark: "#b8a070",
+    skScanLine: "rgba(100,60,0,0.03)",
+    skInsetShadow: "inset 0 2px 4px rgba(0,0,0,0.25)",
   },
   noir: {
     label: "Noir",
@@ -90,6 +113,12 @@ export const THEMES = {
     accentBright: "#ffffff", text: "#c0c0c0", textDim: "#606060",
     textMuted: "#303030", danger: "#aa4444", warn: "#aa9944",
     tag: "#1a1a1a", tagText: "#c0c0c0", tagBorder: "#404040", radius: 0,
+    skeuomorphic: true,
+    rivetColor: "#484848",
+    hexStroke: "rgba(120,120,120,0.10)",
+    skPrimaryHighlight: "#e0e0e0",
+    skPrimaryText: "#080808",
+    skScanLine: "rgba(0,0,0,0.06)",
   },
   bloodmoon: {
     label: "Blood Moon",
@@ -99,6 +128,12 @@ export const THEMES = {
     accentBright: "#e05050", text: "#e0b8b8", textDim: "#804040",
     textMuted: "#401818", danger: "#c03030", warn: "#c07020",
     tag: "#200808", tagText: "#e05050", tagBorder: "#601818", radius: 3,
+    skeuomorphic: true,
+    rivetColor: "#5a1515",
+    hexStroke: "rgba(192,48,48,0.14)",
+    skPrimaryHighlight: "#e07070",
+    skPrimaryText: "#150000",
+    skScanLine: "rgba(180,0,0,0.04)",
   },
 };
 
@@ -117,13 +152,20 @@ export function useIsMobile() {
 
 export function makeCSS(T) {
   const sk = T.skeuomorphic;
+  const skDark = T.skDark || T.bg;
+  const rivetColor = T.rivetColor || "#5c5c32";
+  const hexBg = sk ? makeHexBg(T.hexStroke || "rgba(180,150,60,0.16)") : undefined;
+  const scanLine = T.skScanLine || "rgba(0,0,0,0.04)";
+  const insetShadow = T.skInsetShadow || "inset 0 2px 5px rgba(0,0,0,0.7)";
+  const primaryHighlight = T.skPrimaryHighlight || T.accentBright;
+  const primaryText = T.skPrimaryText || T.bg;
 
   return {
     app: {
       fontFamily: T.font,
       backgroundColor: T.bg,
       backgroundImage: sk
-        ? `repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px), ${HEX_BG}`
+        ? `repeating-linear-gradient(0deg, transparent, transparent 3px, ${scanLine} 3px, ${scanLine} 4px), ${hexBg}`
         : undefined,
       color: T.text,
       minHeight: "100vh",
@@ -132,11 +174,11 @@ export function makeCSS(T) {
     },
     topbar: {
       background: sk
-        ? `linear-gradient(to bottom, #252618 0%, ${T.surface} 100%)`
+        ? `linear-gradient(to bottom, ${T.surface2} 0%, ${T.surface} 100%)`
         : T.surface,
       borderBottom: `${sk ? 2 : 1}px solid ${T.border}`,
       boxShadow: sk
-        ? `0 3px 10px rgba(0,0,0,0.8), inset 0 1px 0 rgba(220,180,80,0.18)`
+        ? `0 3px 10px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.10)`
         : undefined,
       padding: "0 16px",
       display: "flex",
@@ -149,7 +191,7 @@ export function makeCSS(T) {
     sidebar: {
       width: 240,
       background: sk
-        ? `linear-gradient(to right, #101108 0%, ${T.surface} 100%)`
+        ? `linear-gradient(to right, ${skDark} 0%, ${T.surface} 100%)`
         : T.surface,
       borderRight: `${sk ? 2 : 1}px solid ${T.border}`,
       boxShadow: sk
@@ -178,12 +220,12 @@ export function makeCSS(T) {
       };
       if (v === "primary") return {
         ...base,
-        background: `linear-gradient(to bottom, #ffcc55 0%, ${T.accent} 45%, ${T.accentDim} 100%)`,
-        color: "#1a0e00",
+        background: `linear-gradient(to bottom, ${primaryHighlight} 0%, ${T.accent} 45%, ${T.accentDim} 100%)`,
+        color: primaryText,
         border: `1px solid ${T.accentDim}`,
-        borderBottom: `1px solid #3a2008`,
-        boxShadow: `0 2px 5px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,230,150,0.45)`,
-        textShadow: "0 1px 0 rgba(255,210,80,0.5)",
+        borderBottom: `1px solid ${skDark}`,
+        boxShadow: `0 2px 5px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.2)`,
+        textShadow: "0 1px 0 rgba(0,0,0,0.3)",
         fontWeight: "bold",
         letterSpacing: "0.05em",
       };
@@ -198,18 +240,16 @@ export function makeCSS(T) {
       };
       return {
         ...base,
-        background: `linear-gradient(to bottom, #272819 0%, ${T.surface2} 50%, #0f1009 100%)`,
+        background: `linear-gradient(to bottom, ${T.surface2} 0%, ${T.surface} 50%, ${skDark} 100%)`,
         color: T.text,
         border: `1px solid ${T.border}`,
-        borderBottom: `1px solid #0a0a06`,
-        boxShadow: `0 2px 4px rgba(0,0,0,0.6), inset 0 1px 0 rgba(200,170,80,0.08)`,
+        borderBottom: `1px solid ${skDark}`,
+        boxShadow: `0 2px 4px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)`,
       };
     },
     input: sk ? {
-      background: "#0a0b08",
+      background: skDark,
       border: `1px solid ${T.border}`,
-      borderTopColor: "#282820",
-      borderLeftColor: "#282820",
       borderRadius: T.radius,
       color: T.text,
       padding: "5px 8px",
@@ -217,7 +257,7 @@ export function makeCSS(T) {
       fontSize: 13,
       outline: "none",
       width: "100%",
-      boxShadow: "inset 0 2px 5px rgba(0,0,0,0.7)",
+      boxShadow: insetShadow,
     } : {
       background: T.surface2,
       border: `1px solid ${T.border}`,
@@ -230,10 +270,8 @@ export function makeCSS(T) {
       width: "100%",
     },
     textarea: sk ? {
-      background: "#0a0b08",
+      background: skDark,
       border: `1px solid ${T.border}`,
-      borderTopColor: "#282820",
-      borderLeftColor: "#282820",
       borderRadius: T.radius,
       color: T.text,
       padding: "8px",
@@ -243,7 +281,7 @@ export function makeCSS(T) {
       width: "100%",
       resize: "vertical",
       lineHeight: 1.6,
-      boxShadow: "inset 0 2px 5px rgba(0,0,0,0.7)",
+      boxShadow: insetShadow,
     } : {
       background: T.surface2,
       border: `1px solid ${T.border}`,
@@ -266,13 +304,15 @@ export function makeCSS(T) {
       display: "block",
     },
     section: sk ? {
-      background: rivetPanel(`linear-gradient(160deg, #1d1f17 0%, ${T.surface} 40%, #101109 100%)`),
+      background: rivetPanel(
+        `linear-gradient(160deg, ${skDark} 0%, ${T.surface} 40%, ${skDark} 100%)`,
+        rivetColor
+      ),
       border: `1px solid ${T.border}`,
-      borderTopColor: "#5a5a30",
       borderRadius: T.radius,
       padding: 16,
       marginBottom: 16,
-      boxShadow: "0 4px 12px rgba(0,0,0,0.7), inset 0 1px 0 rgba(200,170,80,0.07)",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
       position: "relative",
     } : {
       background: T.surface,
