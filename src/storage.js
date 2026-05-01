@@ -6,7 +6,8 @@ export const uid = () => crypto.randomUUID();
 // v4: sectionSchema entries gain .type ("text" | "waypoints")
 // v5: sectionSchema entries with type "table" gain .columns ([])
 // v6: table columns gain .type (text|number|checkbox) and .summary
-export const SCHEMA_VERSION = 6;
+// v7: table columns gain optional .formula (string) for "formula" type
+export const SCHEMA_VERSION = 7;
 
 export function migrateCampaign(data) {
   const v = data.schemaVersion || 1;
@@ -57,6 +58,22 @@ export function migrateCampaign(data) {
     };
   }
 
+  if (v < 7) {
+    d = {
+      ...d,
+      sectionSchema: (d.sectionSchema || []).map(s => {
+        if (s.type !== "table") return s;
+        return {
+          ...s,
+          columns: (s.columns || []).map(c => ({
+            formula: "",
+            ...c,
+          })),
+        };
+      }),
+    };
+  }
+
   return { ...d, schemaVersion: SCHEMA_VERSION };
 }
 
@@ -76,6 +93,37 @@ export function defaultCampaign() {
     schemaVersion: SCHEMA_VERSION,
     pages: [], flowchart: { nodes: [], edges: [] },
   };
+}
+
+// ── Multi-campaign management ─────────────────────────────────────────────────
+
+export function getKnownCampaigns() {
+  try { return JSON.parse(localStorage.getItem("campaign-manager-campaigns") || "[]"); } catch { return []; }
+}
+
+export function registerCampaign(guid, name) {
+  const list = getKnownCampaigns();
+  const idx = list.findIndex(c => c.guid === guid);
+  const entry = { guid, name: name || "Unnamed Campaign", lastUsed: Date.now() };
+  if (idx >= 0) list[idx] = entry;
+  else list.push(entry);
+  localStorage.setItem("campaign-manager-campaigns", JSON.stringify(list));
+}
+
+export function switchCampaign(guid) {
+  localStorage.setItem("campaign-manager-guid", guid);
+  window.location.reload();
+}
+
+export function createNewCampaign() {
+  const guid = crypto.randomUUID();
+  localStorage.setItem("campaign-manager-guid", guid);
+  window.location.reload();
+}
+
+export function forgetCampaign(guid) {
+  const list = getKnownCampaigns().filter(c => c.guid !== guid);
+  localStorage.setItem("campaign-manager-campaigns", JSON.stringify(list));
 }
 
 // ── GUID-based REST sync ──────────────────────────────────────────────────────
@@ -109,6 +157,7 @@ export async function loadData() {
 }
 
 export async function saveData(data) {
+  registerCampaign(SESSION_GUID, data.name);
   try { localStorage.setItem("campaign-manager-local", JSON.stringify(data)); } catch {}
   try {
     await fetch(`${API_BASE}/campaign/${SESSION_GUID}`, {
@@ -117,4 +166,38 @@ export async function saveData(data) {
       body: JSON.stringify({ data }),
     });
   } catch (e) { console.warn("Remote save failed (offline?):", e); }
+}
+
+// ── Snapshot API helpers ──────────────────────────────────────────────────────
+
+export async function listSnapshots() {
+  try {
+    const r = await fetch(`${API_BASE}/campaign/${SESSION_GUID}/snapshots`);
+    if (!r.ok) return [];
+    return (await r.json()).snapshots || [];
+  } catch { return []; }
+}
+
+export async function saveSnapshot(name) {
+  const r = await fetch(`${API_BASE}/campaign/${SESSION_GUID}/snapshots`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to save snapshot");
+  }
+  return (await r.json()).id;
+}
+
+export async function deleteSnapshot(snapId) {
+  const r = await fetch(`${API_BASE}/campaign/${SESSION_GUID}/snapshots/${snapId}`, { method: "DELETE" });
+  if (!r.ok) throw new Error("Failed to delete snapshot");
+}
+
+export async function restoreSnapshot(snapId) {
+  const r = await fetch(`${API_BASE}/campaign/${SESSION_GUID}/snapshots/${snapId}`);
+  if (!r.ok) throw new Error("Failed to load snapshot");
+  return (await r.json()).data || null;
 }

@@ -8,6 +8,7 @@ import { z } from "zod";
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_PAYLOAD_MB = 10;
 const PORT = Number(process.env.PORT || 8000);
+const MAX_SNAPSHOTS_PER_CAMPAIGN = 50;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -19,9 +20,19 @@ const saveBodySchema = z.object({
   data: z.record(z.string(), z.unknown()),
 });
 
+const snapshotBodySchema = z.object({
+  name: z.string().min(1).max(200),
+});
+
 type CampaignRecord = {
   data: Record<string, unknown>;
   updated_at: number;
+};
+
+type SnapshotRow = {
+  id: string;
+  name: string;
+  created_at: number;
 };
 
 class HttpError extends Error {
@@ -41,7 +52,15 @@ db.exec(`
     guid        TEXT PRIMARY KEY,
     data        TEXT NOT NULL,
     updated_at  REAL NOT NULL
-  )
+  );
+  CREATE TABLE IF NOT EXISTS snapshots (
+    id            TEXT PRIMARY KEY,
+    campaign_guid TEXT NOT NULL,
+    name          TEXT NOT NULL,
+    data          TEXT NOT NULL,
+    created_at    REAL NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_snapshots_guid ON snapshots(campaign_guid);
 `);
 
 const selectCampaign = db.prepare("SELECT data, updated_at FROM campaigns WHERE guid = ?");
@@ -49,6 +68,22 @@ const upsertCampaign = db.prepare(`
   INSERT INTO campaigns (guid, data, updated_at) VALUES (?, ?, ?)
   ON CONFLICT(guid) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at
 `);
+
+const listSnapshotsStmt = db.prepare(
+  "SELECT id, name, created_at FROM snapshots WHERE campaign_guid = ? ORDER BY created_at DESC LIMIT 50"
+);
+const insertSnapshot = db.prepare(
+  "INSERT INTO snapshots (id, campaign_guid, name, data, created_at) VALUES (?, ?, ?, ?, ?)"
+);
+const deleteSnapshotStmt = db.prepare(
+  "DELETE FROM snapshots WHERE id = ? AND campaign_guid = ?"
+);
+const getSnapshotStmt = db.prepare(
+  "SELECT data FROM snapshots WHERE id = ? AND campaign_guid = ?"
+);
+const countSnapshotsStmt = db.prepare(
+  "SELECT COUNT(*) as cnt FROM snapshots WHERE campaign_guid = ?"
+);
 
 function assertGuid(guid: string): void {
   if (!GUID_RE.test(guid)) throw new HttpError(400, "Invalid GUID format");
@@ -69,7 +104,7 @@ const app = express();
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,PUT,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   next();
 });
@@ -104,6 +139,50 @@ app.put("/api/campaign/:guid", asyncRoute(async (req, res) => {
   upsertCampaign.run(guid, JSON.stringify(parsed.data.data), Date.now() / 1000);
   res.json({ ok: true });
 }));
+
+// ── Snapshots ─────────────────────────────────────────────────────────────────
+
+app.get("/api/campaign/:guid/snapshots", asyncRoute(async (req, res) => {
+  const guid = getGuidParam(req.params.guid);
+  const rows = listSnapshotsStmt.all(guid) as SnapshotRow[];
+  res.json({ snapshots: rows });
+}));
+
+app.post("/api/campaign/:guid/snapshots", asyncRoute(async (req, res) => {
+  const guid = getGuidParam(req.params.guid);
+  const parsed = snapshotBodySchema.safeParse(req.body);
+  if (!parsed.success) throw new HttpError(400, "Request body must be { name: string }");
+
+  const campaignRow = selectCampaign.get(guid) as { data: string } | undefined;
+  if (!campaignRow) throw new HttpError(404, "Campaign not found — save it first");
+
+  const { cnt } = countSnapshotsStmt.get(guid) as { cnt: number };
+  if (cnt >= MAX_SNAPSHOTS_PER_CAMPAIGN) throw new HttpError(400, "Snapshot limit reached (50)");
+
+  const id = crypto.randomUUID();
+  insertSnapshot.run(id, guid, parsed.data.name, campaignRow.data, Date.now() / 1000);
+  res.json({ ok: true, id });
+}));
+
+app.delete("/api/campaign/:guid/snapshots/:snapId", asyncRoute(async (req, res) => {
+  const guid = getGuidParam(req.params.guid);
+  const snapId = req.params.snapId;
+  if (typeof snapId !== "string" || !GUID_RE.test(snapId)) throw new HttpError(400, "Invalid snapshot ID");
+  const info = deleteSnapshotStmt.run(snapId, guid);
+  if (info.changes === 0) throw new HttpError(404, "Snapshot not found");
+  res.json({ ok: true });
+}));
+
+app.get("/api/campaign/:guid/snapshots/:snapId", asyncRoute(async (req, res) => {
+  const guid = getGuidParam(req.params.guid);
+  const snapId = req.params.snapId;
+  if (typeof snapId !== "string" || !GUID_RE.test(snapId)) throw new HttpError(400, "Invalid snapshot ID");
+  const row = getSnapshotStmt.get(snapId, guid) as { data: string } | undefined;
+  if (!row) throw new HttpError(404, "Snapshot not found");
+  res.json({ data: JSON.parse(row.data) });
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 app.use(express.static(distDir));
 

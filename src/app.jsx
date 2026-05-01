@@ -7,7 +7,17 @@ import { SettingsView } from "./settings.jsx";
 import { Sidebar } from "./sidebar.jsx";
 import { SimulatorView } from "./simulator.jsx";
 import { ThemeCtx, THEMES, makeCSS, useIsMobile, useThemeCSS } from "./theme.js";
-import { defaultCampaign, loadData, migrateCampaign, saveData } from "./storage.js";
+import {
+  SESSION_GUID,
+  defaultCampaign,
+  loadData,
+  migrateCampaign,
+  saveData,
+  getKnownCampaigns,
+  switchCampaign,
+  createNewCampaign,
+  forgetCampaign,
+} from "./storage.js";
 
 const NAV_ITEMS = [
   { key: "outline", icon: "=", label: "Outline" },
@@ -50,6 +60,114 @@ function ThemePicker({ current, onChange }) {
   );
 }
 
+function SearchModal({ campaign, onNavigate, onClose, T, css }) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const q = query.trim().toLowerCase();
+  const results = q
+    ? campaign.pages.filter(p => p.name.toLowerCase().includes(q) || (p.tags || []).some(t => t.includes(q)))
+    : campaign.pages.slice(0, 12);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 2000, paddingTop: 80 }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.radius, width: 480, maxWidth: "90vw", boxShadow: "0 8px 40px rgba(0,0,0,0.6)", overflow: "hidden" }}>
+        <div style={{ padding: "10px 14px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: T.textDim, fontSize: 14 }}>⌕</span>
+          <input ref={inputRef} style={{ ...css.input, border: "none", background: "transparent", fontSize: 14, padding: 0, flex: 1 }}
+            placeholder="Search pages…" value={query} onChange={e => setQuery(e.target.value)} />
+          <span style={{ fontSize: 10, color: T.textMuted }}>ESC</span>
+        </div>
+        <div style={{ maxHeight: 360, overflowY: "auto" }}>
+          {results.length === 0 && (
+            <div style={{ padding: "24px 16px", textAlign: "center", color: T.textDim, fontSize: 12 }}>No pages match "{query}"</div>
+          )}
+          {results.map((page, i) => (
+            <div key={page.id} style={{ padding: "10px 16px", cursor: "pointer", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 10 }}
+              onMouseEnter={e => e.currentTarget.style.background = T.surface2}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              onClick={() => { onNavigate(page.id); onClose(); }}>
+              <span style={{ fontSize: 10, color: page.type === "mission" ? T.accent : T.textDim, flexShrink: 0 }}>{page.type === "mission" ? "⬟" : "◻"}</span>
+              <span style={{ flex: 1, fontSize: 13 }}>{page.name}</span>
+              {(page.tags || []).length > 0 && (
+                <span style={{ fontSize: 10, color: T.textMuted }}>{page.tags.join(", ")}</span>
+              )}
+            </div>
+          ))}
+        </div>
+        {!q && campaign.pages.length > 12 && (
+          <div style={{ padding: "6px 16px", fontSize: 10, color: T.textMuted, borderTop: `1px solid ${T.border}` }}>Type to search all {campaign.pages.length} pages</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CampaignSwitcher({ current, onClose, T, css }) {
+  const [campaigns, setCampaigns] = useState(() => getKnownCampaigns());
+  const [confirmForget, setConfirmForget] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const sorted = [...campaigns].sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0));
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.radius, width: 460, maxWidth: "90vw", boxShadow: "0 8px 40px rgba(0,0,0,0.6)", overflow: "hidden" }}>
+        <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center" }}>
+          <span style={{ fontWeight: "bold", color: T.accentBright, letterSpacing: "0.1em", fontSize: 13 }}>CAMPAIGNS</span>
+          <div style={{ flex: 1 }} />
+          <button style={css.btn()} onClick={onClose}>✕</button>
+        </div>
+        <div style={{ maxHeight: 360, overflowY: "auto" }}>
+          {sorted.map(c => {
+            const isCurrent = c.guid === current;
+            return (
+              <div key={c.guid}>
+                <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${T.border}`, background: isCurrent ? T.surface2 : "transparent" }}>
+                  {isCurrent && <span style={{ fontSize: 9, color: T.accent, letterSpacing: "0.08em" }}>ACTIVE</span>}
+                  <span style={{ flex: 1, fontSize: 13, color: isCurrent ? T.accentBright : T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                  <span style={{ fontSize: 10, color: T.textMuted, flexShrink: 0 }}>{c.lastUsed ? new Date(c.lastUsed).toLocaleDateString() : ""}</span>
+                  {!isCurrent && (
+                    <>
+                      <button style={{ ...css.btn("primary"), fontSize: 10, padding: "2px 8px", flexShrink: 0 }} onClick={() => switchCampaign(c.guid)}>Open</button>
+                      {confirmForget === c.guid
+                        ? <>
+                          <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 8px" }} onClick={() => { forgetCampaign(c.guid); setCampaigns(getKnownCampaigns()); setConfirmForget(null); }}>Remove</button>
+                          <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={() => setConfirmForget(null)}>Cancel</button>
+                        </>
+                        : <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 6px", opacity: 0.6 }} title="Remove from list" onClick={() => setConfirmForget(c.guid)}>×</button>
+                      }
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {sorted.length === 0 && <div style={{ padding: "24px 16px", textAlign: "center", color: T.textDim, fontSize: 12 }}>No saved campaigns yet.</div>}
+        </div>
+        <div style={{ padding: "12px 16px", borderTop: `1px solid ${T.border}` }}>
+          <button style={{ ...css.btn("primary"), width: "100%" }} onClick={() => createNewCampaign()}>+ New Campaign</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const [campaign, setCampaign] = useState(null);
   const [selectedPageId, setSelectedPageId] = useState(null);
@@ -57,13 +175,18 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState("saved");
   const [showIO, setShowIO] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showCampaigns, setShowCampaigns] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
   const saveTimer = useRef(null);
+  const historyRef = useRef({ stack: [], idx: -1 });
 
   useEffect(() => {
     loadData().then((data) => {
-      setCampaign(data ? migrateCampaign(data) : defaultCampaign());
+      const migrated = data ? migrateCampaign(data) : defaultCampaign();
+      setCampaign(migrated);
+      historyRef.current = { stack: [migrated], idx: 0 };
       setLoading(false);
     });
   }, []);
@@ -80,9 +203,44 @@ export function App() {
     setCampaign((previous) => {
       const next = fn(previous);
       persist(next);
+      const h = historyRef.current;
+      const stack = h.stack.slice(0, h.idx + 1).concat(next);
+      historyRef.current = { stack: stack.length > 50 ? stack.slice(-50) : stack, idx: Math.min(h.idx + 1, 49) };
       return next;
     });
   }, [persist]);
+
+  const undo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.idx <= 0) return;
+    const newIdx = h.idx - 1;
+    const prev = h.stack[newIdx];
+    historyRef.current = { ...h, idx: newIdx };
+    setCampaign(prev);
+    persist(prev);
+  }, [persist]);
+
+  const redo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.idx >= h.stack.length - 1) return;
+    const newIdx = h.idx + 1;
+    const next = h.stack[newIdx];
+    historyRef.current = { ...h, idx: newIdx };
+    setCampaign(next);
+    persist(next);
+  }, [persist]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key === "k") { e.preventDefault(); setShowSearch(true); return; }
+      if (e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
+      if (e.key === "y" || (e.key === "z" && e.shiftKey)) { e.preventDefault(); redo(); return; }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [undo, redo]);
 
   if (loading) {
     const isDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
@@ -104,6 +262,9 @@ export function App() {
     setSidebarOpen(false);
   };
 
+  const canUndo = historyRef.current.idx > 0;
+  const canRedo = historyRef.current.idx < historyRef.current.stack.length - 1;
+
   return (
     <ThemeCtx.Provider value={T}>
       {T.skeuomorphic && (
@@ -112,9 +273,18 @@ export function App() {
       <div data-theme={campaign.theme} className="sk-app" style={{ ...css.app, minHeight: "100dvh" }}>
         {!isMobile && (
           <div className="sk-topbar" style={css.topbar}>
-            <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", letterSpacing: "0.15em", flexShrink: 0 }}>John's Campaign Manager</span>
+            <button style={{ ...css.btn(), fontSize: 11, display: "flex", alignItems: "center", gap: 4 }} onClick={() => setShowCampaigns(true)} title="Switch campaign">
+              <span style={{ color: T.accentBright }}>⬡</span>
+              <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{campaign.name}</span>
+              <span style={{ color: T.textDim }}>▾</span>
+            </button>
             <input style={{ ...css.input, width: 180, fontSize: 13 }} value={campaign.name} onChange={(event) => update((data) => ({ ...data, name: event.target.value }))} />
             <div style={{ flex: 1 }} />
+            <button style={{ ...css.btn(), fontSize: 11, padding: "4px 10px", display: "flex", alignItems: "center", gap: 4 }} onClick={() => setShowSearch(true)} title="Search pages (Ctrl+K)">
+              ⌕ <span style={{ opacity: 0.5, fontSize: 9 }}>⌃K</span>
+            </button>
+            <button style={{ ...css.btn(), fontSize: 11, padding: "4px 8px", opacity: canUndo ? 1 : 0.3 }} onClick={undo} title="Undo (Ctrl+Z)" disabled={!canUndo}>↩</button>
+            <button style={{ ...css.btn(), fontSize: 11, padding: "4px 8px", opacity: canRedo ? 1 : 0.3 }} onClick={redo} title="Redo (Ctrl+Y)" disabled={!canRedo}>↪</button>
             {NAV_ITEMS.map(({ key, label }) => (
               <button key={key} style={{ ...css.btn(view === key ? "primary" : "default"), letterSpacing: "0.06em", fontSize: 11 }} onClick={() => navigateTo(key)}>{label.toUpperCase()}</button>
             ))}
@@ -128,6 +298,7 @@ export function App() {
           <div className="sk-topbar" style={{ ...css.topbar, height: 52, padding: "0 10px", gap: 6 }}>
             {showSidebar && <button style={{ ...css.btn(), padding: "6px 10px", fontSize: 18, lineHeight: 1, flexShrink: 0 }} onClick={() => setSidebarOpen((open) => !open)}>=</button>}
             <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{view === "editor" && selectedPage ? selectedPage.name : (NAV_ITEMS.find((item) => item.key === view)?.label || view)}</span>
+            <button style={{ ...css.btn(), fontSize: 14, padding: "4px 8px", flexShrink: 0 }} onClick={() => setShowSearch(true)} title="Search">⌕</button>
             <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key }))} />
             <button style={{ ...css.btn(), fontSize: 11, padding: "4px 8px", flexShrink: 0 }} onClick={() => setShowIO(true)}>Data</button>
             <span style={{ fontSize: 9, color: T.textMuted, flexShrink: 0 }}>{saveStatus === "saving" ? "*" : "o"}</span>
@@ -153,7 +324,7 @@ export function App() {
             {view === "schema" && <SchemaEditor campaign={campaign} onUpdate={update} />}
             {view === "flowchart" && <FlowchartView campaign={campaign} onUpdate={update} />}
             {view === "simulate" && <SimulatorView campaign={campaign} />}
-            {view === "settings" && <SettingsView campaign={campaign} onUpdate={update} onClear={() => { const fresh = defaultCampaign(); setCampaign(fresh); persist(fresh); navigateTo("outline"); }} />}
+            {view === "settings" && <SettingsView campaign={campaign} onUpdate={update} onRestore={(data) => { const m = migrateCampaign(data); setCampaign(m); persist(m); }} onClear={() => { const fresh = defaultCampaign(); setCampaign(fresh); persist(fresh); navigateTo("outline"); }} />}
           </div>
         </div>
 
@@ -170,6 +341,8 @@ export function App() {
         )}
 
         {showIO && <ImportExportModal campaign={campaign} onImport={(data) => { setCampaign(data); persist(data); }} onClose={() => setShowIO(false)} />}
+        {showSearch && <SearchModal campaign={campaign} onNavigate={(id) => navigateTo("editor", id)} onClose={() => setShowSearch(false)} T={T} css={css} />}
+        {showCampaigns && <CampaignSwitcher current={SESSION_GUID} onClose={() => setShowCampaigns(false)} T={T} css={css} />}
       </div>
     </ThemeCtx.Provider>
   );
