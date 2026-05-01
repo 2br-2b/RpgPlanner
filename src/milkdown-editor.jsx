@@ -44,6 +44,11 @@ export const MilkdownEditor = forwardRef(function MilkdownEditor(
   return (
     <div
       className="milkdown-editor-wrapper"
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "y" || (e.key === "Z" && e.shiftKey))) {
+          e.stopPropagation();
+        }
+      }}
       style={{
         border: `1px solid ${T.border}`,
         borderRadius: T.radius,
