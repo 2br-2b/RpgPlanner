@@ -19,13 +19,8 @@
   gap: 1px;
 }
 
-.mk-toolbar-group + .mk-toolbar-group::before {
-  content: "";
-  display: inline-block;
-  width: 1px;
-  height: 16px;
-  background: var(--mk-border);
-  margin: 0 4px;
+.mk-toolbar-group + .mk-toolbar-group {
+  margin-left: 4px;
 }
 
 .mk-toolbar-btn {
@@ -61,7 +56,8 @@
 
 .mk-toolbar-btn.mk-bold { font-weight: 800; }
 .mk-toolbar-btn.mk-italic { font-style: italic; font-weight: 400; }
-.mk-toolbar-btn.mk-code { font-family: monospace; font-size: 12px; }
+.mk-toolbar-btn.mk-underline { text-decoration: underline; }
+.mk-toolbar-btn.mk-code { font-family: monospace; font-size: 11px; letter-spacing: -0.03em; }
 .mk-toolbar-btn.mk-heading { font-size: 10px; letter-spacing: 0.04em; }
 
 .milkdown-editor-wrapper:focus-within {
