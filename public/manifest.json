@@ -1,0 +1,22 @@
+{
+  "name": "John's Campaign Manager",
+  "short_name": "Campaign Mgr",
+  "description": "RPG campaign planning tool",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e1b2e",
+  "theme_color": "#2d1b4b",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
