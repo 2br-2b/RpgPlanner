@@ -56,7 +56,7 @@ function OutlineCard({ page, schema, showCosts, onSelect, onUpdate }) {
   };
 
   return (
-    <div style={{ ...css.section, cursor: "pointer", transition: "border-color 0.15s" }}
+    <div className="sk-section" style={{ ...css.section, cursor: "pointer", transition: "border-color 0.15s" }}
       onMouseEnter={e => e.currentTarget.style.borderColor = T.accent}
       onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }} onClick={() => onSelect(page.id)}>
@@ -171,7 +171,7 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
           </div>
           {editMode
             ? <textarea style={{ ...css.textarea, minHeight: 400 }} value={page.content || ""} onChange={e => set("content", e.target.value)} placeholder="Markdown supported..." />
-            : <div style={css.section} dangerouslySetInnerHTML={{ __html: renderMarkdown(page.content, T) }} />}
+            : <div className="sk-section" style={css.section} dangerouslySetInnerHTML={{ __html: renderMarkdown(page.content, T) }} />}
         </div>
       )}
 
@@ -252,7 +252,7 @@ function WaypointsSection({ sec, sectionData, onChange }) {
   const waypoints = raw.waypoints || {};
 
   return (
-    <div style={{ ...css.section, marginBottom: 12 }}>
+    <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
         <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
         <span style={{ fontSize: 11, color: T.textDim }}>Waypoints:</span>
@@ -416,7 +416,7 @@ function TableSection({ sec, sectionData, onChange }) {
 
   if (columns.length === 0) {
     return (
-      <div style={{ ...css.section, marginBottom: 12 }}>
+      <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
         <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
         <div style={{ fontSize: 11, color: T.textDim, marginTop: 8 }}>No columns defined. Configure columns in the Section Schema.</div>
       </div>
@@ -424,7 +424,7 @@ function TableSection({ sec, sectionData, onChange }) {
   }
 
   return (
-    <div style={{ ...css.section, marginBottom: 12 }}>
+    <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
         <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
         <button style={{ ...css.btn(), fontSize: 11 }} onClick={addRow}>+ Row</button>
@@ -552,7 +552,7 @@ function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded })
   const flatVal = typeof sectionData === "string" ? sectionData : (typeof sectionData === "object" && sectionData !== null ? "" : sectionData || "");
 
   return (
-    <div style={{ ...css.section, marginBottom: 12 }}>
+    <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
       <div style={{ marginBottom: 10 }}>
         <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
       </div>
@@ -584,7 +584,7 @@ function CostsAwards({ costs, awards, onAddCost, onAddAward, onUpdateCost, onUpd
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
         {sections.map(({ key, label, sign, color, items, onAdd, onUpdate, onRemove, total }) => (
-          <div key={key} style={css.section}>
+          <div key={key} className="sk-section" style={css.section}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <span style={{ color, fontWeight: "bold", fontSize: 12, letterSpacing: "0.1em" }}>{sign} {label}</span>
               <button style={css.btn()} onClick={onAdd}>+ Add</button>
@@ -696,7 +696,7 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, on
   };
 
   return (
-    <div style={{ ...css.section, marginBottom: 10 }}>
+    <div className="sk-section" style={{ ...css.section, marginBottom: 10 }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10 }} disabled={isFirst} onClick={() => onMove(-1)}>▲</button>

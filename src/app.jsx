@@ -109,9 +109,9 @@ export function App() {
       {T.skeuomorphic && (
         <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9999, backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.028) 2px, rgba(0,0,0,0.028) 4px)" }} />
       )}
-      <div style={{ ...css.app, minHeight: "100dvh" }}>
+      <div data-theme={campaign.theme} className="sk-app" style={{ ...css.app, minHeight: "100dvh" }}>
         {!isMobile && (
-          <div style={css.topbar}>
+          <div className="sk-topbar" style={css.topbar}>
             <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", letterSpacing: "0.15em", flexShrink: 0 }}>John's Campaign Manager</span>
             <input style={{ ...css.input, width: 180, fontSize: 13 }} value={campaign.name} onChange={(event) => update((data) => ({ ...data, name: event.target.value }))} />
             <div style={{ flex: 1 }} />
@@ -125,7 +125,7 @@ export function App() {
         )}
 
         {isMobile && (
-          <div style={{ ...css.topbar, height: 52, padding: "0 10px", gap: 6 }}>
+          <div className="sk-topbar" style={{ ...css.topbar, height: 52, padding: "0 10px", gap: 6 }}>
             {showSidebar && <button style={{ ...css.btn(), padding: "6px 10px", fontSize: 18, lineHeight: 1, flexShrink: 0 }} onClick={() => setSidebarOpen((open) => !open)}>=</button>}
             <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{view === "editor" && selectedPage ? selectedPage.name : (NAV_ITEMS.find((item) => item.key === view)?.label || view)}</span>
             <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key }))} />
@@ -146,7 +146,7 @@ export function App() {
 
           {!isMobile && showSidebar && <Sidebar campaign={campaign} selectedPageId={selectedPageId} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} />}
 
-          <div style={{ ...css.main, padding: mainPad, paddingBottom: isMobile ? "68px" : mainPad, overflowY: "auto" }}>
+          <div className="sk-main" style={{ ...css.main, padding: mainPad, paddingBottom: isMobile ? "68px" : mainPad, overflowY: "auto" }}>
             {view === "outline" && <OutlineView campaign={campaign} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} />}
             {view === "editor" && selectedPage && <PageEditor key={selectedPage.id} page={selectedPage} schema={campaign.sectionSchema} onUpdate={(page) => update((data) => ({ ...data, pages: data.pages.map((item) => item.id === page.id ? page : item) }))} onBack={() => navigateTo("outline")} />}
             {view === "editor" && !selectedPage && <div style={{ color: T.textDim, textAlign: "center", marginTop: 80 }}>{isMobile ? "Open the menu to select a page" : "Select a page to edit"}</div>}
