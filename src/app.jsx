@@ -242,6 +242,32 @@ export function App() {
     return () => document.removeEventListener("keydown", handler);
   }, [undo, redo]);
 
+  const navigateTo = useCallback((nextView, pageId) => {
+    setView(nextView);
+    if (pageId !== undefined) setSelectedPageId(pageId);
+    setSidebarOpen(false);
+    window.history.pushState({ view: nextView, pageId: pageId ?? null }, "");
+  }, []);
+
+  useEffect(() => {
+    window.history.replaceState({ view: "outline", pageId: null }, "");
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      const state = window.history.state;
+      if (!state) return;
+      if (showSearch) { setShowSearch(false); window.history.pushState(state, ""); return; }
+      if (showIO) { setShowIO(false); window.history.pushState(state, ""); return; }
+      if (showCampaigns) { setShowCampaigns(false); window.history.pushState(state, ""); return; }
+      if (sidebarOpen) { setSidebarOpen(false); window.history.pushState(state, ""); return; }
+      setView(state.view);
+      if (state.pageId !== null) setSelectedPageId(state.pageId);
+    };
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, [showSearch, showIO, showCampaigns, sidebarOpen]);
+
   if (loading) {
     const isDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
     return (
@@ -256,12 +282,6 @@ export function App() {
   const selectedPage = campaign.pages.find((page) => page.id === selectedPageId);
   const showSidebar = view === "outline" || view === "editor";
   const mainPad = isMobile ? "12px" : "24px";
-  const navigateTo = (nextView, pageId) => {
-    setView(nextView);
-    if (pageId !== undefined) setSelectedPageId(pageId);
-    setSidebarOpen(false);
-  };
-
   const canUndo = historyRef.current.idx > 0;
   const canRedo = historyRef.current.idx < historyRef.current.stack.length - 1;
 
