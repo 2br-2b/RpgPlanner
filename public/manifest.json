@@ -4,8 +4,8 @@
   "description": "RPG campaign planning tool",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1e1b2e",
-  "theme_color": "#2d1b4b",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "/icon-192.png",
