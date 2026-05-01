@@ -600,6 +600,18 @@ export function SchemaEditor({ campaign, onUpdate }) {
   const T = useTheme(); const css = makeCSS(T);
   const add = () => onUpdate(c => ({ ...c, sectionSchema: [...c.sectionSchema, { id: uid(), name: "New Section", type: "text", subheaders: [] }] }));
   const upd = (id, f, v) => onUpdate(c => ({ ...c, sectionSchema: c.sectionSchema.map(s => s.id === id ? { ...s, [f]: v } : s) }));
+  const renameSubheader = (sectionId, oldName, newName) => onUpdate(c => {
+    const newSchema = c.sectionSchema.map(s =>
+      s.id === sectionId ? { ...s, subheaders: (s.subheaders || []).map(sh => sh === oldName ? newName : sh) } : s
+    );
+    const newPages = (c.pages || []).map(p => {
+      const sData = p.sections?.[sectionId];
+      if (!sData || typeof sData !== "object" || Array.isArray(sData) || !(oldName in sData)) return p;
+      const { [oldName]: val, ...rest } = sData;
+      return { ...p, sections: { ...p.sections, [sectionId]: { ...rest, [newName]: val } } };
+    });
+    return { ...c, sectionSchema: newSchema, pages: newPages };
+  });
   const del = (id) => onUpdate(c => ({ ...c, sectionSchema: c.sectionSchema.filter(s => s.id !== id) }));
   const move = (id, d) => onUpdate(c => {
     const arr = [...c.sectionSchema]; const i = arr.findIndex(s => s.id === id); const j = i + d;
@@ -618,13 +630,13 @@ export function SchemaEditor({ campaign, onUpdate }) {
       <div style={{ marginBottom: 12, padding: 10, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, fontSize: 11, color: T.textDim }}>
         Changes here propagate to all mission pages automatically. Existing section content is preserved.
       </div>
-      {campaign.sectionSchema.map((sec, i) => <SchemaSectionRow key={sec.id} sec={sec} isFirst={i === 0} isLast={i === campaign.sectionSchema.length - 1} onChange={(f, v) => upd(sec.id, f, v)} onRemove={() => del(sec.id)} onMove={d => move(sec.id, d)} />)}
+      {campaign.sectionSchema.map((sec, i) => <SchemaSectionRow key={sec.id} sec={sec} isFirst={i === 0} isLast={i === campaign.sectionSchema.length - 1} onChange={(f, v) => upd(sec.id, f, v)} onRemove={() => del(sec.id)} onMove={d => move(sec.id, d)} onRenameSubheader={(o, n) => renameSubheader(sec.id, o, n)} />)}
       {campaign.sectionSchema.length === 0 && <div style={{ color: T.textDim, textAlign: "center", padding: 32 }}>No sections defined. Mission pages will be free-form.</div>}
     </div>
   );
 }
 
-function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) {
+function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, onRenameSubheader }) {
   const T = useTheme(); const css = makeCSS(T);
   const [sub, setSub] = useState("");
   const [newColLabel, setNewColLabel] = useState("");
@@ -638,6 +650,14 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
     if (!s || (sec.subheaders || []).includes(s)) { setSub(""); return; }
     onChange("subheaders", [...(sec.subheaders || []), s]);
     setSub("");
+  };
+
+  const moveSub = (idx, direction) => {
+    const arr = [...(sec.subheaders || [])];
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= arr.length) return;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    onChange("subheaders", arr);
   };
 
   const addColumn = () => {
@@ -768,9 +788,25 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove }) 
       {!isWaypoints && !isTable && (
         <>
           <div style={css.label}>Subheaders:</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-            {(sec.subheaders || []).map(sh => (
-              <span key={sh} style={{ ...css.tag, cursor: "pointer" }} onClick={() => onChange("subheaders", (sec.subheaders || []).filter(s => s !== sh))}>{sh} ×</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 6 }}>
+            {(sec.subheaders || []).map((sh, i, arr) => (
+              <div key={sh} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <button style={{ ...css.btn(), padding: "1px 4px", fontSize: 10, minWidth: 24 }} disabled={i === 0} onClick={() => moveSub(i, -1)}>▲</button>
+                  <button style={{ ...css.btn(), padding: "1px 4px", fontSize: 10, minWidth: 24 }} disabled={i === arr.length - 1} onClick={() => moveSub(i, 1)}>▼</button>
+                </div>
+                <input
+                  style={{ ...css.input, fontSize: 11, flex: 1 }}
+                  defaultValue={sh}
+                  onBlur={e => {
+                    const v = e.target.value.trim();
+                    if (v && v !== sh && !(sec.subheaders || []).filter(s => s !== sh).includes(v)) onRenameSubheader(sh, v);
+                    else e.target.value = sh;
+                  }}
+                  onKeyDown={e => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") { e.target.value = sh; e.target.blur(); } }}
+                />
+                <button style={{ ...css.btn("danger"), padding: "2px 6px", fontSize: 11 }} onClick={() => onChange("subheaders", (sec.subheaders || []).filter(s => s !== sh))}>×</button>
+              </div>
             ))}
           </div>
           <div style={{ display: "flex", gap: 6 }}>
