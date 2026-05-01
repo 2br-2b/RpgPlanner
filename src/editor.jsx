@@ -1,10 +1,12 @@
 import { useState, useRef } from "react";
-import { useTheme, makeCSS, useIsMobile } from "./theme.js";
+import { useThemeCSS, useIsMobile } from "./theme.js";
 import { uid } from "./storage.js";
 import { renderMarkdown } from "./markdown.js";
+import { TableSection } from "./table-section.jsx";
+import { WaypointsSection } from "./waypoints-section.jsx";
 
 export function OutlineView({ campaign, onSelect, onUpdate }) {
-  const T = useTheme(); const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const [filterTag, setFilterTag] = useState("");
   const allTags = [...new Set(campaign.pages.flatMap(p => p.tags || []))];
   const filtered = campaign.pages.filter(p => !filterTag || (p.tags || []).includes(filterTag));
@@ -43,7 +45,7 @@ export function OutlineView({ campaign, onSelect, onUpdate }) {
 }
 
 function OutlineCard({ page, schema, showCosts, onSelect, onUpdate }) {
-  const T = useTheme(); const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const [editTag, setEditTag] = useState("");
   const tc = (page.costs || []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
   const ta = (page.awards || []).reduce((s, a) => s + (Number(a.amount) || 0), 0);
@@ -100,7 +102,7 @@ function OutlineCard({ page, schema, showCosts, onSelect, onUpdate }) {
 }
 
 export function PageEditor({ page, schema, onUpdate, onBack }) {
-  const T = useTheme(); const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const isMobile = useIsMobile();
   const [activeSection, setActiveSection] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -214,7 +216,8 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
   );
 }
 
-function SubBox({ label, value, onChange, onImageUpload, expanded, T, css }) {
+function SubBox({ label, value, onChange, onImageUpload, expanded }) {
+  const { T, css } = useThemeCSS();
   const [editMode, setEditMode] = useState(!value);
   return (
     <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -230,303 +233,8 @@ function SubBox({ label, value, onChange, onImageUpload, expanded, T, css }) {
   );
 }
 
-function waypointLabel(i) {
-  const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  if (i < 26) return alpha[i];
-  let s = "";
-  let n = i;
-  while (n >= 0) {
-    s = alpha[n % 26] + s;
-    n = Math.floor(n / 26) - 1;
-  }
-  return s;
-}
-function waypointLabels(count) {
-  return Array.from({ length: count }, (_, i) => waypointLabel(i));
-}
-
-function WaypointsSection({ sec, sectionData, onChange }) {
-  const T = useTheme(); const css = makeCSS(T);
-  const raw = (typeof sectionData === "object" && sectionData !== null && !Array.isArray(sectionData)) ? sectionData : {};
-  const count = Math.min(702, Math.max(1, Number(raw.count) || 1));
-  const waypoints = raw.waypoints || {};
-
-  return (
-    <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
-        <span style={{ fontSize: 11, color: T.textDim }}>Waypoints:</span>
-        <input type="number" min="1" max="702" style={{ ...css.input, width: 56, fontSize: 12 }}
-          value={count} onChange={e => onChange("__waypoints_count__", Math.min(702, Math.max(1, Number(e.target.value) || 1)))} />
-        <span style={{ fontSize: 10, color: T.textMuted }}>A–{waypointLabel(count - 1)}</span>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-        {waypointLabels(count).map(label => (
-          <div key={label} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ ...css.tag, alignSelf: "flex-start" }}>{label}</span>
-            <textarea style={{ ...css.textarea, minHeight: 80, resize: "vertical" }}
-              placeholder={`Waypoint ${label}: Do…`}
-              value={waypoints[label] || ""}
-              onChange={e => onChange("__waypoints_wp__" + label, e.target.value)} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TableSection({ sec, sectionData, onChange }) {
-  const T = useTheme(); const css = makeCSS(T);
-  const columns = sec.columns || [];
-  const raw = (typeof sectionData === "object" && sectionData !== null && !Array.isArray(sectionData)) ? sectionData : {};
-  const rows = Array.isArray(raw.rows) ? raw.rows : [];
-  const [sortCol, setSortCol] = useState(null);
-  const [sortDir, setSortDir] = useState("asc");
-  const [filterText, setFilterText] = useState("");
-
-  const getDefaultValue = (col) => {
-    if (col.type === "checkbox") return col.defaultValue === true || col.defaultValue === "true";
-    return col.defaultValue ?? "";
-  };
-
-  const setRows = (newRows) => onChange({ ...raw, rows: newRows });
-  const addRow = () => {
-    const newRow = {};
-    columns.forEach(col => { newRow[col.id] = getDefaultValue(col); });
-    setRows([...rows, newRow]);
-  };
-  const removeRow = (idx) => setRows(rows.filter((_, i) => i !== idx));
-  const setCellValue = (rowIdx, colId, val) => setRows(rows.map((row, i) => i === rowIdx ? { ...row, [colId]: val } : row));
-
-  const exportCSV = () => {
-    const escape = (v) => {
-      const s = String(v ?? "");
-      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const header = columns.map(c => escape(c.label)).join(",");
-    const body = rows.map(row => columns.map(col => {
-      const v = row[col.id];
-      if (col.type === "checkbox") return v === true || v === "true" ? "true" : "false";
-      return escape(v);
-    }).join(",")).join("\n");
-    const blob = new Blob([header + "\n" + body], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `${sec.name || "table"}.csv`; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importCSVRef = useRef(null);
-  const importCSV = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target.result;
-      const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
-      if (lines.length < 2) return;
-      const parseRow = (line) => {
-        const result = []; let cur = ""; let inQ = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (inQ) { if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; } else if (ch === '"') inQ = false; else cur += ch; }
-          else if (ch === '"') inQ = true;
-          else if (ch === ',') { result.push(cur); cur = ""; }
-          else cur += ch;
-        }
-        result.push(cur);
-        return result;
-      };
-      const headers = parseRow(lines[0]);
-      const colByLabel = {};
-      columns.forEach(c => { colByLabel[c.label.toLowerCase()] = c; });
-      const newRows = lines.slice(1).map(line => {
-        const vals = parseRow(line);
-        const row = {};
-        columns.forEach(c => { row[c.id] = getDefaultValue(c); });
-        headers.forEach((h, i) => {
-          const col = colByLabel[h.toLowerCase()];
-          if (!col) return;
-          const raw = vals[i] ?? "";
-          if (col.type === "checkbox") row[col.id] = raw.toLowerCase() === "true";
-          else if (col.type === "number") row[col.id] = raw === "" ? "" : Number(raw);
-          else row[col.id] = raw;
-        });
-        return row;
-      });
-      setRows(newRows);
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-
-  const cycleSort = (colId) => {
-    if (sortCol !== colId) { setSortCol(colId); setSortDir("asc"); }
-    else if (sortDir === "asc") setSortDir("desc");
-    else { setSortCol(null); setSortDir("asc"); }
-  };
-
-  const filteredRows = rows.map((row, idx) => ({ row, idx })).filter(({ row }) => {
-    if (!filterText.trim()) return true;
-    const q = filterText.trim().toLowerCase();
-    return columns.some(col => {
-      const v = row[col.id];
-      if (col.type === "checkbox") return (v === true || v === "true") ? "checked".includes(q) : "unchecked".includes(q);
-      return String(v ?? "").toLowerCase().includes(q);
-    });
-  });
-
-  const sortedRows = sortCol
-    ? [...filteredRows].sort((a, b) => {
-        if (sortCol === "__id__") return sortDir === "asc" ? a.idx - b.idx : b.idx - a.idx;
-        const col = columns.find(c => c.id === sortCol);
-        const av = a.row[sortCol]; const bv = b.row[sortCol];
-        let cmp;
-        if (col?.type === "number") cmp = (Number(av) || 0) - (Number(bv) || 0);
-        else if (col?.type === "checkbox") cmp = ((av === true || av === "true") ? 1 : 0) - ((bv === true || bv === "true") ? 1 : 0);
-        else cmp = String(av ?? "").localeCompare(String(bv ?? ""));
-        return sortDir === "asc" ? cmp : -cmp;
-      })
-    : filteredRows;
-
-  const summaryValues = columns.map(col => {
-    if (!col.summary || col.summary === "none") return "";
-    const rawValues = rows.map(row => row[col.id]).filter(v => v !== undefined && v !== null && v !== "");
-    if (col.type === "text") {
-      if (col.summary === "count") return rawValues.length;
-      return "";
-    }
-    if (col.type === "number") {
-      const nums = rawValues.map(v => Number(v)).filter(n => !Number.isNaN(n));
-      if (!nums.length) return "";
-      switch (col.summary) {
-        case "sum": return nums.reduce((sum, n) => sum + n, 0);
-        case "average": return nums.reduce((sum, n) => sum + n, 0) / nums.length;
-        case "min": return Math.min(...nums);
-        case "max": return Math.max(...nums);
-        default: return "";
-      }
-    }
-    if (col.type === "checkbox") {
-      return rawValues.filter(v => v === true || v === "true").length;
-    }
-    return "";
-  });
-  const hasSummary = summaryValues.some(value => value !== "");
-
-  if (columns.length === 0) {
-    return (
-      <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
-        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
-        <div style={{ fontSize: 11, color: T.textDim, marginTop: 8 }}>No columns defined. Configure columns in the Section Schema.</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
-        <button style={{ ...css.btn(), fontSize: 11 }} onClick={addRow}>+ Row</button>
-        <input style={{ ...css.input, fontSize: 11, flex: 1, maxWidth: 200 }} placeholder="Filter rows..." value={filterText} onChange={e => setFilterText(e.target.value)} />
-        {filterText && <button style={{ ...css.btn(), fontSize: 11, padding: "2px 6px" }} onClick={() => setFilterText("")}>✕</button>}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-          <button style={{ ...css.btn(), fontSize: 11 }} onClick={exportCSV} title="Export table as CSV">↓ CSV</button>
-          <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => importCSVRef.current?.click()} title="Import rows from CSV">↑ CSV</button>
-          <input ref={importCSVRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={importCSV} />
-        </div>
-      </div>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "auto" }}>
-          <thead>
-            <tr>
-              <th onClick={() => cycleSort("__id__")} style={{ padding: "6px 8px", borderBottom: `2px solid ${T.accent}`, textAlign: "left", fontSize: 11, color: sortCol === "__id__" ? T.accentBright : T.accent, fontWeight: "bold", letterSpacing: "0.06em", whiteSpace: "nowrap", width: 36, cursor: "pointer", userSelect: "none" }}>
-                # {sortCol === "__id__" ? (sortDir === "asc" ? "▲" : "▼") : <span style={{ opacity: 0.3 }}>⇅</span>}
-              </th>
-              {columns.map(col => {
-                const isActive = sortCol === col.id;
-                return (
-                  <th key={col.id} onClick={() => cycleSort(col.id)} style={{ padding: "6px 8px", borderBottom: `2px solid ${T.accent}`, textAlign: "left", fontSize: 11, color: isActive ? T.accentBright : T.accent, fontWeight: "bold", letterSpacing: "0.06em", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none" }}>
-                    {col.label.toUpperCase()} {isActive ? (sortDir === "asc" ? "▲" : "▼") : <span style={{ opacity: 0.3 }}>⇅</span>}
-                  </th>
-                );
-              })}
-              <th style={{ width: 32, borderBottom: `2px solid ${T.accent}` }} />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length + 1} style={{ padding: "16px 8px", textAlign: "center", color: T.textMuted, fontSize: 11 }}>
-                  No rows yet — click + Row to add one.
-                </td>
-              </tr>
-            ) : sortedRows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length + 1} style={{ padding: "16px 8px", textAlign: "center", color: T.textMuted, fontSize: 11 }}>
-                  No rows match "{filterText}".
-                </td>
-              </tr>
-            ) : sortedRows.map(({ row, idx: rowIdx }) => (
-              <tr key={rowIdx} style={{ borderBottom: `1px solid ${T.border}` }}>
-                <td style={{ padding: "4px 6px", verticalAlign: "middle", fontSize: 11, color: T.textDim, textAlign: "center", width: 36 }}>{rowIdx + 1}</td>
-                {columns.map(col => {
-                  const rowValue = row[col.id];
-                  return (
-                    <td key={col.id} style={{ padding: "4px 6px", verticalAlign: "middle" }}>
-                      {col.type === "checkbox" ? (
-                        <input
-                          type="checkbox"
-                          checked={rowValue === true || rowValue === "true"}
-                          onChange={e => setCellValue(rowIdx, col.id, e.target.checked)}
-                        />
-                      ) : col.type === "paragraph" ? (
-                        <textarea
-                          style={{ ...css.textarea, fontSize: 12, width: "100%", minWidth: 120, minHeight: 60, boxSizing: "border-box", resize: "vertical" }}
-                          value={rowValue ?? ""}
-                          onChange={e => setCellValue(rowIdx, col.id, e.target.value)}
-                          placeholder={col.defaultValue || ""}
-                        />
-                      ) : (
-                        <input
-                          type={col.type === "number" ? "number" : "text"}
-                          step={col.type === "number" ? "any" : undefined}
-                          style={{ ...css.input, fontSize: 12, width: "100%", minWidth: 80, boxSizing: "border-box" }}
-                          value={rowValue ?? ""}
-                          onChange={e => setCellValue(rowIdx, col.id, e.target.value)}
-                          placeholder={col.defaultValue || ""}
-                        />
-                      )}
-                    </td>
-                  );
-                })}
-                <td style={{ padding: "4px 6px", verticalAlign: "middle", textAlign: "center" }}>
-                  <button style={{ ...css.btn("danger"), padding: "2px 6px", fontSize: 11 }} onClick={() => removeRow(rowIdx)}>×</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          {hasSummary && (
-            <tfoot>
-              <tr>
-                <td style={{ borderTop: `2px solid ${T.border}` }} />
-                {summaryValues.map((value, idx) => (
-                  <td key={columns[idx].id} style={{ padding: "6px 8px", borderTop: `2px solid ${T.border}`, fontSize: 11, color: T.textDim, whiteSpace: "nowrap" }}>
-                    {value !== "" ? value : ""}
-                  </td>
-                ))}
-                <td style={{ borderTop: `2px solid ${T.border}` }} />
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-    </div>
-  );
-}
-
 function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded }) {
-  const T = useTheme(); const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
 
   if (sec.type === "table") {
     return <TableSection sec={sec} sectionData={sectionData} onChange={(newData) => onChange(undefined, newData)} />;
@@ -561,19 +269,19 @@ function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded })
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
             {sec.subheaders.map(sh => (
               <SubBox key={sh} label={sh} value={getVal(sh)} onChange={v => onChange(sh, v)}
-                onImageUpload={() => onImageUpload(sh)} expanded={expanded} T={T} css={css} />
+                onImageUpload={() => onImageUpload(sh)} expanded={expanded} />
             ))}
           </div>
         )
         : <SubBox label={sec.name} value={flatVal} onChange={v => onChange(undefined, v)}
-            onImageUpload={() => onImageUpload(undefined)} expanded={expanded} T={T} css={css} />
+            onImageUpload={() => onImageUpload(undefined)} expanded={expanded} />
       }
     </div>
   );
 }
 
 function CostsAwards({ costs, awards, onAddCost, onAddAward, onUpdateCost, onUpdateAward, onRemoveCost, onRemoveAward }) {
-  const T = useTheme(); const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const tc = costs.reduce((s, c) => s + (Number(c.amount) || 0), 0);
   const ta = awards.reduce((s, a) => s + (Number(a.amount) || 0), 0);
   const sections = [
@@ -604,229 +312,6 @@ function CostsAwards({ costs, awards, onAddCost, onAddAward, onUpdateCost, onUpd
         <div style={{ textAlign: "right", fontSize: 12, color: ta - tc >= 0 ? T.accent : T.danger, paddingTop: 4 }}>
           Net: {(ta - tc).toLocaleString()} C-Bills
         </div>
-      )}
-    </div>
-  );
-}
-
-export function SchemaEditor({ campaign, onUpdate }) {
-  const T = useTheme(); const css = makeCSS(T);
-  const add = () => onUpdate(c => ({ ...c, sectionSchema: [...c.sectionSchema, { id: uid(), name: "New Section", type: "text", subheaders: [] }] }));
-  const upd = (id, f, v) => onUpdate(c => ({ ...c, sectionSchema: c.sectionSchema.map(s => s.id === id ? { ...s, [f]: v } : s) }));
-  const renameSubheader = (sectionId, oldName, newName) => onUpdate(c => {
-    const newSchema = c.sectionSchema.map(s =>
-      s.id === sectionId ? { ...s, subheaders: (s.subheaders || []).map(sh => sh === oldName ? newName : sh) } : s
-    );
-    const newPages = (c.pages || []).map(p => {
-      const sData = p.sections?.[sectionId];
-      if (!sData || typeof sData !== "object" || Array.isArray(sData) || !(oldName in sData)) return p;
-      const { [oldName]: val, ...rest } = sData;
-      return { ...p, sections: { ...p.sections, [sectionId]: { ...rest, [newName]: val } } };
-    });
-    return { ...c, sectionSchema: newSchema, pages: newPages };
-  });
-  const del = (id) => onUpdate(c => ({ ...c, sectionSchema: c.sectionSchema.filter(s => s.id !== id) }));
-  const move = (id, d) => onUpdate(c => {
-    const arr = [...c.sectionSchema]; const i = arr.findIndex(s => s.id === id); const j = i + d;
-    if (j < 0 || j >= arr.length) return c;
-    [arr[i], arr[j]] = [arr[j], arr[i]]; return { ...c, sectionSchema: arr };
-  });
-
-  return (
-    <div style={{ maxWidth: 640 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <h2 style={{ margin: 0, color: T.accentBright, fontSize: 16, letterSpacing: "0.1em" }}>SECTION SCHEMA</h2>
-        <span style={{ fontSize: 11, color: T.textDim }}>— applies to all Mission pages</span>
-        <div style={{ flex: 1 }} />
-        <button style={css.btn("primary")} onClick={add}>+ Section</button>
-      </div>
-      <div style={{ marginBottom: 12, padding: 10, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, fontSize: 11, color: T.textDim }}>
-        Changes here propagate to all mission pages automatically. Existing section content is preserved.
-      </div>
-      {campaign.sectionSchema.map((sec, i) => <SchemaSectionRow key={sec.id} sec={sec} isFirst={i === 0} isLast={i === campaign.sectionSchema.length - 1} onChange={(f, v) => upd(sec.id, f, v)} onRemove={() => del(sec.id)} onMove={d => move(sec.id, d)} onRenameSubheader={(o, n) => renameSubheader(sec.id, o, n)} />)}
-      {campaign.sectionSchema.length === 0 && <div style={{ color: T.textDim, textAlign: "center", padding: 32 }}>No sections defined. Mission pages will be free-form.</div>}
-    </div>
-  );
-}
-
-function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, onRenameSubheader }) {
-  const T = useTheme(); const css = makeCSS(T);
-  const [sub, setSub] = useState("");
-  const [newColLabel, setNewColLabel] = useState("");
-  const [newColType, setNewColType] = useState("text");
-  const secType = sec.type || "text";
-  const isWaypoints = secType === "waypoints";
-  const isTable = secType === "table";
-
-  const addSub = () => {
-    const s = sub.trim();
-    if (!s || (sec.subheaders || []).includes(s)) { setSub(""); return; }
-    onChange("subheaders", [...(sec.subheaders || []), s]);
-    setSub("");
-  };
-
-  const moveSub = (idx, direction) => {
-    const arr = [...(sec.subheaders || [])];
-    const newIdx = idx + direction;
-    if (newIdx < 0 || newIdx >= arr.length) return;
-    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
-    onChange("subheaders", arr);
-  };
-
-  const addColumn = () => {
-    const label = newColLabel.trim();
-    if (!label) return;
-    onChange("columns", [...(sec.columns || []), { id: uid(), label, defaultValue: "", type: newColType, summary: newColType === "number" ? "sum" : newColType === "checkbox" ? "count" : "none" }]);
-    setNewColLabel("");
-    setNewColType("text");
-  };
-
-  const removeColumn = (colId) => {
-    onChange("columns", (sec.columns || []).filter(c => c.id !== colId));
-  };
-
-  const moveColumn = (colId, direction) => {
-    const idx = (sec.columns || []).findIndex(c => c.id === colId);
-    if (idx < 0) return;
-    const newIdx = idx + direction;
-    if (newIdx < 0 || newIdx >= (sec.columns || []).length) return;
-    const arr = [...(sec.columns || [])];
-    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
-    onChange("columns", arr);
-  };
-
-  return (
-    <div className="sk-section" style={{ ...css.section, marginBottom: 10 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10 }} disabled={isFirst} onClick={() => onMove(-1)}>▲</button>
-          <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10 }} disabled={isLast} onClick={() => onMove(1)}>▼</button>
-        </div>
-        <input style={{ ...css.input, fontWeight: "bold", color: T.accentBright, flex: 1 }} value={sec.name} onChange={e => onChange("name", e.target.value)} />
-        <select style={{ ...css.input, width: "auto", fontSize: 11 }} value={secType} onChange={e => {
-          const value = e.target.value;
-          onChange("type", value);
-          if (value === "table" && !sec.columns) onChange("columns", []);
-        }}>
-          <option value="text">Text</option>
-          <option value="waypoints">Waypoints</option>
-          <option value="table">Table</option>
-        </select>
-        <button style={css.btn("danger")} onClick={onRemove}>Remove</button>
-      </div>
-      {isWaypoints && (
-        <div style={{ fontSize: 11, color: T.textDim, padding: "4px 0" }}>Each mission sets its own waypoint count (1–702, A–ZZ) and per-waypoint instructions.</div>
-      )}
-      {isTable && (
-        <>
-          <div style={{ ...css.label, marginBottom: 6 }}>
-            Columns: <span style={{ color: T.textMuted, fontWeight: "normal", fontSize: 10 }}>type and configure each column</span>
-          </div>
-          {(sec.columns || []).map((col, colIdx) => (
-            <div key={col.id} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 8, marginBottom: 8 }}>
-              <div style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <button style={{ ...css.btn(), padding: "1px 4px", fontSize: 10, minWidth: 24 }} disabled={colIdx === 0} onClick={() => moveColumn(col.id, -1)}>▲</button>
-                  <button style={{ ...css.btn(), padding: "1px 4px", fontSize: 10, minWidth: 24 }} disabled={colIdx === (sec.columns || []).length - 1} onClick={() => moveColumn(col.id, 1)}>▼</button>
-                </div>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                  <input style={{ ...css.input, fontSize: 11 }} placeholder="Column label" value={col.label}
-                    onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, label: e.target.value } : c))} />
-                </div>
-                <button style={{ ...css.btn("danger"), padding: "2px 6px", fontSize: 11 }} onClick={() => removeColumn(col.id)}>Remove</button>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ fontSize: 9, color: T.textDim, fontWeight: "bold" }}>TYPE</span>
-                  <select style={{ ...css.input, fontSize: 11 }} value={col.type || "text"}
-                    onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? {
-                      ...c,
-                      type: e.target.value,
-                      summary: e.target.value === "number" ? (c.summary || "sum") : e.target.value === "checkbox" ? (c.summary || "count") : "none",
-                    } : c))}>
-                    <option value="text">Text</option>
-                    <option value="paragraph">Paragraph</option>
-                    <option value="number">Number</option>
-                    <option value="checkbox">Checkbox</option>
-                  </select>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ fontSize: 9, color: T.textDim, fontWeight: "bold" }}>DEFAULT</span>
-                  <input style={{ ...css.input, fontSize: 11 }} placeholder="Default value" value={col.defaultValue || ""}
-                    onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, defaultValue: e.target.value } : c))} />
-                </div>
-              </div>
-              {["text", "number", "checkbox"].includes(col.type) && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: 9, color: T.textDim, fontWeight: "bold" }}>SUMMARY</span>
-                <select style={{ ...css.input, fontSize: 11 }} value={col.summary || "none"}
-                  onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, summary: e.target.value } : c))}>
-                  <option value="none">None</option>
-                  {col.type === "text" && (
-                    <option value="count">Entry count</option>
-                  )}
-                  {col.type === "number" && (
-                    <>
-                      <option value="sum">Sum</option>
-                      <option value="average">Average</option>
-                      <option value="min">Min</option>
-                      <option value="max">Max</option>
-                    </>
-                  )}
-                  {col.type === "checkbox" && (
-                    <option value="count">Checked count</option>
-                  )}
-                </select>
-              </div>
-              )}
-            </div>
-          ))}
-          <div style={{ display: "flex", gap: 6 }}>
-            <input style={{ ...css.input, flex: 2, fontSize: 11 }} placeholder="New column label..." value={newColLabel}
-              onChange={e => setNewColLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addColumn()} />
-            <select style={{ ...css.input, flex: 1, fontSize: 11 }} value={newColType}
-              onChange={e => setNewColType(e.target.value)}>
-              <option value="text">Text</option>
-              <option value="paragraph">Paragraph</option>
-              <option value="number">Number</option>
-              <option value="checkbox">Checkbox</option>
-            </select>
-            <button style={{ ...css.btn(), background: "#4caf50", color: "white", padding: "2px 8px", fontSize: 14, minWidth: 32 }} onClick={addColumn}>✓</button>
-          </div>
-          <div style={{ fontSize: 10, color: T.textDim, marginTop: 12, padding: "8px", background: T.surface2, borderRadius: T.radius }}>
-            <strong style={{ color: T.textMuted }}>Column types:</strong> Text (single line), Paragraph (multiline, no summary), Number (Sum/Avg/Min/Max), Checkbox (count). Choose a summary option to show aggregated values below the table.
-          </div>
-        </>
-      )}
-      {!isWaypoints && !isTable && (
-        <>
-          <div style={css.label}>Subheaders:</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 6 }}>
-            {(sec.subheaders || []).map((sh, i, arr) => (
-              <div key={sh} style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  <button style={{ ...css.btn(), padding: "1px 4px", fontSize: 10, minWidth: 24 }} disabled={i === 0} onClick={() => moveSub(i, -1)}>▲</button>
-                  <button style={{ ...css.btn(), padding: "1px 4px", fontSize: 10, minWidth: 24 }} disabled={i === arr.length - 1} onClick={() => moveSub(i, 1)}>▼</button>
-                </div>
-                <input
-                  style={{ ...css.input, fontSize: 11, flex: 1 }}
-                  defaultValue={sh}
-                  onBlur={e => {
-                    const v = e.target.value.trim();
-                    if (v && v !== sh && !(sec.subheaders || []).filter(s => s !== sh).includes(v)) onRenameSubheader(sh, v);
-                    else e.target.value = sh;
-                  }}
-                  onKeyDown={e => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") { e.target.value = sh; e.target.blur(); } }}
-                />
-                <button style={{ ...css.btn("danger"), padding: "2px 6px", fontSize: 11 }} onClick={() => onChange("subheaders", (sec.subheaders || []).filter(s => s !== sh))}>×</button>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input style={{ ...css.input, fontSize: 11, flex: 1 }} placeholder="Add subheader..." value={sub} onChange={e => setSub(e.target.value)} onKeyDown={e => e.key === "Enter" && addSub()} />
-            <button style={css.btn()} onClick={addSub}>+</button>
-          </div>
-        </>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { makeCSS, useTheme } from "./theme.js";
+import { useThemeCSS } from "./theme.js";
 import { uid } from "./storage.js";
 
 const NW = 180;
@@ -40,8 +40,7 @@ function EdgeEventEditor({ events, onChange, T, css }) {
 }
 
 export function FlowchartView({ campaign, onUpdate }) {
-  const T = useTheme();
-  const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const svgRef = useRef(null);
   const [dragging, setDragging] = useState(null);
   const [connecting, setConnecting] = useState(null);

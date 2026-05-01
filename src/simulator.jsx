@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { makeCSS, useTheme } from "./theme.js";
+import { useThemeCSS } from "./theme.js";
 
 function randBetween(min, max) {
   const lo = Math.min(min, max);
@@ -80,8 +80,7 @@ function runSimulation(campaign, startingCBills, runs) {
 }
 
 export function SimulatorView({ campaign }) {
-  const T = useTheme();
-  const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const [startCBills, setStartCBills] = useState(10000000);
   const [runCount, setRunCount] = useState(100);
   const [result, setResult] = useState(null);
