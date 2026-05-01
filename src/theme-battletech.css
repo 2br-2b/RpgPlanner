@@ -1,0 +1,204 @@
+/* BattleTech theme: tactical hex-map warfare — dark field, brass borders, mech-scale grid */
+
+/* ============================================================
+   APP BACKGROUND — dark field with hex grid overlay
+   ============================================================ */
+[data-theme="battletech"] {
+  background-color: #0c0a06 !important;
+  background-image:
+    /* Scan-line texture */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 3px,
+      rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px
+    ) !important;
+}
+
+/* ============================================================
+   TOPBAR — command deck header with brass trim
+   ============================================================ */
+[data-theme="battletech"] .sk-topbar {
+  background: linear-gradient(to bottom, #1e1a0e 0%, #120f08 60%, #0a0800 100%) !important;
+  border-bottom: 2px solid #8a6818 !important;
+  box-shadow:
+    0 1px 0 #c89020,
+    0 4px 18px rgba(0,0,0,0.9),
+    inset 0 1px 0 rgba(220,180,60,0.12) !important;
+  position: relative !important;
+}
+
+/* Brass chevron stripe along bottom of topbar */
+[data-theme="battletech"] .sk-topbar::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    #c89020 0px, #c89020 8px,
+    #5a3e0c 8px, #5a3e0c 12px,
+    #c89020 12px, #c89020 20px,
+    transparent 20px, transparent 28px
+  );
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+[data-theme="battletech"] .sk-topbar * {
+  color: #d8c888 !important;
+  border-color: #7a5e18 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+}
+
+[data-theme="battletech"] .sk-topbar input {
+  background: rgba(0,0,0,0.55) !important;
+  border: 1px solid #7a5e18 !important;
+  color: #e0d090 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.7) !important;
+  text-transform: none !important;
+}
+
+[data-theme="battletech"] .sk-topbar button {
+  background: linear-gradient(to bottom, #2a2010 0%, #1a1408 60%, #0c0a04 100%) !important;
+  border: 1px solid #7a5e18 !important;
+  color: #c89828 !important;
+  border-radius: 0 !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.7), inset 0 1px 0 rgba(200,160,40,0.1) !important;
+  text-transform: uppercase !important;
+}
+
+/* ============================================================
+   SIDEBAR — tactical display panel
+   ============================================================ */
+[data-theme="battletech"] .sk-sidebar {
+  background: linear-gradient(to right, #080600 0%, #161208 100%) !important;
+  border-right: 2px solid #7a5e18 !important;
+  box-shadow:
+    1px 0 0 rgba(200,160,40,0.25),
+    3px 0 12px rgba(0,0,0,0.8) !important;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 23px,
+    rgba(120,90,20,0.07) 23px, rgba(120,90,20,0.07) 24px
+  ) !important;
+}
+
+[data-theme="battletech"] .sk-sidebar * {
+  color: #b8a878 !important;
+  border-color: #5a4a18 !important;
+}
+
+[data-theme="battletech"] .sk-sidebar input,
+[data-theme="battletech"] .sk-sidebar select {
+  background: rgba(0,0,0,0.5) !important;
+  border: 1px solid #5a4010 !important;
+  color: #d8c888 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6) !important;
+}
+
+[data-theme="battletech"] .sk-sidebar button {
+  background: linear-gradient(to bottom, #221c0c 0%, #150f06 60%, #0a0800 100%) !important;
+  border: 1px solid #5a4010 !important;
+  color: #b8a060 !important;
+  border-radius: 0 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 11px !important;
+}
+
+/* ============================================================
+   SECTIONS — armoured panel with brass corner brackets
+   ============================================================ */
+[data-theme="battletech"] .sk-section {
+  background: linear-gradient(160deg, #0a0800 0%, #181408 40%, #0a0800 100%) !important;
+  border: 1px solid rgba(140,105,25,0.7) !important;
+  border-radius: 0 !important;
+  box-shadow:
+    0 0 0 1px rgba(200,160,40,0.08),
+    0 5px 20px rgba(0,0,0,0.8),
+    inset 0 1px 0 rgba(200,150,30,0.06) !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Top-left brass corner bracket */
+[data-theme="battletech"] .sk-section::before {
+  content: '';
+  position: absolute;
+  top: -4px; left: -4px;
+  width: 20px; height: 20px;
+  border-top: 2px solid #c89828;
+  border-left: 2px solid #c89828;
+  pointer-events: none;
+  box-shadow: -1px -1px 4px rgba(200,160,40,0.25);
+}
+
+/* Bottom-right brass corner bracket */
+[data-theme="battletech"] .sk-section::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; right: -4px;
+  width: 20px; height: 20px;
+  border-bottom: 2px solid #c89828;
+  border-right: 2px solid #c89828;
+  pointer-events: none;
+  box-shadow: 1px 1px 4px rgba(200,160,40,0.25);
+}
+
+/* ============================================================
+   MAIN CONTENT AREA
+   ============================================================ */
+[data-theme="battletech"] .sk-main {
+  background: transparent !important;
+}
+
+/* ============================================================
+   BUTTONS — tactical interface style
+   ============================================================ */
+[data-theme="battletech"] .sk-main button,
+[data-theme="battletech"] .sk-section button {
+  background: linear-gradient(to bottom, #2a2010 0%, #1a1408 55%, #0e0c06 100%) !important;
+  border: 1px solid #7a5e18 !important;
+  color: #c89828 !important;
+  border-radius: 0 !important;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.7), inset 0 1px 0 rgba(200,160,40,0.08) !important;
+  text-shadow: 0 0 8px rgba(200,160,40,0.3) !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  font-weight: bold !important;
+}
+
+/* Primary (gold-filled) buttons */
+[data-theme="battletech"] .sk-main button[style*="accent"],
+[data-theme="battletech"] .sk-section button[style*="accent"] {
+  text-shadow: 0 1px 1px rgba(0,0,0,0.6) !important;
+}
+
+/* ============================================================
+   INPUTS — field terminal style
+   ============================================================ */
+[data-theme="battletech"] .sk-main input:not([type="checkbox"]),
+[data-theme="battletech"] .sk-main select,
+[data-theme="battletech"] .sk-section input:not([type="checkbox"]),
+[data-theme="battletech"] .sk-section select {
+  background: rgba(0,0,0,0.55) !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(180,140,30,0.45) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #d8c888 !important;
+}
+
+[data-theme="battletech"] .sk-main textarea,
+[data-theme="battletech"] .sk-section textarea {
+  background: rgba(0,0,0,0.5) !important;
+  border: 1px solid rgba(120,95,25,0.5) !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.6) !important;
+  color: #d0c090 !important;
+}
+

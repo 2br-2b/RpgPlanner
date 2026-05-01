@@ -140,6 +140,23 @@ export const THEMES = {
     textMuted: "#304870", danger: "#ff6060", warn: "#ffc040",
     tag: "#0a1828", tagText: "#60b0ff", tagBorder: "#4080c0", radius: 0,
   },
+  battletech: {
+    label: "American Mecha",
+    font: "'Courier New', monospace",
+    bg: "#100e08", surface: "#1a1710", surface2: "#221e14",
+    border: "#7a5e18", accent: "#c89828", accentDim: "#5a3e0c",
+    accentBright: "#e8c050", text: "#d8ccaa", textDim: "#7a6a3a",
+    textMuted: "#3a3018", danger: "#aa2c1a", warn: "#b07a10",
+    tag: "#1c1808", tagText: "#c89828", tagBorder: "#5a4010", radius: 0,
+    skeuomorphic: true,
+    skDark: "#0a0800",
+    rivetColor: "#6a5010",
+    hexStroke: "rgba(180,140,40,0.12)",
+    skPrimaryHighlight: "#f0d060",
+    skPrimaryText: "#1a0e00",
+    skScanLine: "rgba(0,0,0,0.06)",
+    skInsetShadow: "inset 0 2px 6px rgba(0,0,0,0.8)",
+  },
 };
 
 export const ThemeCtx = createContext(THEMES.tactical);
