@@ -18,6 +18,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
   const [type, setType] = useState(campaign.defaultPageType || "mission");
   const [pendingDelete, setPendingDelete] = useState(null);
   const [nameError, setNameError] = useState(false);
+  const [collapsed, setCollapsed] = useState(new Set());
   useEffect(() => { setType(campaign.defaultPageType || "mission"); }, [campaign.defaultPageType]);
 
   const add = () => {
@@ -71,17 +72,43 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
     });
   };
 
+  const duplicatePage = (pageId) => {
+    onUpdate(c => {
+      const page = c.pages.find(p => p.id === pageId); if (!page) return c;
+      const siblings = getSiblings(c.pages, page.parentId ?? null);
+      const clone = { ...page, id: uid(), name: `${page.name} (copy)`, order: siblings.length };
+      return { ...c, pages: [...c.pages, clone] };
+    });
+  };
+
+  const toggleCollapse = (pageId) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(pageId)) next.delete(pageId);
+      else next.add(pageId);
+      return next;
+    });
+  };
+
   const renderTree = (parentId, depth) => {
     const siblings = getSiblings(campaign.pages, parentId);
     return siblings.map((page, idx) => {
       const isSelected = selectedPageId === page.id;
       const isDeleting = pendingDelete === page.id;
       const children = getSiblings(campaign.pages, page.id);
+      const hasChildren = children.length > 0;
       const hasParent = (page.parentId ?? null) !== null;
+      const isCollapsed = collapsed.has(page.id);
       return (
         <div key={page.id}>
-          <div style={{ paddingLeft: 12 + depth * 16, paddingRight: 4, paddingTop: 6, paddingBottom: 6, cursor: "pointer", background: isSelected ? T.surface2 : "transparent", borderLeft: `3px solid ${isSelected ? T.accent : "transparent"}`, borderBottom: isDeleting ? "none" : `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 4 }}
+          <div style={{ paddingLeft: 4 + depth * 16, paddingRight: 4, paddingTop: 5, paddingBottom: 5, cursor: "pointer", background: isSelected ? T.surface2 : "transparent", borderLeft: `3px solid ${isSelected ? T.accent : "transparent"}`, borderBottom: isDeleting ? "none" : `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 3 }}
             onClick={() => { setPendingDelete(null); onSelect(page.id); }}>
+            {/* collapse toggle */}
+            <button
+              style={{ background: "transparent", border: "none", cursor: hasChildren ? "pointer" : "default", color: hasChildren ? T.textDim : "transparent", fontSize: 9, padding: "0 2px", lineHeight: 1, flexShrink: 0, fontFamily: T.font }}
+              onClick={e => { e.stopPropagation(); if (hasChildren) toggleCollapse(page.id); }}
+              title={hasChildren ? (isCollapsed ? "Expand" : "Collapse") : undefined}
+            >{hasChildren ? (isCollapsed ? "▶" : "▼") : "·"}</button>
             <span style={{ fontSize: 10, color: page.type === "mission" ? T.accent : T.textDim, flexShrink: 0 }}>{page.type === "mission" ? "⬟" : "◻"}</span>
             <span style={{ flex: 1, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{page.name}</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 1, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -92,11 +119,13 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
               <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, lineHeight: 1.3, opacity: idx === 0 ? 0.2 : 0.7 }} disabled={idx === 0} title="Indent" onClick={() => indentPage(page.id)}>⇥</button>
               <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, lineHeight: 1.3, opacity: hasParent ? 0.7 : 0.2 }} disabled={!hasParent} title="Unindent" onClick={() => unindentPage(page.id)}>⇤</button>
             </div>
+            <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, opacity: 0.6, flexShrink: 0 }} title="Duplicate page"
+              onClick={e => { e.stopPropagation(); duplicatePage(page.id); }}>⧉</button>
             <button style={{ ...css.btn("danger"), padding: "1px 5px", fontSize: 10, opacity: 0.6, flexShrink: 0 }}
               onClick={e => { e.stopPropagation(); setPendingDelete(isDeleting ? null : page.id); }}>×</button>
           </div>
           {isDeleting && (
-            <div style={{ background: T.danger + "22", borderBottom: `1px solid ${T.border}`, paddingLeft: 12 + depth * 16, paddingRight: 8, paddingTop: 6, paddingBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ background: T.danger + "22", borderBottom: `1px solid ${T.border}`, paddingLeft: 4 + depth * 16, paddingRight: 8, paddingTop: 6, paddingBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 10, color: T.danger, flex: 1 }}>Delete{children.length > 0 ? " (and children)?" : "?"}</span>
               <button style={{ ...css.btn("danger"), padding: "2px 8px", fontSize: 10 }} onClick={() => {
                 const toDelete = new Set();
@@ -108,7 +137,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
               <button style={{ ...css.btn(), padding: "2px 8px", fontSize: 10 }} onClick={() => setPendingDelete(null)}>No</button>
             </div>
           )}
-          {children.length > 0 && renderTree(page.id, depth + 1)}
+          {hasChildren && !isCollapsed && renderTree(page.id, depth + 1)}
         </div>
       );
     });

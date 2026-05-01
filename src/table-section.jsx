@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useThemeCSS } from "./theme.js";
+import { evaluateFormula } from "./formula.js";
 
 // Normalises checkbox storage — cells may be stored as boolean true or string "true".
 const isChecked = (v) => v === true || v === "true";
@@ -34,6 +35,7 @@ export function TableSection({ sec, sectionData, onChange }) {
     };
     const header = columns.map(c => escape(c.label)).join(",");
     const body = rows.map(row => columns.map(col => {
+      if (col.type === "formula") return escape(evaluateFormula(col.formula, row, columns));
       const v = row[col.id];
       if (col.type === "checkbox") return isChecked(v) ? "true" : "false";
       return escape(v);
@@ -120,13 +122,18 @@ export function TableSection({ sec, sectionData, onChange }) {
 
   const summaryValues = columns.map(col => {
     if (!col.summary || col.summary === "none") return "";
-    const rawValues = rows.map(row => row[col.id]).filter(v => v !== undefined && v !== null && v !== "");
     if (col.type === "text") {
-      if (col.summary === "count") return rawValues.length;
+      if (col.summary === "count") {
+        return rows.map(row => row[col.id]).filter(v => v !== undefined && v !== null && v !== "").length;
+      }
       return "";
     }
-    if (col.type === "number") {
-      const nums = rawValues.map(v => Number(v)).filter(n => !Number.isNaN(n));
+    if (col.type === "number" || col.type === "formula") {
+      const nums = rows.map(row => {
+        const v = col.type === "formula" ? evaluateFormula(col.formula, row, columns) : row[col.id];
+        const n = Number(v);
+        return Number.isNaN(n) ? null : n;
+      }).filter(n => n !== null);
       if (!nums.length) return "";
       switch (col.summary) {
         case "sum": return nums.reduce((sum, n) => sum + n, 0);
@@ -137,7 +144,7 @@ export function TableSection({ sec, sectionData, onChange }) {
       }
     }
     if (col.type === "checkbox") {
-      return rawValues.filter(isChecked).length;
+      return rows.map(row => row[col.id]).filter(isChecked).length;
     }
     return "";
   });
@@ -203,7 +210,14 @@ export function TableSection({ sec, sectionData, onChange }) {
                   const rowValue = row[col.id];
                   return (
                     <td key={col.id} style={{ padding: "4px 6px", verticalAlign: "middle" }}>
-                      {col.type === "checkbox" ? (
+                      {col.type === "formula" ? (() => {
+                        const result = evaluateFormula(col.formula, row, columns);
+                        return (
+                          <span style={{ fontSize: 12, color: result === "ERR" ? T.danger : T.accentBright, fontFamily: "monospace", whiteSpace: "nowrap" }} title={`Formula: ${col.formula || "(empty)"}`}>
+                            {result === "" ? "—" : String(result)}
+                          </span>
+                        );
+                      })() : col.type === "checkbox" ? (
                         <input
                           type="checkbox"
                           checked={isChecked(rowValue)}

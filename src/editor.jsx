@@ -38,13 +38,13 @@ export function OutlineView({ campaign, onSelect, onUpdate }) {
         </div>
       )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
-        {filtered.map(page => <OutlineCard key={page.id} page={page} schema={campaign.sectionSchema} showCosts={campaign.showCostsInOutline !== false} onSelect={onSelect} onUpdate={onUpdate} />)}
+        {filtered.map(page => <OutlineCard key={page.id} page={page} schema={campaign.sectionSchema} showCosts={campaign.showCostsInOutline !== false} onSelect={onSelect} onUpdate={onUpdate} onFilterByTag={tag => setFilterTag(filterTag === tag ? "" : tag)} />)}
       </div>
     </div>
   );
 }
 
-function OutlineCard({ page, schema, showCosts, onSelect, onUpdate }) {
+function OutlineCard({ page, schema, showCosts, onSelect, onUpdate, onFilterByTag }) {
   const { T, css } = useThemeCSS();
   const [editTag, setEditTag] = useState("");
   const tc = (page.costs || []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
@@ -67,8 +67,11 @@ function OutlineCard({ page, schema, showCosts, onSelect, onUpdate }) {
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
         {(page.tags || []).map(tag => (
-          <span key={tag} style={{ ...css.tag, cursor: "pointer" }}
-            onClick={() => onUpdate(c => ({ ...c, pages: c.pages.map(p => p.id === page.id ? { ...p, tags: p.tags.filter(t => t !== tag) } : p) }))}>{tag} ×</span>
+          <span key={tag} style={{ ...css.tag, display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <span style={{ cursor: "pointer" }} title="Filter by this tag" onClick={e => { e.stopPropagation(); onFilterByTag(tag); }}>{tag}</span>
+            <span style={{ cursor: "pointer", opacity: 0.6 }} title="Remove tag"
+              onClick={e => { e.stopPropagation(); onUpdate(c => ({ ...c, pages: c.pages.map(p => p.id === page.id ? { ...p, tags: p.tags.filter(t => t !== tag) } : p) })); }}>×</span>
+          </span>
         ))}
         <input style={{ ...css.input, width: 80, fontSize: 10, padding: "1px 5px" }} placeholder="+ tag" value={editTag}
           onChange={e => setEditTag(e.target.value)}

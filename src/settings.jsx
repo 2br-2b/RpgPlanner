@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { THEMES, useIsMobile, useThemeCSS } from "./theme.js";
-import { SESSION_GUID } from "./storage.js";
+import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign } from "./storage.js";
 
 function Row({ label, hint, children, T, isMobile }) {
   return (
@@ -14,7 +14,91 @@ function Row({ label, hint, children, T, isMobile }) {
   );
 }
 
-export function SettingsView({ campaign, onUpdate, onClear }) {
+function SnapshotsPanel({ campaign, onRestore, T, css, isMobile }) {
+  const [snapshots, setSnapshots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saveName, setSaveName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [restoring, setRestoring] = useState(null);
+
+  const reload = useCallback(() => {
+    setLoading(true);
+    listSnapshots().then(list => { setSnapshots(list); setLoading(false); });
+  }, []);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const handleSave = async () => {
+    const name = saveName.trim() || `Snapshot ${new Date().toLocaleString()}`;
+    setSaving(true); setSaveError("");
+    try {
+      await saveSnapshot(name);
+      setSaveName("");
+      reload();
+    } catch (e) {
+      setSaveError(e.message || "Failed to save");
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id) => {
+    try { await deleteSnapshot(id); reload(); } catch { reload(); }
+    setConfirmDelete(null);
+  };
+
+  const handleRestore = async (id, name) => {
+    setRestoring(id);
+    try {
+      const data = await restoreSnapshot(id);
+      if (data) { onRestore(migrateCampaign(data)); }
+    } catch { }
+    setRestoring(null);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        <input style={{ ...css.input, flex: 1, fontSize: 11, minWidth: 160 }} placeholder={`Name (default: timestamp)`}
+          value={saveName} onChange={e => setSaveName(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleSave()} />
+        <button style={{ ...css.btn("primary"), fontSize: 11, flexShrink: 0 }} onClick={handleSave} disabled={saving}>
+          {saving ? "Saving…" : "+ Save snapshot"}
+        </button>
+      </div>
+      {saveError && <div style={{ fontSize: 11, color: T.danger, marginBottom: 8 }}>{saveError}</div>}
+
+      {loading && <div style={{ fontSize: 11, color: T.textDim }}>Loading…</div>}
+      {!loading && snapshots.length === 0 && <div style={{ fontSize: 11, color: T.textDim }}>No snapshots saved yet.</div>}
+      {snapshots.map(snap => (
+        <div key={snap.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${T.border}`, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{snap.name}</div>
+            <div style={{ fontSize: 10, color: T.textDim }}>{new Date(snap.created_at * 1000).toLocaleString()}</div>
+          </div>
+          {confirmDelete === snap.id ? (
+            <>
+              <span style={{ fontSize: 10, color: T.danger }}>Delete?</span>
+              <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 8px" }} onClick={() => handleDelete(snap.id)}>Yes</button>
+              <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={() => setConfirmDelete(null)}>No</button>
+            </>
+          ) : (
+            <>
+              <button style={{ ...css.btn(), fontSize: 10, padding: "2px 8px" }} onClick={() => handleRestore(snap.id, snap.name)} disabled={restoring === snap.id}>
+                {restoring === snap.id ? "…" : "Restore"}
+              </button>
+              <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 6px", opacity: 0.7 }} onClick={() => setConfirmDelete(snap.id)}>×</button>
+            </>
+          )}
+        </div>
+      ))}
+      <div style={{ fontSize: 10, color: T.textMuted, marginTop: 8 }}>Snapshots save the current server-side state. Up to 50 per campaign.</div>
+    </div>
+  );
+}
+
+export function SettingsView({ campaign, onUpdate, onRestore, onClear }) {
   const { T, css } = useThemeCSS();
   const isMobile = useIsMobile();
   const [confirmClear, setConfirmClear] = useState(false);
@@ -61,6 +145,11 @@ export function SettingsView({ campaign, onUpdate, onClear }) {
             <button style={{ ...css.btn(adoptDone ? "primary" : "default"), fontSize: 11, flexShrink: 0 }} onClick={adopt} disabled={adoptDone}>{adoptDone ? "Reloading..." : "Adopt"}</button>
           </div>
         </Row>
+      </div>
+
+      <div style={{ ...css.section, marginBottom: 24 }}>
+        <div style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>SNAPSHOTS</div>
+        <SnapshotsPanel campaign={campaign} onRestore={onRestore} T={T} css={css} isMobile={isMobile} />
       </div>
 
       <div style={{ ...css.section, marginBottom: 24 }}>

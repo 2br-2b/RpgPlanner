@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useThemeCSS } from "./theme.js";
 import { uid } from "./storage.js";
+import { FORMULA_HELP } from "./formula.js";
 
 export function SchemaEditor({ campaign, onUpdate }) {
   const { T, css } = useThemeCSS();
@@ -69,7 +70,7 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, on
   const addColumn = () => {
     const label = newColLabel.trim();
     if (!label) return;
-    onChange("columns", [...(sec.columns || []), { id: uid(), label, defaultValue: "", type: newColType, summary: newColType === "number" ? "sum" : newColType === "checkbox" ? "count" : "none" }]);
+    onChange("columns", [...(sec.columns || []), { id: uid(), label, defaultValue: "", formula: "", type: newColType, summary: newColType === "number" || newColType === "formula" ? "sum" : newColType === "checkbox" ? "count" : "none" }]);
     setNewColLabel("");
     setNewColType("text");
   };
@@ -135,12 +136,13 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, on
                     onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? {
                       ...c,
                       type: e.target.value,
-                      summary: e.target.value === "number" ? (c.summary || "sum") : e.target.value === "checkbox" ? (c.summary || "count") : "none",
+                      summary: (e.target.value === "number" || e.target.value === "formula") ? (c.summary || "sum") : e.target.value === "checkbox" ? (c.summary || "count") : "none",
                     } : c))}>
                     <option value="text">Text</option>
                     <option value="paragraph">Paragraph</option>
                     <option value="number">Number</option>
                     <option value="checkbox">Checkbox</option>
+                    <option value="formula">Formula</option>
                   </select>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -149,7 +151,15 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, on
                     onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, defaultValue: e.target.value } : c))} />
                 </div>
               </div>
-              {["text", "number", "checkbox"].includes(col.type) && (
+              {col.type === "formula" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ fontSize: 9, color: T.textDim, fontWeight: "bold" }}>FORMULA</span>
+                  <input style={{ ...css.input, fontSize: 11 }} placeholder="e.g. [Price] * [Qty]" value={col.formula || ""}
+                    onChange={e => onChange("columns", (sec.columns || []).map(c => c.id === col.id ? { ...c, formula: e.target.value } : c))} />
+                  <span style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>{FORMULA_HELP}</span>
+                </div>
+              )}
+              {["text", "number", "checkbox", "formula"].includes(col.type) && (
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <span style={{ fontSize: 9, color: T.textDim, fontWeight: "bold" }}>SUMMARY</span>
                 <select style={{ ...css.input, fontSize: 11 }} value={col.summary || "none"}
@@ -158,7 +168,7 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, on
                   {col.type === "text" && (
                     <option value="count">Entry count</option>
                   )}
-                  {col.type === "number" && (
+                  {(col.type === "number" || col.type === "formula") && (
                     <>
                       <option value="sum">Sum</option>
                       <option value="average">Average</option>
@@ -183,11 +193,12 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, on
               <option value="paragraph">Paragraph</option>
               <option value="number">Number</option>
               <option value="checkbox">Checkbox</option>
+              <option value="formula">Formula</option>
             </select>
             <button style={{ ...css.btn(), background: "#4caf50", color: "white", padding: "2px 8px", fontSize: 14, minWidth: 32 }} onClick={addColumn}>✓</button>
           </div>
           <div style={{ fontSize: 10, color: T.textDim, marginTop: 12, padding: "8px", background: T.surface2, borderRadius: T.radius }}>
-            <strong style={{ color: T.textMuted }}>Column types:</strong> Text (single line), Paragraph (multiline, no summary), Number (Sum/Avg/Min/Max), Checkbox (count). Choose a summary option to show aggregated values below the table.
+            <strong style={{ color: T.textMuted }}>Column types:</strong> Text, Paragraph (multiline), Number, Checkbox, Formula (computed from other columns — read-only). Summaries available for Number, Formula, and Checkbox columns.
           </div>
         </>
       )}

@@ -5,6 +5,17 @@ import { uid } from "./storage.js";
 const NW = 180;
 const NH = 72;
 
+const NODE_PALETTE = [
+  null,          // default (no override)
+  "#c03030",     // red
+  "#c07020",     // amber
+  "#3a9a3a",     // green
+  "#2090c0",     // blue
+  "#7030a0",     // purple
+  "#c06090",     // pink
+  "#606060",     // grey
+];
+
 function emptyEvent() {
   return { id: uid(), description: "", probability: 100, requiresKeyword: "", grantsKeyword: "", costMin: 0, costMax: 0, awardMin: 0, awardMax: 0 };
 }
@@ -39,21 +50,41 @@ function EdgeEventEditor({ events, onChange, T, css }) {
   );
 }
 
+function ColorPicker({ currentColor, onSelect, T }) {
+  return (
+    <g>
+      {NODE_PALETTE.map((color, i) => {
+        const x = 6 + i * 18;
+        const y = NH - 12;
+        const isSelected = color === currentColor;
+        return (
+          <g key={i} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onSelect(color); }}>
+            <circle cx={x} cy={y} r={6} fill={color || T.surface} stroke={isSelected ? "#fff" : T.border} strokeWidth={isSelected ? 2 : 1} />
+            {color === null && <text x={x} y={y + 4} textAnchor="middle" fontSize={8} fill={T.textDim} fontFamily="monospace">✕</text>}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 export function FlowchartView({ campaign, onUpdate }) {
   const { T, css } = useThemeCSS();
   const svgRef = useRef(null);
   const [dragging, setDragging] = useState(null);
   const [connecting, setConnecting] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
+  const [colorPickerNode, setColorPickerNode] = useState(null);
   const { nodes, edges } = campaign.flowchart;
   const setFC = (fn) => onUpdate((campaignData) => ({ ...campaignData, flowchart: fn(campaignData.flowchart) }));
 
   const addNode = (pageId) => {
     if (nodes.some((node) => node.pageId === pageId)) return;
-    setFC((fc) => ({ ...fc, nodes: [...fc.nodes, { id: uid(), pageId, x: 60 + (nodes.length % 4) * 210, y: 80 + Math.floor(nodes.length / 4) * 130, isStart: false, isEnd: false }] }));
+    setFC((fc) => ({ ...fc, nodes: [...fc.nodes, { id: uid(), pageId, x: 60 + (nodes.length % 4) * 210, y: 80 + Math.floor(nodes.length / 4) * 130, isStart: false, isEnd: false, color: null }] }));
   };
   const removeNode = (nodeId) => {
     setSelectedEdge(null);
+    setColorPickerNode(null);
     setFC((fc) => ({ nodes: fc.nodes.filter((node) => node.id !== nodeId), edges: fc.edges.filter((edge) => edge.from !== nodeId && edge.to !== nodeId) }));
   };
   const toggleNodeProp = (nodeId, prop) => setFC((fc) => ({
@@ -63,6 +94,10 @@ export function FlowchartView({ campaign, onUpdate }) {
       return { ...node, [prop]: !node[prop] };
     }),
   }));
+  const setNodeColor = (nodeId, color) => {
+    setFC((fc) => ({ ...fc, nodes: fc.nodes.map((node) => node.id === nodeId ? { ...node, color } : node) }));
+    setColorPickerNode(null);
+  };
   const connectNodes = (from, to) => {
     if (from === to || edges.some((edge) => edge.from === from && edge.to === to)) return;
     setFC((fc) => ({ ...fc, edges: [...fc.edges, { from, to, label: "", events: [] }] }));
@@ -96,7 +131,7 @@ export function FlowchartView({ campaign, onUpdate }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, color: T.accentBright, fontSize: 16, letterSpacing: "0.1em" }}>FLOWCHART</h2>
-          <span style={{ fontSize: 10, color: T.textDim }}>drag nodes, connect with dot, mark start/end</span>
+          <span style={{ fontSize: 10, color: T.textDim }}>drag nodes, connect with dot, mark start/end, click dot on node to color</span>
         </div>
         {unusedPages.length > 0 && (
           <div style={{ marginBottom: 10, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
@@ -105,7 +140,11 @@ export function FlowchartView({ campaign, onUpdate }) {
           </div>
         )}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.radius, overflow: "hidden" }}>
-          <svg ref={svgRef} width="100%" height={480} style={{ cursor: dragging ? "grabbing" : "default", display: "block" }} onMouseMove={onMove} onMouseUp={() => setDragging(null)} onMouseLeave={() => setDragging(null)}>
+          <svg ref={svgRef} width="100%" height={480} style={{ cursor: dragging ? "grabbing" : "default", display: "block" }}
+            onMouseMove={onMove}
+            onMouseUp={() => setDragging(null)}
+            onMouseLeave={() => setDragging(null)}
+            onClick={() => { setColorPickerNode(null); }}>
             <defs>
               <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill={T.accent} /></marker>
               <marker id="arr-sel" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill={T.accentBright} /></marker>
@@ -117,7 +156,7 @@ export function FlowchartView({ campaign, onUpdate }) {
               const isSelected = selectedEdge?.from === edge.from && selectedEdge?.to === edge.to;
               const hasEvents = (edge.events || []).length > 0;
               return (
-                <g key={`${edge.from}-${edge.to}`} style={{ cursor: "pointer" }} onClick={() => setSelectedEdge(isSelected ? null : { from: edge.from, to: edge.to })}>
+                <g key={`${edge.from}-${edge.to}`} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setColorPickerNode(null); setSelectedEdge(isSelected ? null : { from: edge.from, to: edge.to }); }}>
                   <path d={getPath(edge.from, edge.to)} fill="none" stroke={isSelected ? T.accentBright : T.accent} strokeWidth={isSelected ? 2.5 : 1.5} markerEnd={isSelected ? "url(#arr-sel)" : "url(#arr)"} strokeDasharray={hasEvents ? "none" : "4 2"} />
                   <text x={mid.x} y={mid.y - 4} textAnchor="middle" fill={isSelected ? T.accentBright : T.textDim} fontSize={10} fontFamily={T.font}>{edge.label || (hasEvents ? `* ${(edge.events || []).length}` : ".")}</text>
                 </g>
@@ -127,16 +166,31 @@ export function FlowchartView({ campaign, onUpdate }) {
               const page = campaign.pages.find((item) => item.id === node.pageId);
               if (!page) return null;
               const isTarget = connecting && connecting !== node.id;
-              const borderColor = node.isStart ? T.accentBright : node.isEnd ? T.danger : isTarget ? T.accent : T.border;
+              const nodeColor = node.color || null;
+              const nodeFill = node.isStart ? T.accentDim : node.isEnd ? `${T.danger}33` : nodeColor ? `${nodeColor}44` : T.surface2;
+              const borderColor = node.isStart ? T.accentBright : node.isEnd ? T.danger : nodeColor || (isTarget ? T.accent : T.border);
+              const showPicker = colorPickerNode === node.id;
               return (
-                <g key={node.id} transform={`translate(${node.x},${node.y})`} onMouseDown={(e) => { e.stopPropagation(); setDragging({ nodeId: node.id, sx: e.clientX, sy: e.clientY, ox: node.x, oy: node.y }); }} style={{ cursor: "grab" }}>
-                  <rect width={NW} height={NH} rx={T.radius} fill={node.isStart ? T.accentDim : node.isEnd ? `${T.danger}33` : T.surface2} stroke={borderColor} strokeWidth={node.isStart || node.isEnd || isTarget ? 2 : 1} onClick={() => { if (isTarget) { connectNodes(connecting, node.id); setConnecting(null); } }} />
+                <g key={node.id} transform={`translate(${node.x},${node.y})`}
+                  onMouseDown={(e) => { e.stopPropagation(); if (!showPicker) setDragging({ nodeId: node.id, sx: e.clientX, sy: e.clientY, ox: node.x, oy: node.y }); }}
+                  style={{ cursor: "grab" }}>
+                  <rect width={NW} height={NH} rx={T.radius} fill={nodeFill} stroke={borderColor} strokeWidth={node.isStart || node.isEnd || isTarget ? 2 : 1}
+                    onClick={() => { if (isTarget) { connectNodes(connecting, node.id); setConnecting(null); } }} />
                   <text x={8} y={15} fill={page.type === "mission" ? T.accentBright : T.textDim} fontSize={9} fontFamily={T.font}>{node.isStart ? "> START" : node.isEnd ? "[] END" : page.type.toUpperCase()}</text>
                   <text x={8} y={33} fill={T.text} fontSize={12} fontFamily={T.font}>{page.name.length > 19 ? `${page.name.slice(0, 17)}...` : page.name}</text>
+                  {/* color swatch — click to toggle picker */}
+                  <circle cx={NW - 56} cy={10} r={5} fill={nodeColor || T.surface} stroke={T.border} strokeWidth={1} style={{ cursor: "pointer" }}
+                    onClick={(e) => { e.stopPropagation(); setColorPickerNode(showPicker ? null : node.id); setSelectedEdge(null); }} />
                   <text x={NW - 20} y={18} fill={connecting === node.id ? T.accentBright : T.textDim} fontSize={12} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setConnecting(connecting === node.id ? null : node.id); }}>o</text>
                   <text x={NW - 20} y={36} fill={node.isStart ? T.accentBright : T.textMuted} fontSize={10} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); toggleNodeProp(node.id, "isStart"); }}>&gt;</text>
                   <text x={NW - 20} y={54} fill={node.isEnd ? T.danger : T.textMuted} fontSize={10} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); toggleNodeProp(node.id, "isEnd"); }}>[]</text>
                   <text x={NW - 42} y={54} fill={T.textMuted} fontSize={10} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); removeNode(node.id); }}>x</text>
+                  {showPicker && (
+                    <g>
+                      <rect x={0} y={NH + 4} width={NODE_PALETTE.length * 18 + 4} height={20} rx={3} fill={T.surface} stroke={T.border} />
+                      <ColorPicker currentColor={nodeColor} onSelect={(c) => setNodeColor(node.id, c)} T={T} />
+                    </g>
+                  )}
                 </g>
               );
             })}
