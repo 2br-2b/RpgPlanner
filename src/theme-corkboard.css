@@ -1,0 +1,183 @@
+/* Corkboard theme: cork board in a dark wood frame, paper notes with pushpins */
+
+/* ============================================================
+   APP BACKGROUND — cork texture (tan with woven fiber pattern)
+   ============================================================ */
+[data-theme="corkboard"] {
+  background-color: #c89040 !important;
+  background-image:
+    repeating-linear-gradient(
+      18deg,
+      transparent 0px, transparent 5px,
+      rgba(0,0,0,0.045) 5px, rgba(0,0,0,0.045) 6px
+    ),
+    repeating-linear-gradient(
+      -18deg,
+      transparent 0px, transparent 7px,
+      rgba(255,255,255,0.04) 7px, rgba(255,255,255,0.04) 8px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 3px,
+      rgba(0,0,0,0.02) 3px, rgba(0,0,0,0.02) 4px
+    ) !important;
+}
+
+/* ============================================================
+   TOPBAR — dark mahogany frame
+   ============================================================ */
+[data-theme="corkboard"] .sk-topbar {
+  background: linear-gradient(to bottom, #3c2210 0%, #261408 100%) !important;
+  border-bottom: 4px solid #160a02 !important;
+  box-shadow: 0 5px 14px rgba(0,0,0,0.6) !important;
+  position: relative !important;
+}
+
+[data-theme="corkboard"] .sk-topbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px, transparent 18px,
+    rgba(255,255,255,0.025) 18px, rgba(255,255,255,0.025) 19px
+  );
+  pointer-events: none;
+}
+
+[data-theme="corkboard"] .sk-topbar * {
+  color: #d4a060 !important;
+  border-color: #5a3418 !important;
+}
+
+[data-theme="corkboard"] .sk-topbar input {
+  background: rgba(0,0,0,0.35) !important;
+  border: 1px solid #6a4020 !important;
+  color: #e8c080 !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5) !important;
+}
+
+[data-theme="corkboard"] .sk-topbar button {
+  background: linear-gradient(to bottom, #6a4020, #3c2210) !important;
+  border: 1px solid #261408 !important;
+  color: #d4a060 !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5) !important;
+}
+
+/* ============================================================
+   SIDEBAR — dark frame left side with lighter wood face
+   ============================================================ */
+[data-theme="corkboard"] .sk-sidebar {
+  background: linear-gradient(to right, #261408 0%, #3c2210 100%) !important;
+  border-right: 4px solid #160a02 !important;
+  box-shadow: 4px 0 14px rgba(0,0,0,0.45) !important;
+}
+
+[data-theme="corkboard"] .sk-sidebar * {
+  color: #c89858 !important;
+  border-color: #5a3418 !important;
+}
+
+[data-theme="corkboard"] .sk-sidebar input,
+[data-theme="corkboard"] .sk-sidebar select {
+  background: rgba(0,0,0,0.35) !important;
+  border: 1px solid #5a3418 !important;
+  color: #e0b878 !important;
+  border-radius: 2px !important;
+}
+
+[data-theme="corkboard"] .sk-sidebar button {
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid #5a3418 !important;
+  color: #c89858 !important;
+  box-shadow: none !important;
+}
+
+/* ============================================================
+   SECTIONS — white paper notes pinned to the board
+   ============================================================ */
+[data-theme="corkboard"] .sk-section {
+  background: #fefef8 !important;
+  border: none !important;
+  border-radius: 2px !important;
+  box-shadow:
+    0 3px 8px rgba(0,0,0,0.22),
+    0 8px 20px rgba(0,0,0,0.14),
+    0 0 0 1px rgba(0,0,0,0.06) !important;
+  position: relative !important;
+  overflow: visible !important;
+  margin-top: 16px !important;
+}
+
+/* Subtle rotation per note */
+[data-theme="corkboard"] .sk-section:nth-child(3n+1) { transform: rotate(-0.5deg); }
+[data-theme="corkboard"] .sk-section:nth-child(3n+2) { transform: rotate(0.4deg); }
+[data-theme="corkboard"] .sk-section:nth-child(3n)   { transform: rotate(-0.2deg); }
+
+/* Pushpin — centered at top */
+[data-theme="corkboard"] .sk-section::before {
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  z-index: 2;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.45), inset 0 -2px 0 rgba(0,0,0,0.2);
+}
+
+/* Pin color rotation */
+[data-theme="corkboard"] .sk-section:nth-child(4n+1)::before {
+  background: radial-gradient(circle at 38% 32%, #ff7070, #cc1818 58%, #8a0808);
+}
+[data-theme="corkboard"] .sk-section:nth-child(4n+2)::before {
+  background: radial-gradient(circle at 38% 32%, #7088ff, #2840cc 58%, #102080);
+}
+[data-theme="corkboard"] .sk-section:nth-child(4n+3)::before {
+  background: radial-gradient(circle at 38% 32%, #50d870, #18a838 58%, #086018);
+}
+[data-theme="corkboard"] .sk-section:nth-child(4n)::before {
+  background: radial-gradient(circle at 38% 32%, #ffd050, #e09010 58%, #a06000);
+}
+
+/* ============================================================
+   BUTTONS — paper card style in main/section areas
+   ============================================================ */
+[data-theme="corkboard"] .sk-main button,
+[data-theme="corkboard"] .sk-section button {
+  background: linear-gradient(to bottom, #fdfaf2, #ede8d8) !important;
+  border: 1px solid #c0a878 !important;
+  color: #2a1808 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.7) !important;
+  border-radius: 2px !important;
+  text-shadow: none !important;
+  font-weight: normal !important;
+  letter-spacing: normal !important;
+}
+
+/* ============================================================
+   INPUTS — writing on paper
+   ============================================================ */
+[data-theme="corkboard"] .sk-main input:not([type="checkbox"]),
+[data-theme="corkboard"] .sk-main select,
+[data-theme="corkboard"] .sk-section input:not([type="checkbox"]),
+[data-theme="corkboard"] .sk-section select {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(0,0,0,0.2) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #1a1008 !important;
+}
+
+[data-theme="corkboard"] .sk-main textarea,
+[data-theme="corkboard"] .sk-section textarea {
+  background: rgba(255,255,255,0.6) !important;
+  border: 1px solid rgba(0,0,0,0.15) !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.06) !important;
+  color: #1a1008 !important;
+}
