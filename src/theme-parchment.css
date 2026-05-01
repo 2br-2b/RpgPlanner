@@ -116,12 +116,12 @@
   overflow: visible !important;
 }
 
-/* Peeled corner — shows curled underside of note */
+/* Peeled corner — shows curled underside of note (bottom-left avoids action buttons) */
 [data-theme="parchment"] .sk-section::after {
   content: '';
   position: absolute;
   bottom: 0;
-  right: 0;
+  left: 0;
   width: 34px;
   height: 34px;
   pointer-events: none;
@@ -134,7 +134,7 @@
 }
 [data-theme="parchment"] .sk-section:nth-child(4n+1)::after {
   background: linear-gradient(
-    135deg,
+    315deg,
     transparent 50%,
     #c8aa30 55%,
     #f5f0a8 60%
@@ -149,7 +149,7 @@
 }
 [data-theme="parchment"] .sk-section:nth-child(4n+2)::after {
   background: linear-gradient(
-    135deg,
+    315deg,
     transparent 50%,
     #c07878 55%,
     #f8d8d8 60%
@@ -164,7 +164,7 @@
 }
 [data-theme="parchment"] .sk-section:nth-child(4n+3)::after {
   background: linear-gradient(
-    135deg,
+    315deg,
     transparent 50%,
     #70b070 55%,
     #d0eed0 60%
@@ -179,7 +179,7 @@
 }
 [data-theme="parchment"] .sk-section:nth-child(4n)::after {
   background: linear-gradient(
-    135deg,
+    315deg,
     transparent 50%,
     #7888d0 55%,
     #d0d8f8 60%
