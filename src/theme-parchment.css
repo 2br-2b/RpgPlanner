@@ -116,19 +116,6 @@
   overflow: visible !important;
 }
 
-/* Adhesive strip at top — darker band like real sticky notes */
-[data-theme="parchment"] .sk-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 26px;
-  background: rgba(0, 0, 0, 0.07);
-  border-radius: 2px 2px 0 0;
-  pointer-events: none;
-}
-
 /* Peeled corner — shows curled underside of note */
 [data-theme="parchment"] .sk-section::after {
   content: '';
@@ -147,11 +134,10 @@
 }
 [data-theme="parchment"] .sk-section:nth-child(4n+1)::after {
   background: linear-gradient(
-    225deg,
-    #f5f0a8 0%,
-    #f5f0a8 40%,
-    #c8aa30 45%,
-    transparent 50%
+    135deg,
+    transparent 50%,
+    #c8aa30 55%,
+    #f5f0a8 60%
   );
   box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.14);
 }
@@ -163,11 +149,10 @@
 }
 [data-theme="parchment"] .sk-section:nth-child(4n+2)::after {
   background: linear-gradient(
-    225deg,
-    #f8d8d8 0%,
-    #f8d8d8 40%,
-    #c07878 45%,
-    transparent 50%
+    135deg,
+    transparent 50%,
+    #c07878 55%,
+    #f8d8d8 60%
   );
   box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.14);
 }
@@ -179,11 +164,10 @@
 }
 [data-theme="parchment"] .sk-section:nth-child(4n+3)::after {
   background: linear-gradient(
-    225deg,
-    #d0eed0 0%,
-    #d0eed0 40%,
-    #70b070 45%,
-    transparent 50%
+    135deg,
+    transparent 50%,
+    #70b070 55%,
+    #d0eed0 60%
   );
   box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.14);
 }
@@ -195,11 +179,10 @@
 }
 [data-theme="parchment"] .sk-section:nth-child(4n)::after {
   background: linear-gradient(
-    225deg,
-    #d0d8f8 0%,
-    #d0d8f8 40%,
-    #7888d0 45%,
-    transparent 50%
+    135deg,
+    transparent 50%,
+    #7888d0 55%,
+    #d0d8f8 60%
   );
   box-shadow: -2px -2px 5px rgba(0, 0, 0, 0.14);
 }
