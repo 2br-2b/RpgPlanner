@@ -6,6 +6,7 @@ import "./theme-chalkboard.css";
 import "./theme-corkboard.css";
 import "./theme-newspaper.css";
 import "./theme-blueprint.css";
+import "./theme-battletech.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
