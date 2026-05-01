@@ -1,9 +1,9 @@
 import { useState, useRef } from "react";
 import { useThemeCSS, useIsMobile } from "./theme.js";
 import { uid } from "./storage.js";
-import { renderMarkdown } from "./markdown.js";
 import { TableSection } from "./table-section.jsx";
 import { WaypointsSection } from "./waypoints-section.jsx";
+import { MilkdownEditor } from "./milkdown-editor.jsx";
 
 export function OutlineView({ campaign, onSelect, onUpdate }) {
   const { T, css } = useThemeCSS();
@@ -108,10 +108,9 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
   const { T, css } = useThemeCSS();
   const isMobile = useIsMobile();
   const [activeSection, setActiveSection] = useState(null);
-  const [editMode, setEditMode] = useState(false);
   const [editTag, setEditTag] = useState("");
-  const imgRef = useRef(null);
-  const [imgTarget, setImgTarget] = useState(null);
+  const freeImgRef = useRef(null);
+  const freeEditorRef = useRef(null);
 
   const set = (k, v) => onUpdate({ ...page, [k]: v });
   const setSection = (sid, subKey, v) => {
@@ -122,12 +121,6 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
       onUpdate({ ...page, sections: { ...page.sections, [sid]: { ...prev, [subKey]: v } } });
     }
   };
-  const getSectionValue = (sid, subKey) => {
-    const raw = page.sections[sid];
-    if (subKey === undefined) return raw || "";
-    if (typeof raw === "object" && raw !== null) return raw[subKey] || "";
-    return "";
-  };
 
   const addTag = () => {
     const t = editTag.trim().toLowerCase();
@@ -135,24 +128,14 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
     set("tags", [...(page.tags || []), t]); setEditTag("");
   };
 
-  const handleImg = (e) => {
+  const handleFreeImg = (e) => {
     const file = e.target.files[0]; if (!file) return;
     const r = new FileReader();
     r.onload = (ev) => {
-      const md = `\n![${file.name}](${ev.target.result})\n`;
-      if (imgTarget === "free") {
-        set("content", (page.content || "") + md);
-      } else if (imgTarget && imgTarget.includes("::")) {
-        const [sid, subKey] = imgTarget.split("::");
-        setSection(sid, subKey, getSectionValue(sid, subKey) + md);
-      } else if (imgTarget) {
-        setSection(imgTarget, undefined, getSectionValue(imgTarget) + md);
-      }
+      freeEditorRef.current?.insertImage(ev.target.result, file.name);
     };
     r.readAsDataURL(file); e.target.value = "";
   };
-
-  const triggerImg = (t) => { setImgTarget(t); setTimeout(() => imgRef.current?.click(), 50); };
 
   return (
     <div style={{ maxWidth: 860 }}>
@@ -166,17 +149,14 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
         <input style={{ ...css.input, width: 100, fontSize: 11, padding: "2px 6px" }} placeholder="+ add tag" value={editTag}
           onChange={e => setEditTag(e.target.value)} onKeyDown={e => e.key === "Enter" && addTag()} />
       </div>
-      <input ref={imgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImg} />
 
       {page.type === "free" && (
         <div>
+          <input ref={freeImgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFreeImg} />
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <button style={css.btn(editMode ? "primary" : "default")} onClick={() => setEditMode(!editMode)}>{editMode ? "Preview" : "Edit"}</button>
-            <button style={css.btn()} onClick={() => triggerImg("free")}>🖼 Image</button>
+            <button style={css.btn()} onClick={() => freeImgRef.current?.click()}>🖼 Image</button>
           </div>
-          {editMode
-            ? <textarea style={{ ...css.textarea, minHeight: 400 }} value={page.content || ""} onChange={e => set("content", e.target.value)} placeholder="Markdown supported..." />
-            : <div className="sk-section" style={css.section} dangerouslySetInnerHTML={{ __html: renderMarkdown(page.content, T) }} />}
+          <MilkdownEditor ref={freeEditorRef} value={page.content || ""} onChange={v => set("content", v)} minHeight={400} />
         </div>
       )}
 
@@ -193,14 +173,12 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
           </div>
           {activeSection === null && schema.map(sec => (
             <MissionSection key={sec.id} sec={sec} sectionData={page.sections[sec.id]}
-              onChange={(subKey, v) => setSection(sec.id, subKey, v)}
-              onImageUpload={(subKey) => triggerImg(subKey !== undefined ? `${sec.id}::${subKey}` : sec.id)} />
+              onChange={(subKey, v) => setSection(sec.id, subKey, v)} />
           ))}
           {activeSection !== null && activeSection !== "__costs" && (() => {
             const sec = schema.find(s => s.id === activeSection);
             return sec ? <MissionSection sec={sec} sectionData={page.sections[sec.id]}
-              onChange={(subKey, v) => setSection(sec.id, subKey, v)}
-              onImageUpload={(subKey) => triggerImg(subKey !== undefined ? `${sec.id}::${subKey}` : sec.id)} expanded /> : null;
+              onChange={(subKey, v) => setSection(sec.id, subKey, v)} expanded /> : null;
           })()}
           {activeSection === "__costs" && (
             <CostsAwards
@@ -219,24 +197,33 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
   );
 }
 
-function SubBox({ label, value, onChange, onImageUpload, expanded }) {
+function SubBox({ label, value, onChange, expanded }) {
   const { T, css } = useThemeCSS();
-  const [editMode, setEditMode] = useState(!value);
+  const imgRef = useRef(null);
+  const editorRef = useRef(null);
+
+  const handleImg = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const r = new FileReader();
+    r.onload = (ev) => {
+      editorRef.current?.insertImage(ev.target.result, file.name);
+    };
+    r.readAsDataURL(file); e.target.value = "";
+  };
+
   return (
     <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+      <input ref={imgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImg} />
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.08em", flex: 1 }}>{label.toUpperCase()}</span>
-        <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={onImageUpload}>🖼</button>
-        <button style={{ ...css.btn(editMode ? "primary" : "default"), fontSize: 10, padding: "2px 8px" }} onClick={() => setEditMode(!editMode)}>{editMode ? "Preview" : "Edit"}</button>
+        <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={() => imgRef.current?.click()}>🖼</button>
       </div>
-      {editMode
-        ? <textarea style={{ ...css.textarea, minHeight: expanded ? 400 : 200 }} value={value} onChange={e => onChange(e.target.value)} placeholder={`${label}…`} />
-        : <div style={{ minHeight: 60, color: value ? T.text : T.textMuted, fontSize: 12, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: value ? renderMarkdown(value, T) : `<em style="color:${T.textMuted}">${label} — click Edit to add content</em>` }} />}
+      <MilkdownEditor ref={editorRef} value={value} onChange={onChange} minHeight={expanded ? 400 : 200} />
     </div>
   );
 }
 
-function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded }) {
+function MissionSection({ sec, sectionData, onChange, expanded }) {
   const { T, css } = useThemeCSS();
 
   if (sec.type === "table") {
@@ -271,13 +258,11 @@ function MissionSection({ sec, sectionData, onChange, onImageUpload, expanded })
         ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
             {sec.subheaders.map(sh => (
-              <SubBox key={sh} label={sh} value={getVal(sh)} onChange={v => onChange(sh, v)}
-                onImageUpload={() => onImageUpload(sh)} expanded={expanded} />
+              <SubBox key={sh} label={sh} value={getVal(sh)} onChange={v => onChange(sh, v)} expanded={expanded} />
             ))}
           </div>
         )
-        : <SubBox label={sec.name} value={flatVal} onChange={v => onChange(undefined, v)}
-            onImageUpload={() => onImageUpload(undefined)} expanded={expanded} />
+        : <SubBox label={sec.name} value={flatVal} onChange={v => onChange(undefined, v)} expanded={expanded} />
       }
     </div>
   );
