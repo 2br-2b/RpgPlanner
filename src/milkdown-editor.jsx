@@ -14,6 +14,7 @@ import {
   turnIntoTextCommand,
 } from "@milkdown/preset-commonmark";
 import { history } from "@milkdown/plugin-history";
+import { trailing } from "@milkdown/plugin-trailing";
 import { listener, listenerCtx } from "@milkdown/plugin-listener";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
 import { $mark, $command } from "@milkdown/utils";
@@ -83,6 +84,7 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
         ctx.set(defaultValueCtx, value || "");
       })
       .use(commonmark)
+      .use(trailing)
       .use(underlinePlugin)
       .use(history)
       .use(listener)
