@@ -96,14 +96,6 @@ export const THEMES = {
     accentBright: "#5a3010", text: "#3a2810", textDim: "#8a7050",
     textMuted: "#c8b48a", danger: "#8a2a1a", warn: "#7a6a1a",
     tag: "#e8d8b0", tagText: "#5a3010", tagBorder: "#a87840", radius: 2,
-    skeuomorphic: true,
-    rivetColor: "#7a5030",
-    hexStroke: "rgba(160,120,60,0.12)",
-    skPrimaryHighlight: "#d4aa78",
-    skPrimaryText: "#1a0800",
-    skDark: "#b8a070",
-    skScanLine: "rgba(100,60,0,0.03)",
-    skInsetShadow: "inset 0 2px 4px rgba(0,0,0,0.25)",
   },
   noir: {
     label: "Noir",
@@ -320,6 +312,7 @@ export function makeCSS(T) {
       borderRadius: T.radius,
       padding: 16,
       marginBottom: 16,
+      position: "relative",
     },
     tag: {
       background: T.tag,

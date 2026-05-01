@@ -115,7 +115,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
   };
 
   return (
-    <div style={css.sidebar}>
+    <div className="sk-sidebar" style={css.sidebar}>
       <div style={{ padding: "10px 12px", borderBottom: `1px solid ${T.border}` }}>
         <div style={css.label}>Pages</div>
         <input style={{ ...css.input, fontSize: 11, marginBottom: nameError ? 2 : 6, borderColor: nameError ? T.danger : undefined, outline: nameError ? `1px solid ${T.danger}` : undefined }}
