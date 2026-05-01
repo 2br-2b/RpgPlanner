@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useTheme, makeCSS } from "./theme.js";
+import { useThemeCSS } from "./theme.js";
 import { SCHEMA_VERSION, migrateCampaign } from "./storage.js";
 
 function exportJSON(campaign) {
@@ -95,8 +95,7 @@ function validateImport(data) {
 }
 
 export function ImportExportModal({ campaign, onImport, onClose }) {
-  const T = useTheme();
-  const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const [importError, setImportError] = useState("");
   const [importPreview, setImportPreview] = useState(null);
   const fileRef = useRef(null);

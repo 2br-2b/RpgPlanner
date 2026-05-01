@@ -161,6 +161,10 @@ export const THEMES = {
 
 export const ThemeCtx = createContext(THEMES.tactical);
 export const useTheme = () => useContext(ThemeCtx);
+export function useThemeCSS() {
+  const T = useTheme();
+  return { T, css: makeCSS(T) };
+}
 
 export function useIsMobile() {
   const [mobile, setMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 640);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { makeCSS, THEMES, useIsMobile, useTheme } from "./theme.js";
+import { THEMES, useIsMobile, useThemeCSS } from "./theme.js";
 import { SESSION_GUID } from "./storage.js";
 
 function Row({ label, hint, children, T, isMobile }) {
@@ -15,8 +15,7 @@ function Row({ label, hint, children, T, isMobile }) {
 }
 
 export function SettingsView({ campaign, onUpdate, onClear }) {
-  const T = useTheme();
-  const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const isMobile = useIsMobile();
   const [confirmClear, setConfirmClear] = useState(false);
   const [guidCopied, setGuidCopied] = useState(false);

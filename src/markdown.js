@@ -29,7 +29,7 @@ export function renderMarkdown(text, theme) {
     .replace(/^### (.+)$/gm, `<h3 style="color:${t.textDim};margin:12px 0 6px;font-size:1em;">$1</h3>`)
     .replace(/^## (.+)$/gm, `<h2 style="color:${t.accent};margin:14px 0 8px;font-size:1.1em;">$1</h2>`)
     .replace(/^# (.+)$/gm, `<h1 style="color:${t.accentBright};margin:16px 0 10px;font-size:1.3em;">$1</h1>`)
-    .replace(/^> (.+)$/gm, `<blockquote style="border-left:3px solid ${t.accentDim};padding-left:12px;color:${t.textDim};margin:8px 0;">$1</blockquote>`)
+    .replace(/^&gt; (.+)$/gm, `<blockquote style="border-left:3px solid ${t.accentDim};padding-left:12px;color:${t.textDim};margin:8px 0;">$1</blockquote>`)
     .replace(/^\s*[-*] (.+)$/gm, '<li style="margin:3px 0;padding-left:8px;">$1</li>')
     .replace(/^\d+\. (.+)$/gm, '<li style="margin:3px 0;padding-left:8px;list-style-type:decimal;">$1</li>')
     .replace(/^---$/gm, `<hr style="border:none;border-top:1px solid ${t.border};margin:16px 0;" />`)

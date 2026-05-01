@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlowchartView } from "./flowchart.jsx";
 import { ImportExportModal } from "./io.jsx";
-import { OutlineView, PageEditor, SchemaEditor } from "./editor.jsx";
+import { OutlineView, PageEditor } from "./editor.jsx";
+import { SchemaEditor } from "./schema-editor.jsx";
 import { SettingsView } from "./settings.jsx";
 import { Sidebar } from "./sidebar.jsx";
 import { SimulatorView } from "./simulator.jsx";
-import { ThemeCtx, THEMES, makeCSS, useIsMobile, useTheme } from "./theme.js";
+import { ThemeCtx, THEMES, makeCSS, useIsMobile, useThemeCSS } from "./theme.js";
 import { defaultCampaign, loadData, migrateCampaign, saveData } from "./storage.js";
 
 const NAV_ITEMS = [
@@ -17,8 +18,7 @@ const NAV_ITEMS = [
 ];
 
 function ThemePicker({ current, onChange }) {
-  const T = useTheme();
-  const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 

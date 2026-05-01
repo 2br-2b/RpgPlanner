@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useTheme, makeCSS } from "./theme.js";
+import { useThemeCSS } from "./theme.js";
 import { uid } from "./storage.js";
 
 export function getSiblings(pages, parentId) {
@@ -13,7 +13,7 @@ function reorder(pages, siblings) {
 }
 
 export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
-  const T = useTheme(); const css = makeCSS(T);
+  const { T, css } = useThemeCSS();
   const [name, setName] = useState("");
   const [type, setType] = useState(campaign.defaultPageType || "mission");
   const [pendingDelete, setPendingDelete] = useState(null);
