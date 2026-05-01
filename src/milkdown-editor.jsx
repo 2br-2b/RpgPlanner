@@ -15,6 +15,9 @@ import {
 } from "@milkdown/preset-commonmark";
 import { history } from "@milkdown/plugin-history";
 import { trailing } from "@milkdown/plugin-trailing";
+import { clipboard } from "@milkdown/plugin-clipboard";
+import { upload } from "@milkdown/plugin-upload";
+import { emoji } from "@milkdown/plugin-emoji";
 import { listener, listenerCtx } from "@milkdown/plugin-listener";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
 import { $mark, $command } from "@milkdown/utils";
@@ -85,6 +88,9 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
       })
       .use(commonmark)
       .use(trailing)
+      .use(clipboard)
+      .use(upload)
+      .use(emoji)
       .use(underlinePlugin)
       .use(history)
       .use(listener)
