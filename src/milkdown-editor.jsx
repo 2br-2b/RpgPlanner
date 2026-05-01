@@ -1,11 +1,66 @@
 import { forwardRef, useImperativeHandle } from "react";
 import { Editor, rootCtx, defaultValueCtx, commandsCtx } from "@milkdown/core";
-import { commonmark, insertImageCommand } from "@milkdown/preset-commonmark";
+import {
+  commonmark,
+  insertImageCommand,
+  toggleStrongCommand,
+  toggleEmphasisCommand,
+  toggleInlineCodeCommand,
+  wrapInHeadingCommand,
+  wrapInBlockquoteCommand,
+  wrapInBulletListCommand,
+  wrapInOrderedListCommand,
+  insertHrCommand,
+  createCodeBlockCommand,
+} from "@milkdown/preset-commonmark";
 import { history } from "@milkdown/plugin-history";
 import { listener, listenerCtx } from "@milkdown/plugin-listener";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
 import { useThemeCSS } from "./theme.js";
 import "./milkdown-editor.css";
+
+const TOOLBAR_GROUPS = [
+  [
+    { label: "H1", title: "Heading 1", cmd: (c) => c(wrapInHeadingCommand, 1), cls: "mk-heading" },
+    { label: "H2", title: "Heading 2", cmd: (c) => c(wrapInHeadingCommand, 2), cls: "mk-heading" },
+    { label: "H3", title: "Heading 3", cmd: (c) => c(wrapInHeadingCommand, 3), cls: "mk-heading" },
+  ],
+  [
+    { label: "B", title: "Bold (Ctrl+B)", cmd: (c) => c(toggleStrongCommand), cls: "mk-bold" },
+    { label: "I", title: "Italic (Ctrl+I)", cmd: (c) => c(toggleEmphasisCommand), cls: "mk-italic" },
+    { label: "`", title: "Inline Code", cmd: (c) => c(toggleInlineCodeCommand), cls: "mk-code" },
+  ],
+  [
+    { label: "❝", title: "Blockquote", cmd: (c) => c(wrapInBlockquoteCommand) },
+    { label: "•", title: "Bullet List", cmd: (c) => c(wrapInBulletListCommand) },
+    { label: "1.", title: "Ordered List", cmd: (c) => c(wrapInOrderedListCommand) },
+  ],
+  [
+    { label: "⌥", title: "Code Block", cmd: (c) => c(createCodeBlockCommand) },
+    { label: "—", title: "Horizontal Rule", cmd: (c) => c(insertHrCommand) },
+  ],
+];
+
+function EditorToolbar({ cmd }) {
+  return (
+    <div className="mk-toolbar">
+      {TOOLBAR_GROUPS.map((group, gi) => (
+        <span key={gi} className="mk-toolbar-group">
+          {group.map(({ label, title, cmd: action, cls }) => (
+            <button
+              key={label}
+              title={title}
+              className={["mk-toolbar-btn", cls].filter(Boolean).join(" ")}
+              onMouseDown={(e) => { e.preventDefault(); action(cmd); }}
+            >
+              {label}
+            </button>
+          ))}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 const EditorInner = forwardRef(function EditorInner({ value, onChange }, ref) {
   const { get } = useEditor((root) =>
@@ -24,15 +79,20 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange }, ref) {
       })
   );
 
+  const cmd = (command, payload) => {
+    get()?.action((ctx) => ctx.get(commandsCtx).call(command.key, payload));
+  };
+
   useImperativeHandle(ref, () => ({
-    insertImage: (src, alt) => {
-      get()?.action((ctx) => {
-        ctx.get(commandsCtx).call(insertImageCommand.key, { src, alt, title: "" });
-      });
-    },
+    insertImage: (src, alt) => cmd(insertImageCommand, { src, alt, title: "" }),
   }), [get]);
 
-  return <Milkdown />;
+  return (
+    <>
+      <EditorToolbar cmd={cmd} />
+      <Milkdown />
+    </>
+  );
 });
 
 export const MilkdownEditor = forwardRef(function MilkdownEditor(
