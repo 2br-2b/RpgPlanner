@@ -106,6 +106,9 @@ export function App() {
 
   return (
     <ThemeCtx.Provider value={T}>
+      {T.skeuomorphic && (
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9999, backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.028) 2px, rgba(0,0,0,0.028) 4px)" }} />
+      )}
       <div style={{ ...css.app, minHeight: "100dvh" }}>
         {!isMobile && (
           <div style={css.topbar}>
