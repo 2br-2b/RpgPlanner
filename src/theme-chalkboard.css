@@ -1,0 +1,170 @@
+/* Chalkboard theme: dark slate board in a wood frame */
+
+/* ============================================================
+   APP BACKGROUND — dark green slate with subtle grain
+   ============================================================ */
+[data-theme="chalkboard"] {
+  background-color: #243324 !important;
+  background-image:
+    repeating-linear-gradient(
+      42deg,
+      transparent 0px, transparent 5px,
+      rgba(255,255,255,0.012) 5px, rgba(255,255,255,0.012) 6px
+    ),
+    repeating-linear-gradient(
+      -42deg,
+      transparent 0px, transparent 8px,
+      rgba(0,0,0,0.03) 8px, rgba(0,0,0,0.03) 9px
+    ) !important;
+}
+
+/* ============================================================
+   TOPBAR — dark wood frame with chalk tray shadow
+   ============================================================ */
+[data-theme="chalkboard"] .sk-topbar {
+  background: linear-gradient(to bottom, #6b4c1e 0%, #4a3214 100%) !important;
+  border-bottom: 4px solid #2e1e08 !important;
+  box-shadow: 0 4px 0 #8a6430, 0 6px 14px rgba(0,0,0,0.7) !important;
+  position: relative !important;
+}
+
+/* Wood grain texture */
+[data-theme="chalkboard"] .sk-topbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px, transparent 12px,
+    rgba(0,0,0,0.04) 12px, rgba(0,0,0,0.04) 13px
+  );
+  pointer-events: none;
+}
+
+[data-theme="chalkboard"] .sk-topbar * {
+  color: #f0e8c0 !important;
+  border-color: #7a5828 !important;
+}
+
+[data-theme="chalkboard"] .sk-topbar input {
+  background: rgba(0,0,0,0.35) !important;
+  border: 1px solid #7a5828 !important;
+  color: #f0e8c0 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.5) !important;
+}
+
+[data-theme="chalkboard"] .sk-topbar button {
+  background: linear-gradient(to bottom, #7a5828, #4a3214) !important;
+  border: 1px solid #2e1e08 !important;
+  color: #f0e8c0 !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5) !important;
+  border-radius: 0 !important;
+}
+
+/* ============================================================
+   SIDEBAR — dark wood frame left side
+   ============================================================ */
+[data-theme="chalkboard"] .sk-sidebar {
+  background: linear-gradient(to right, #3a2410 0%, #4a3214 80%, #3a2410 100%) !important;
+  border-right: 4px solid #2e1e08 !important;
+  box-shadow: inset -3px 0 8px rgba(0,0,0,0.4), 4px 0 12px rgba(0,0,0,0.5) !important;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 14px,
+    rgba(0,0,0,0.06) 14px, rgba(0,0,0,0.06) 15px
+  ) !important;
+}
+
+[data-theme="chalkboard"] .sk-sidebar * {
+  color: #d0c098 !important;
+  border-color: #6a4820 !important;
+}
+
+[data-theme="chalkboard"] .sk-sidebar input,
+[data-theme="chalkboard"] .sk-sidebar select {
+  background: rgba(0,0,0,0.35) !important;
+  border: 1px solid #6a4820 !important;
+  color: #e0d0a0 !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="chalkboard"] .sk-sidebar button {
+  background: rgba(0,0,0,0.3) !important;
+  border: 1px solid #6a4820 !important;
+  color: #d0c098 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ============================================================
+   SECTIONS — chalk-drawn boxes on the board
+   ============================================================ */
+[data-theme="chalkboard"] .sk-section {
+  background: rgba(255,255,255,0.05) !important;
+  border: 2px dashed rgba(240,232,200,0.5) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  position: relative !important;
+}
+
+/* Top-left chalk corner bracket */
+[data-theme="chalkboard"] .sk-section::before {
+  content: '';
+  position: absolute;
+  top: -3px; left: -3px;
+  width: 14px; height: 14px;
+  border-top: 3px solid rgba(240,232,200,0.8);
+  border-left: 3px solid rgba(240,232,200,0.8);
+  pointer-events: none;
+}
+
+/* Bottom-right chalk corner bracket */
+[data-theme="chalkboard"] .sk-section::after {
+  content: '';
+  position: absolute;
+  bottom: -3px; right: -3px;
+  width: 14px; height: 14px;
+  border-bottom: 3px solid rgba(240,232,200,0.8);
+  border-right: 3px solid rgba(240,232,200,0.8);
+  pointer-events: none;
+}
+
+/* ============================================================
+   BUTTONS — chalk-outline label style
+   ============================================================ */
+[data-theme="chalkboard"] .sk-main button,
+[data-theme="chalkboard"] .sk-section button {
+  background: transparent !important;
+  border: 1px dashed rgba(240,232,200,0.55) !important;
+  color: #e8e8d0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: 0 0 8px rgba(255,255,200,0.25) !important;
+  letter-spacing: 0.06em !important;
+  font-weight: normal !important;
+}
+
+/* ============================================================
+   INPUTS — writing in chalk
+   ============================================================ */
+[data-theme="chalkboard"] .sk-main input:not([type="checkbox"]),
+[data-theme="chalkboard"] .sk-main select,
+[data-theme="chalkboard"] .sk-section input:not([type="checkbox"]),
+[data-theme="chalkboard"] .sk-section select {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px dashed rgba(240,232,200,0.45) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #e8e8d0 !important;
+}
+
+[data-theme="chalkboard"] .sk-main textarea,
+[data-theme="chalkboard"] .sk-section textarea {
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px dashed rgba(240,232,200,0.35) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #e8e8d0 !important;
+}

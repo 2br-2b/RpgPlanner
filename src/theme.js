@@ -104,6 +104,42 @@ export const THEMES = {
     textMuted: "#401818", danger: "#c03030", warn: "#c07020",
     tag: "#200808", tagText: "#e05050", tagBorder: "#601818", radius: 3,
   },
+  chalkboard: {
+    label: "Chalkboard",
+    font: "'Courier New', monospace",
+    bg: "#243324", surface: "#2d3d2d", surface2: "#354535",
+    border: "#4a5a4a", accent: "#f0e060", accentDim: "#a09030",
+    accentBright: "#fff8a0", text: "#e8e8d8", textDim: "#a0a880",
+    textMuted: "#506050", danger: "#e05050", warn: "#e0b040",
+    tag: "#1a2a1a", tagText: "#e8e8d8", tagBorder: "#4a5a4a", radius: 0,
+  },
+  corkboard: {
+    label: "Corkboard",
+    font: "'Georgia', serif",
+    bg: "#c89040", surface: "#fefef8", surface2: "#f5f0e8",
+    border: "#c8b48a", accent: "#c03030", accentDim: "#801818",
+    accentBright: "#e04040", text: "#1a1008", textDim: "#6a5030",
+    textMuted: "#c8a870", danger: "#c03030", warn: "#c07020",
+    tag: "#e8e0d0", tagText: "#3a2010", tagBorder: "#c8b090", radius: 2,
+  },
+  newspaper: {
+    label: "Newspaper",
+    font: "'Times New Roman', serif",
+    bg: "#f0e8d0", surface: "#faf6ec", surface2: "#ede5d0",
+    border: "#1a1a1a", accent: "#cc1111", accentDim: "#880000",
+    accentBright: "#aa0000", text: "#0a0a0a", textDim: "#404040",
+    textMuted: "#808070", danger: "#cc1111", warn: "#cc7700",
+    tag: "#0a0a0a", tagText: "#faf6ec", tagBorder: "#0a0a0a", radius: 0,
+  },
+  blueprint: {
+    label: "Blueprint",
+    font: "'Courier New', monospace",
+    bg: "#0a1e3a", surface: "#0e2548", surface2: "#122c54",
+    border: "#4080c0", accent: "#60b0ff", accentDim: "#204880",
+    accentBright: "#90d0ff", text: "#d0e8ff", textDim: "#6090c0",
+    textMuted: "#304870", danger: "#ff6060", warn: "#ffc040",
+    tag: "#0a1828", tagText: "#60b0ff", tagBorder: "#4080c0", radius: 0,
+  },
 };
 
 export const ThemeCtx = createContext(THEMES.tactical);

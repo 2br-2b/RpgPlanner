@@ -1,0 +1,157 @@
+/* Newspaper theme: aged broadsheet — masthead topbar, column sections, newsprint texture */
+
+/* ============================================================
+   APP BACKGROUND — aged newsprint with faint column guides
+   ============================================================ */
+[data-theme="newspaper"] {
+  background-color: #f0e8d0 !important;
+  background-image:
+    /* Subtle vertical column guides */
+    repeating-linear-gradient(
+      to right,
+      transparent 0px, transparent 239px,
+      rgba(0,0,0,0.07) 239px, rgba(0,0,0,0.07) 240px
+    ),
+    /* Faint horizontal baseline grid */
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px, transparent 23px,
+      rgba(0,0,0,0.04) 23px, rgba(0,0,0,0.04) 24px
+    ) !important;
+}
+
+/* ============================================================
+   TOPBAR — newspaper masthead (black bar, white text)
+   ============================================================ */
+[data-theme="newspaper"] .sk-topbar {
+  background: #0a0a0a !important;
+  border-bottom: 3px double #0a0a0a !important;
+  box-shadow: 0 3px 0 #cc1111, 0 5px 10px rgba(0,0,0,0.4) !important;
+  position: relative !important;
+}
+
+[data-theme="newspaper"] .sk-topbar * {
+  color: #f8f4e8 !important;
+  border-color: #404040 !important;
+  font-family: 'Times New Roman', serif !important;
+}
+
+[data-theme="newspaper"] .sk-topbar input {
+  background: rgba(255,255,255,0.12) !important;
+  border: 1px solid #505050 !important;
+  color: #f8f4e8 !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="newspaper"] .sk-topbar button {
+  background: #1a1a1a !important;
+  border: 1px solid #505050 !important;
+  color: #f0e8d0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-family: 'Times New Roman', serif !important;
+  letter-spacing: 0.06em !important;
+}
+
+/* ============================================================
+   SIDEBAR — newsprint with thick column rule on right
+   ============================================================ */
+[data-theme="newspaper"] .sk-sidebar {
+  background: #ede4cc !important;
+  border-right: 1px solid #0a0a0a !important;
+  box-shadow: 4px 0 0 #cc1111, 6px 0 0 #0a0a0a !important;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 23px,
+    rgba(0,0,0,0.05) 23px, rgba(0,0,0,0.05) 24px
+  ) !important;
+}
+
+[data-theme="newspaper"] .sk-sidebar input,
+[data-theme="newspaper"] .sk-sidebar select {
+  background: rgba(255,255,255,0.5) !important;
+  border: 1px solid #2a2a2a !important;
+  border-radius: 0 !important;
+  color: #0a0a0a !important;
+  font-family: 'Times New Roman', serif !important;
+}
+
+[data-theme="newspaper"] .sk-sidebar button {
+  background: #f0e8d0 !important;
+  border: 1px solid #2a2a2a !important;
+  color: #0a0a0a !important;
+  border-radius: 0 !important;
+  box-shadow: 1px 1px 0 rgba(0,0,0,0.2) !important;
+  font-family: 'Times New Roman', serif !important;
+}
+
+/* ============================================================
+   SECTIONS — newspaper column panels with triple rule header
+   ============================================================ */
+[data-theme="newspaper"] .sk-section {
+  background: #faf6ec !important;
+  border: 1px solid #2a2a2a !important;
+  border-top: none !important;
+  border-radius: 0 !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.12) !important;
+  position: relative !important;
+  padding-top: 22px !important;
+}
+
+/* Classic newspaper triple-rule: black / red / black */
+[data-theme="newspaper"] .sk-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 7px;
+  background: linear-gradient(
+    to bottom,
+    #0a0a0a 0px, #0a0a0a 2px,
+    #cc1111 2px, #cc1111 5px,
+    #0a0a0a 5px, #0a0a0a 7px
+  );
+  pointer-events: none;
+}
+
+/* ============================================================
+   BUTTONS — square newspaper style
+   ============================================================ */
+[data-theme="newspaper"] .sk-main button,
+[data-theme="newspaper"] .sk-section button {
+  background: #f0e8d0 !important;
+  border: 1px solid #0a0a0a !important;
+  color: #0a0a0a !important;
+  border-radius: 0 !important;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.2) !important;
+  font-family: 'Times New Roman', serif !important;
+  font-weight: bold !important;
+  text-shadow: none !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* ============================================================
+   INPUTS — writing on newsprint
+   ============================================================ */
+[data-theme="newspaper"] .sk-main input:not([type="checkbox"]),
+[data-theme="newspaper"] .sk-main select,
+[data-theme="newspaper"] .sk-section input:not([type="checkbox"]),
+[data-theme="newspaper"] .sk-section select {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid #2a2a2a !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #0a0a0a !important;
+  font-family: 'Times New Roman', serif !important;
+}
+
+[data-theme="newspaper"] .sk-main textarea,
+[data-theme="newspaper"] .sk-section textarea {
+  background: rgba(255,255,255,0.5) !important;
+  border: 1px solid #2a2a2a !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #0a0a0a !important;
+  font-family: 'Times New Roman', serif !important;
+  line-height: 1.8 !important;
+}
