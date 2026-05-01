@@ -4,14 +4,14 @@
    APP BACKGROUND — blueprint paper with engineering grid
    ============================================================ */
 [data-theme="blueprint"] {
-  background-color: #0a1e3a !important;
+  background-color: #0e2440 !important;
   background-image:
     /* Major grid lines every 80px */
-    linear-gradient(rgba(80,140,255,0.14) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(80,140,255,0.14) 1px, transparent 1px),
+    linear-gradient(rgba(90,160,255,0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90,160,255,0.16) 1px, transparent 1px),
     /* Minor grid lines every 20px */
-    linear-gradient(rgba(80,140,255,0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(80,140,255,0.055) 1px, transparent 1px) !important;
+    linear-gradient(rgba(90,160,255,0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90,160,255,0.065) 1px, transparent 1px) !important;
   background-size:
     80px 80px, 80px 80px,
     20px 20px, 20px 20px !important;
@@ -21,9 +21,9 @@
    TOPBAR — title block header
    ============================================================ */
 [data-theme="blueprint"] .sk-topbar {
-  background: #061220 !important;
-  border-bottom: 2px solid #4080c0 !important;
-  box-shadow: 0 2px 0 #2060a0, 0 4px 16px rgba(0,0,0,0.7) !important;
+  background: #081830 !important;
+  border-bottom: 2px solid #3a78c0 !important;
+  box-shadow: 0 2px 0 #2060a0, 0 4px 16px rgba(0,0,0,0.6) !important;
   position: relative !important;
 }
 
@@ -42,23 +42,23 @@
 }
 
 [data-theme="blueprint"] .sk-topbar * {
-  color: #90d0ff !important;
-  border-color: #4080c0 !important;
+  color: #a0d8ff !important;
+  border-color: #3a78c0 !important;
   letter-spacing: 0.06em !important;
 }
 
 [data-theme="blueprint"] .sk-topbar input {
-  background: rgba(0,0,0,0.45) !important;
-  border: 1px solid #4080c0 !important;
-  color: #a0d8ff !important;
+  background: rgba(0,0,0,0.4) !important;
+  border: 1px solid #3a78c0 !important;
+  color: #b8e0ff !important;
   border-radius: 0 !important;
-  box-shadow: inset 0 1px 4px rgba(0,0,0,0.5) !important;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.45) !important;
 }
 
 [data-theme="blueprint"] .sk-topbar button {
-  background: rgba(10,50,100,0.8) !important;
-  border: 1px solid #4080c0 !important;
-  color: #90d0ff !important;
+  background: rgba(14,55,110,0.8) !important;
+  border: 1px solid #3a78c0 !important;
+  color: #a0d8ff !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
@@ -67,33 +67,33 @@
    SIDEBAR — blueprint border/margin area
    ============================================================ */
 [data-theme="blueprint"] .sk-sidebar {
-  background: #061220 !important;
-  border-right: 2px solid #4080c0 !important;
+  background: #081830 !important;
+  border-right: 2px solid #3a78c0 !important;
   box-shadow: 2px 0 0 #2060a0 !important;
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0px, transparent 19px,
-    rgba(80,140,255,0.08) 19px, rgba(80,140,255,0.08) 20px
+    rgba(90,155,255,0.09) 19px, rgba(90,155,255,0.09) 20px
   ) !important;
 }
 
 [data-theme="blueprint"] .sk-sidebar * {
-  color: #7ab8f0 !important;
-  border-color: #4080c0 !important;
+  color: #88c0f0 !important;
+  border-color: #3a78c0 !important;
 }
 
 [data-theme="blueprint"] .sk-sidebar input,
 [data-theme="blueprint"] .sk-sidebar select {
-  background: rgba(0,0,0,0.45) !important;
-  border: 1px solid #4080c0 !important;
-  color: #a0d8ff !important;
+  background: rgba(0,0,0,0.4) !important;
+  border: 1px solid #3a78c0 !important;
+  color: #b0d8ff !important;
   border-radius: 0 !important;
 }
 
 [data-theme="blueprint"] .sk-sidebar button {
-  background: rgba(10,50,100,0.6) !important;
-  border: 1px solid #4080c0 !important;
-  color: #7ab8f0 !important;
+  background: rgba(14,55,110,0.65) !important;
+  border: 1px solid #3a78c0 !important;
+  color: #88c0f0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
@@ -102,12 +102,12 @@
    SECTIONS — technical drawing panels with L-bracket corners
    ============================================================ */
 [data-theme="blueprint"] .sk-section {
-  background: rgba(6,30,64,0.75) !important;
-  border: 1px solid rgba(64,128,192,0.6) !important;
+  background: rgba(10,36,72,0.8) !important;
+  border: 1px solid rgba(58,120,192,0.65) !important;
   border-radius: 0 !important;
   box-shadow:
-    0 0 0 1px rgba(100,160,255,0.08),
-    0 4px 20px rgba(0,0,0,0.5) !important;
+    0 0 0 1px rgba(100,160,255,0.1),
+    0 4px 20px rgba(0,0,0,0.45) !important;
   position: relative !important;
 }
 
@@ -117,8 +117,8 @@
   position: absolute;
   top: -5px; left: -5px;
   width: 18px; height: 18px;
-  border-top: 2px solid #60b0ff;
-  border-left: 2px solid #60b0ff;
+  border-top: 2px solid #70c0ff;
+  border-left: 2px solid #70c0ff;
   pointer-events: none;
 }
 
@@ -128,8 +128,8 @@
   position: absolute;
   bottom: -5px; right: -5px;
   width: 18px; height: 18px;
-  border-bottom: 2px solid #60b0ff;
-  border-right: 2px solid #60b0ff;
+  border-bottom: 2px solid #70c0ff;
+  border-right: 2px solid #70c0ff;
   pointer-events: none;
 }
 
@@ -138,12 +138,12 @@
    ============================================================ */
 [data-theme="blueprint"] .sk-main button,
 [data-theme="blueprint"] .sk-section button {
-  background: rgba(10,50,100,0.8) !important;
-  border: 1px solid #4080c0 !important;
-  color: #90d0ff !important;
+  background: rgba(14,55,110,0.85) !important;
+  border: 1px solid #3a78c0 !important;
+  color: #a0d8ff !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  text-shadow: 0 0 6px rgba(100,180,255,0.3) !important;
+  text-shadow: 0 0 6px rgba(110,190,255,0.3) !important;
   letter-spacing: 0.08em !important;
   font-weight: normal !important;
 }
@@ -155,19 +155,19 @@
 [data-theme="blueprint"] .sk-main select,
 [data-theme="blueprint"] .sk-section input:not([type="checkbox"]),
 [data-theme="blueprint"] .sk-section select {
-  background: rgba(0,0,0,0.4) !important;
+  background: rgba(0,0,0,0.35) !important;
   border: none !important;
-  border-bottom: 1px solid rgba(96,176,255,0.5) !important;
+  border-bottom: 1px solid rgba(110,192,255,0.55) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  color: #a0d8ff !important;
+  color: #b8e0ff !important;
 }
 
 [data-theme="blueprint"] .sk-main textarea,
 [data-theme="blueprint"] .sk-section textarea {
-  background: rgba(0,0,0,0.4) !important;
-  border: 1px solid rgba(64,128,192,0.5) !important;
+  background: rgba(0,0,0,0.35) !important;
+  border: 1px solid rgba(58,120,192,0.55) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  color: #a0d8ff !important;
+  color: #b8e0ff !important;
 }
