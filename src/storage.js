@@ -168,19 +168,6 @@ export async function saveData(data) {
   } catch (e) { console.warn("Remote save failed (offline?):", e); }
 }
 
-// Called from beforeunload — keepalive lets the browser send the request even as the page tears down.
-export function saveDataUnload(data) {
-  try { localStorage.setItem("campaign-manager-local", JSON.stringify(data)); } catch {}
-  try {
-    fetch(`${API_BASE}/campaign/${SESSION_GUID}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data }),
-      keepalive: true,
-    });
-  } catch (e) {}
-}
-
 // ── Snapshot API helpers ──────────────────────────────────────────────────────
 
 export async function listSnapshots() {

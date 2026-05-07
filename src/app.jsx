@@ -13,7 +13,6 @@ import {
   loadData,
   migrateCampaign,
   saveData,
-  saveDataUnload,
   getKnownCampaigns,
   switchCampaign,
   createNewCampaign,
@@ -181,7 +180,6 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
   const saveTimer = useRef(null);
-  const pendingRef = useRef(null);
   const historyRef = useRef({ stack: [], idx: -1 });
 
   useEffect(() => {
@@ -195,22 +193,10 @@ export function App() {
 
   const persist = useCallback((nextCampaign) => {
     setSaveStatus("saving");
-    // Immediate local backup so closing the tab never loses data locally.
-    try { localStorage.setItem("campaign-manager-local", JSON.stringify(nextCampaign)); } catch {}
-    pendingRef.current = nextCampaign;
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveData(nextCampaign).then(() => {
-        pendingRef.current = null;
-        setSaveStatus("saved");
-      });
+      saveData(nextCampaign).then(() => setSaveStatus("saved"));
     }, 800);
-  }, []);
-
-  useEffect(() => {
-    const handler = () => { if (pendingRef.current) saveDataUnload(pendingRef.current); };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
   const update = useCallback((fn) => {
