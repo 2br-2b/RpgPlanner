@@ -290,7 +290,7 @@ export function App() {
       {T.skeuomorphic && (
         <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9999, backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.028) 2px, rgba(0,0,0,0.028) 4px)" }} />
       )}
-      <div data-theme={campaign.theme} className="sk-app" style={{ ...css.app, minHeight: "100dvh" }}>
+      <div data-theme={campaign.theme} className="sk-app" style={{ ...css.app, ...(isMobile ? { minHeight: "100dvh" } : { height: "100dvh", overflow: "hidden" }) }}>
         {!isMobile && (
           <div className="sk-topbar" style={css.topbar}>
             <button style={{ ...css.btn(), fontSize: 11, display: "flex", alignItems: "center", gap: 4 }} onClick={() => setShowCampaigns(true)} title="Switch campaign">
@@ -315,7 +315,7 @@ export function App() {
         )}
 
         {isMobile && (
-          <div className="sk-topbar" style={{ ...css.topbar, height: 52, padding: "0 10px", gap: 6 }}>
+          <div className="sk-topbar" style={{ ...css.topbar, height: 52, padding: "0 10px", gap: 6, position: "sticky", top: 0, zIndex: 100 }}>
             {showSidebar && <button style={{ ...css.btn(), padding: "6px 10px", fontSize: 18, lineHeight: 1, flexShrink: 0 }} onClick={() => setSidebarOpen((open) => !open)}>=</button>}
             <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{view === "editor" && selectedPage ? selectedPage.name : (NAV_ITEMS.find((item) => item.key === view)?.label || view)}</span>
             <button style={{ ...css.btn(), fontSize: 14, padding: "4px 8px", flexShrink: 0 }} onClick={() => setShowSearch(true)} title="Search">⌕</button>
@@ -325,7 +325,7 @@ export function App() {
           </div>
         )}
 
-        <div style={{ ...css.body, position: "relative", overflow: isMobile ? "visible" : "hidden" }}>
+        <div style={{ ...css.body, position: "relative", overflow: isMobile ? "visible" : "hidden", minHeight: 0 }}>
           {isMobile && sidebarOpen && showSidebar && (
             <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex" }}>
               <div style={{ background: "rgba(0,0,0,0.55)", position: "absolute", inset: 0 }} onClick={() => setSidebarOpen(false)} />
