@@ -156,13 +156,15 @@ export function PageEditor({ page, schema, onUpdate, onBack, shareEnabled }) {
   const freeImgRef = useRef(null);
   const freeEditorRef = useRef(null);
 
-  const set = (k, v) => onUpdate({ ...page, [k]: v });
+  const set = (k, v) => onUpdate(p => ({ ...p, [k]: v }));
   const setSection = (sid, subKey, v) => {
     if (subKey === undefined) {
-      onUpdate({ ...page, sections: { ...page.sections, [sid]: v } });
+      onUpdate(p => ({ ...p, sections: { ...p.sections, [sid]: v } }));
     } else {
-      const prev = (typeof page.sections[sid] === "object" && page.sections[sid] !== null) ? page.sections[sid] : {};
-      onUpdate({ ...page, sections: { ...page.sections, [sid]: { ...prev, [subKey]: v } } });
+      onUpdate(p => {
+        const prev = (typeof p.sections[sid] === "object" && p.sections[sid] !== null) ? p.sections[sid] : {};
+        return { ...p, sections: { ...p.sections, [sid]: { ...prev, [subKey]: v } } };
+      });
     }
   };
 
@@ -182,7 +184,8 @@ export function PageEditor({ page, schema, onUpdate, onBack, shareEnabled }) {
   const addTag = () => {
     const t = editTag.trim().toLowerCase();
     if (!t || (page.tags || []).includes(t)) { setEditTag(""); return; }
-    set("tags", [...(page.tags || []), t]); setEditTag("");
+    onUpdate(p => ({ ...p, tags: [...(p.tags || []), t] }));
+    setEditTag("");
   };
 
   const handleFreeImg = (e) => {
@@ -223,7 +226,7 @@ export function PageEditor({ page, schema, onUpdate, onBack, shareEnabled }) {
       )}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16, alignItems: "center" }}>
         <span style={{ ...css.label, margin: 0 }}>Tags:</span>
-        {(page.tags || []).map(tag => <span key={tag} style={{ ...css.tag, cursor: "pointer" }} onClick={() => set("tags", page.tags.filter(t => t !== tag))}>{tag} ×</span>)}
+        {(page.tags || []).map(tag => <span key={tag} style={{ ...css.tag, cursor: "pointer" }} onClick={() => onUpdate(p => ({ ...p, tags: (p.tags || []).filter(t => t !== tag) }))}>{tag} ×</span>)}
         <input style={{ ...css.input, width: 100, fontSize: 11, padding: "2px 6px" }} placeholder="+ add tag" value={editTag}
           onChange={e => setEditTag(e.target.value)} onKeyDown={e => e.key === "Enter" && addTag()} />
       </div>
@@ -263,12 +266,12 @@ export function PageEditor({ page, schema, onUpdate, onBack, shareEnabled }) {
           {activeSection === "__costs" && (
             <CostsAwards
               costs={page.costs || []} awards={page.awards || []}
-              onAddCost={() => set("costs", [...(page.costs || []), { id: uid(), label: "", amount: 0 }])}
-              onAddAward={() => set("awards", [...(page.awards || []), { id: uid(), label: "", amount: 0 }])}
-              onUpdateCost={(id, f, v) => set("costs", page.costs.map(c => c.id === id ? { ...c, [f]: v } : c))}
-              onUpdateAward={(id, f, v) => set("awards", page.awards.map(a => a.id === id ? { ...a, [f]: v } : a))}
-              onRemoveCost={id => set("costs", page.costs.filter(c => c.id !== id))}
-              onRemoveAward={id => set("awards", page.awards.filter(a => a.id !== id))}
+              onAddCost={() => onUpdate(p => ({ ...p, costs: [...(p.costs || []), { id: uid(), label: "", amount: 0 }] }))}
+              onAddAward={() => onUpdate(p => ({ ...p, awards: [...(p.awards || []), { id: uid(), label: "", amount: 0 }] }))}
+              onUpdateCost={(id, f, v) => onUpdate(p => ({ ...p, costs: (p.costs || []).map(c => c.id === id ? { ...c, [f]: v } : c) }))}
+              onUpdateAward={(id, f, v) => onUpdate(p => ({ ...p, awards: (p.awards || []).map(a => a.id === id ? { ...a, [f]: v } : a) }))}
+              onRemoveCost={id => onUpdate(p => ({ ...p, costs: (p.costs || []).filter(c => c.id !== id) }))}
+              onRemoveAward={id => onUpdate(p => ({ ...p, awards: (p.awards || []).filter(a => a.id !== id) }))}
             />
           )}
         </div>
