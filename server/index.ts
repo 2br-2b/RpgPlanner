@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import express, { type ErrorRequestHandler, type RequestHandler } from "express";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -57,8 +57,8 @@ class HttpError extends Error {
 }
 
 mkdirSync(path.dirname(dbPath), { recursive: true });
-const db = new Database(dbPath);
-db.pragma("journal_mode = WAL");
+const db = new DatabaseSync(dbPath);
+db.exec("PRAGMA journal_mode = WAL");
 db.exec(`
   CREATE TABLE IF NOT EXISTS campaigns (
     guid        TEXT PRIMARY KEY,
