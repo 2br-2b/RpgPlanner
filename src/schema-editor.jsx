@@ -3,6 +3,70 @@ import { useThemeCSS } from "./theme.js";
 import { uid } from "./storage.js";
 import { FORMULA_HELP } from "./formula.js";
 
+function PlayerVisibilityControls({ sec, campaign, onChange, T, css }) {
+  if (!campaign.shareEnabled) return null;
+  const isText = sec.type === "text" || !sec.type;
+  const isTable = sec.type === "table";
+
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
+      <div style={{ fontSize: 9, color: T.textDim, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 8 }}>PLAYER VISIBILITY</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 6 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11, color: T.textDim }}>
+          <input type="checkbox" checked={sec.playerVisible || false}
+            onChange={e => onChange("playerVisible", e.target.checked)}
+            style={{ accentColor: T.accent }} />
+          Visible to players (default for all pages)
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11, color: T.textDim }}>
+          <input type="checkbox" checked={sec.playerEditable || false}
+            onChange={e => onChange("playerEditable", e.target.checked)}
+            style={{ accentColor: T.accent }} />
+          Players can edit
+        </label>
+      </div>
+      {isText && sec.playerVisible && (sec.subheaders || []).length > 0 && (
+        <div>
+          <div style={{ fontSize: 9, color: T.textMuted, marginBottom: 4 }}>Visible subheaders (when section is shown):</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {sec.subheaders.map(sh => (
+              <label key={sh} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: 11, color: T.textDim }}>
+                <input type="checkbox"
+                  checked={(sec.playerVisibleSubheaders || []).includes(sh)}
+                  onChange={e => {
+                    const current = sec.playerVisibleSubheaders || [];
+                    onChange("playerVisibleSubheaders", e.target.checked ? [...current, sh] : current.filter(s => s !== sh));
+                  }}
+                  style={{ accentColor: T.accent }} />
+                {sh}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      {isTable && sec.playerVisible && (sec.columns || []).length > 0 && (
+        <div>
+          <div style={{ fontSize: 9, color: T.textMuted, marginBottom: 4 }}>Visible columns (when section is shown):</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {sec.columns.map(col => (
+              <label key={col.id} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: 11, color: T.textDim }}>
+                <input type="checkbox"
+                  checked={(sec.playerVisibleColumns || []).includes(col.id)}
+                  onChange={e => {
+                    const current = sec.playerVisibleColumns || [];
+                    onChange("playerVisibleColumns", e.target.checked ? [...current, col.id] : current.filter(id => id !== col.id));
+                  }}
+                  style={{ accentColor: T.accent }} />
+                {col.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SchemaEditor({ campaign, onUpdate }) {
   const { T, css } = useThemeCSS();
   const add = () => onUpdate(c => ({ ...c, sectionSchema: [...c.sectionSchema, { id: uid(), name: "New Section", type: "text", subheaders: [] }] }));
@@ -37,13 +101,13 @@ export function SchemaEditor({ campaign, onUpdate }) {
       <div style={{ marginBottom: 12, padding: 10, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, fontSize: 11, color: T.textDim }}>
         Changes here propagate to all mission pages automatically. Existing section content is preserved.
       </div>
-      {campaign.sectionSchema.map((sec, i) => <SchemaSectionRow key={sec.id} sec={sec} isFirst={i === 0} isLast={i === campaign.sectionSchema.length - 1} onChange={(f, v) => upd(sec.id, f, v)} onRemove={() => del(sec.id)} onMove={d => move(sec.id, d)} onRenameSubheader={(o, n) => renameSubheader(sec.id, o, n)} />)}
+      {campaign.sectionSchema.map((sec, i) => <SchemaSectionRow key={sec.id} sec={sec} campaign={campaign} isFirst={i === 0} isLast={i === campaign.sectionSchema.length - 1} onChange={(f, v) => upd(sec.id, f, v)} onRemove={() => del(sec.id)} onMove={d => move(sec.id, d)} onRenameSubheader={(o, n) => renameSubheader(sec.id, o, n)} />)}
       {campaign.sectionSchema.length === 0 && <div style={{ color: T.textDim, textAlign: "center", padding: 32 }}>No sections defined. Mission pages will be free-form.</div>}
     </div>
   );
 }
 
-function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, onRenameSubheader }) {
+function SchemaSectionRow({ sec, campaign, isFirst, isLast, onChange, onRemove, onMove, onRenameSubheader }) {
   const { T, css } = useThemeCSS();
   const [sub, setSub] = useState("");
   const [newColLabel, setNewColLabel] = useState("");
@@ -232,6 +296,7 @@ function SchemaSectionRow({ sec, isFirst, isLast, onChange, onRemove, onMove, on
           </div>
         </>
       )}
+      <PlayerVisibilityControls sec={sec} campaign={campaign} onChange={onChange} T={T} css={css} />
     </div>
   );
 }

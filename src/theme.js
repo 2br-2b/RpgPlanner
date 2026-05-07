@@ -140,6 +140,15 @@ export const THEMES = {
     textMuted: "#2a4870", danger: "#ff7070", warn: "#ffcc50",
     tag: "#0e2030", tagText: "#70c0ff", tagBorder: "#3a78c0", radius: 0,
   },
+  plain: {
+    label: "Plain",
+    font: "system-ui, sans-serif",
+    bg: "#ffffff", surface: "#f8f8f8", surface2: "#eeeeee",
+    border: "#dddddd", accent: "#0066cc", accentDim: "#e0ecff",
+    accentBright: "#004499", text: "#222222", textDim: "#555555",
+    textMuted: "#999999", danger: "#cc0000", warn: "#cc7700",
+    tag: "#e8f0ff", tagText: "#004499", tagBorder: "#b0c8ff", radius: 4,
+  },
   battletech: {
     label: "American Mecha",
     font: "'Courier New', monospace",

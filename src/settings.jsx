@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { THEMES, useIsMobile, useThemeCSS } from "./theme.js";
-import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign } from "./storage.js";
+import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign, setSharing } from "./storage.js";
 
 function Row({ label, hint, children, T, isMobile }) {
   return (
@@ -98,7 +98,117 @@ function SnapshotsPanel({ campaign, onRestore, T, css, isMobile }) {
   );
 }
 
-export function SettingsView({ campaign, onUpdate, onRestore, onClear }) {
+function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }) {
+  const [toggling, setToggling] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [confirmRegen, setConfirmRegen] = useState(false);
+  const [regenDone, setRegenDone] = useState(false);
+  const [shareError, setShareError] = useState("");
+
+  const shareUrl = campaign.shareGuid ? `${window.location.origin}/share/${campaign.shareGuid}` : null;
+
+  const handleToggle = async (enabled) => {
+    setToggling(true); setShareError("");
+    try {
+      const result = await setSharing(enabled, campaign.shareTheme || "plain", campaign.shareCustomCss || "");
+      onUpdate(c => ({ ...c, shareEnabled: enabled, shareGuid: result.shareGuid }));
+    } catch (e) { setShareError(e.message || "Failed"); }
+    setToggling(false);
+  };
+
+  const handleRegen = async () => {
+    setToggling(true); setShareError(""); setConfirmRegen(false);
+    try {
+      // Temporarily disable then re-enable to force new GUID
+      await setSharing(false, campaign.shareTheme || "plain", campaign.shareCustomCss || "");
+      const result = await setSharing(true, campaign.shareTheme || "plain", campaign.shareCustomCss || "");
+      onUpdate(c => ({ ...c, shareEnabled: true, shareGuid: result.shareGuid }));
+      setRegenDone(true); setTimeout(() => setRegenDone(false), 2000);
+    } catch (e) { setShareError(e.message || "Failed"); }
+    setToggling(false);
+  };
+
+  const handleThemeChange = async (key) => {
+    onUpdate(c => ({ ...c, shareTheme: key }));
+    if (campaign.shareEnabled) {
+      try { await setSharing(true, key, campaign.shareCustomCss || ""); } catch { }
+    }
+  };
+
+  const handleCssChange = (css) => {
+    onUpdate(c => ({ ...c, shareCustomCss: css }));
+  };
+
+  return (
+    <div>
+      <Row label="Enable player sharing" hint="Creates a separate read-only URL for players. All content is hidden by default." T={T} isMobile={isMobile}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <input type="checkbox" checked={campaign.shareEnabled || false}
+            onChange={e => handleToggle(e.target.checked)}
+            disabled={toggling}
+            style={{ accentColor: T.accent, width: 14, height: 14 }} />
+          <span style={{ fontSize: 12, color: T.textDim }}>{toggling ? "Updating…" : "Sharing enabled"}</span>
+        </label>
+        {shareError && <div style={{ fontSize: 11, color: T.danger, marginTop: 6 }}>{shareError}</div>}
+        {!campaign.shareEnabled && (
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 6 }}>When enabled, all pages and fields are hidden by default. Go to Schema to choose what players can see.</div>
+        )}
+      </Row>
+
+      {campaign.shareEnabled && shareUrl && (
+        <>
+          <Row label="Player share link" hint="Share this URL with your players. It only shows what you've marked as visible." T={T} isMobile={isMobile}>
+            <div style={{ fontFamily: "monospace", fontSize: 11, color: T.accentBright, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: "6px 10px", marginBottom: 8, wordBreak: "break-all" }}>{shareUrl}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button style={{ ...css.btn("primary"), fontSize: 11 }} onClick={() => { navigator.clipboard.writeText(shareUrl); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); }}>
+                {shareCopied ? "Copied!" : "Copy link"}
+              </button>
+              <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => window.open(shareUrl, "_blank")}>Preview as player ↗</button>
+              {confirmRegen ? (
+                <>
+                  <span style={{ fontSize: 11, color: T.warn, alignSelf: "center" }}>Old link will stop working.</span>
+                  <button style={{ ...css.btn("danger"), fontSize: 11 }} onClick={handleRegen} disabled={toggling}>Confirm regenerate</button>
+                  <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setConfirmRegen(false)}>Cancel</button>
+                </>
+              ) : (
+                <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setConfirmRegen(true)} disabled={toggling}>
+                  {regenDone ? "Regenerated!" : "Regenerate link…"}
+                </button>
+              )}
+            </div>
+          </Row>
+
+          <Row label="Schema setup" hint="Go to Schema to set which fields players can see by default." T={T} isMobile={isMobile}>
+            <div style={{ fontSize: 11, color: T.textDim, marginBottom: 6 }}>All pages and sections are hidden by default. Use the Schema editor to set player-visible defaults.</div>
+            {onNavigateSchema && <button style={{ ...css.btn("primary"), fontSize: 11 }} onClick={onNavigateSchema}>Go to Schema →</button>}
+          </Row>
+
+          <Row label="Player view theme" hint="Theme used in the player-facing share view." T={T} isMobile={isMobile}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {Object.entries(THEMES).map(([key, theme]) => (
+                <button key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: theme.radius, border: `1px solid ${(campaign.shareTheme || "plain") === key ? theme.accentBright : T.border}`, background: (campaign.shareTheme || "plain") === key ? T.surface2 : "transparent", cursor: "pointer", fontFamily: theme.font, fontSize: 12, color: (campaign.shareTheme || "plain") === key ? theme.accentBright : T.textDim }} onClick={() => handleThemeChange(key)}>
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />{theme.label}
+                </button>
+              ))}
+            </div>
+          </Row>
+
+          <Row label="Custom CSS" hint="Advanced: inject CSS into the player view. Players will see a safety warning before it's applied." T={T} isMobile={isMobile}>
+            <textarea style={{ ...css.textarea, minHeight: 100, fontSize: 11 }}
+              value={campaign.shareCustomCss || ""}
+              onChange={e => handleCssChange(e.target.value)}
+              placeholder="/* Optional custom CSS for the player view */" />
+            <div style={{ fontSize: 10, color: T.warn, marginTop: 4 }}>
+              ⚠ Players will see a security warning explaining that custom CSS can change the appearance of the page in arbitrary ways.
+            </div>
+          </Row>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigate }) {
   const { T, css } = useThemeCSS();
   const isMobile = useIsMobile();
   const [confirmClear, setConfirmClear] = useState(false);
@@ -129,6 +239,11 @@ export function SettingsView({ campaign, onUpdate, onRestore, onClear }) {
   return (
     <div style={{ maxWidth: 680 }}>
       <h2 style={{ margin: "0 0 20px", color: T.accentBright, fontSize: 16, letterSpacing: "0.1em" }}>SETTINGS</h2>
+
+      <div style={{ ...css.section, marginBottom: 24 }}>
+        <div style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>PLAYER SHARING</div>
+        <SharingPanel campaign={campaign} onUpdate={onUpdate} onNavigateSchema={onNavigate ? () => onNavigate("schema") : null} T={T} css={css} isMobile={isMobile} />
+      </div>
 
       <div style={{ ...css.section, marginBottom: 24 }}>
         <div style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>SYNC &amp; SHARING</div>
