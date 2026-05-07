@@ -207,11 +207,14 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
 
           <Row label="Player view theme" hint="Theme used in the player-facing share view." T={T} isMobile={isMobile}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {Object.entries(THEMES).map(([key, theme]) => (
-                <button key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: theme.radius, border: `1px solid ${(campaign.shareTheme || campaign.theme || "plain") === key ? theme.accentBright : T.border}`, background: (campaign.shareTheme || campaign.theme || "plain") === key ? T.surface2 : "transparent", cursor: "pointer", fontFamily: theme.font, fontSize: 12, color: (campaign.shareTheme || campaign.theme || "plain") === key ? theme.accentBright : T.textDim }} onClick={() => handleThemeChange(key)}>
-                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />{theme.label}
-                </button>
-              ))}
+              {Object.entries(THEMES).map(([key, theme]) => {
+                const selected = (campaign.shareTheme || campaign.theme || "plain") === key;
+                return (
+                  <button key={key} onClick={() => handleThemeChange(key)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: theme.radius || 4, border: `2px solid ${selected ? theme.accentBright : theme.border}`, background: theme.surface, cursor: "pointer", fontFamily: theme.font, fontSize: 12, color: selected ? theme.accentBright : theme.text }}>
+                    <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />{theme.label}
+                  </button>
+                );
+              })}
             </div>
           </Row>
 
@@ -341,11 +344,14 @@ export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigat
         <div style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>DISPLAY</div>
         <Row label="Theme" hint="Also accessible from the topbar dropdown." T={T} isMobile={isMobile}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {Object.entries(THEMES).map(([key, theme]) => (
-              <button key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: theme.radius, border: `1px solid ${campaign.theme === key ? theme.accentBright : T.border}`, background: campaign.theme === key ? T.surface2 : "transparent", cursor: "pointer", fontFamily: theme.font, fontSize: 12, color: campaign.theme === key ? theme.accentBright : T.textDim }} onClick={() => onUpdate((data) => ({ ...data, theme: key }))}>
-                <span style={{ width: 10, height: 10, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />{theme.label}
-              </button>
-            ))}
+            {Object.entries(THEMES).map(([key, theme]) => {
+              const selected = campaign.theme === key;
+              return (
+                <button key={key} onClick={() => onUpdate((data) => ({ ...data, theme: key }))} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: theme.radius || 4, border: `2px solid ${selected ? theme.accentBright : theme.border}`, background: theme.surface, cursor: "pointer", fontFamily: theme.font, fontSize: 12, color: selected ? theme.accentBright : theme.text }}>
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />{theme.label}
+                </button>
+              );
+            })}
           </div>
         </Row>
         <Row label="Show projected costs in outline" hint="Show cost/award totals on mission cards in the outline view." T={T} isMobile={isMobile}>
