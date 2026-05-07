@@ -82,7 +82,7 @@ export function migrateCampaign(data) {
       ...d,
       shareEnabled: false,
       shareGuid: null,
-      shareTheme: "plain",
+      shareTheme: d.theme || "materialLight",
       shareCustomCss: "",
       sectionSchema: (d.sectionSchema || []).map(s => ({
         playerVisible: false,
@@ -110,7 +110,7 @@ function preferredTheme() {
 export function defaultCampaign() {
   return {
     id: uid(), name: "New Campaign", theme: preferredTheme(),
-    shareEnabled: false, shareGuid: null, shareTheme: "plain", shareCustomCss: "",
+    shareEnabled: false, shareGuid: null, shareTheme: preferredTheme(), shareCustomCss: "",
     sectionSchema: [
       { id: uid(), name: "Overview", type: "text", subheaders: ["Background", "Objectives"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
       { id: uid(), name: "Setup", type: "text", subheaders: ["Deployment", "Special Rules"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },

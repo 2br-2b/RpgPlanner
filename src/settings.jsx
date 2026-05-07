@@ -2,6 +2,21 @@ import { useState, useEffect, useCallback } from "react";
 import { THEMES, useIsMobile, useThemeCSS } from "./theme.js";
 import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign, setSharing } from "./storage.js";
 
+function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel, danger = true }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 24 }}>
+      <div style={{ background: "#1e1e2e", border: "1px solid #444", borderRadius: 8, padding: 28, maxWidth: 420, width: "100%", color: "#eee", fontFamily: "system-ui, sans-serif", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+        <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 12, color: danger ? "#f87171" : "#eee" }}>{title}</div>
+        <div style={{ fontSize: 12, lineHeight: 1.6, color: "#bbb", marginBottom: 20 }}>{message}</div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button onClick={onCancel} style={{ padding: "7px 16px", borderRadius: 6, border: "1px solid #555", background: "transparent", color: "#ccc", cursor: "pointer", fontSize: 12, fontFamily: "system-ui" }}>Cancel</button>
+          <button onClick={onConfirm} style={{ padding: "7px 16px", borderRadius: 6, border: `1px solid ${danger ? "#ef4444" : "#3b82f6"}`, background: danger ? "#ef4444" : "#3b82f6", color: "#fff", cursor: "pointer", fontSize: 12, fontFamily: "system-ui", fontWeight: "bold" }}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Row({ label, hint, children, T, isMobile }) {
   return (
     <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: "flex-start", gap: isMobile ? 8 : 16, padding: "14px 0", borderBottom: `1px solid ${T.border}` }}>
@@ -104,15 +119,14 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [regenDone, setRegenDone] = useState(false);
   const [shareError, setShareError] = useState("");
-  const [confirmShareAll, setConfirmShareAll] = useState(false);
-  const [sharingAll, setSharingAll] = useState(false);
+  const [showShareUrl, setShowShareUrl] = useState(false);
 
   const shareUrl = campaign.shareGuid ? `${window.location.origin}/share/${campaign.shareGuid}` : null;
 
   const handleToggle = async (enabled) => {
     setToggling(true); setShareError("");
     try {
-      const result = await setSharing(enabled, campaign.shareTheme || "plain", campaign.shareCustomCss || "");
+      const result = await setSharing(enabled, campaign.shareTheme || campaign.theme || "plain", campaign.shareCustomCss || "");
       onUpdate(c => ({ ...c, shareEnabled: enabled, shareGuid: result.shareGuid }));
     } catch (e) { setShareError(e.message || "Failed"); }
     setToggling(false);
@@ -122,8 +136,8 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
     setToggling(true); setShareError(""); setConfirmRegen(false);
     try {
       // Temporarily disable then re-enable to force new GUID
-      await setSharing(false, campaign.shareTheme || "plain", campaign.shareCustomCss || "");
-      const result = await setSharing(true, campaign.shareTheme || "plain", campaign.shareCustomCss || "");
+      await setSharing(false, campaign.shareTheme || campaign.theme || "plain", campaign.shareCustomCss || "");
+      const result = await setSharing(true, campaign.shareTheme || campaign.theme || "plain", campaign.shareCustomCss || "");
       onUpdate(c => ({ ...c, shareEnabled: true, shareGuid: result.shareGuid }));
       setRegenDone(true); setTimeout(() => setRegenDone(false), 2000);
     } catch (e) { setShareError(e.message || "Failed"); }
@@ -141,40 +155,16 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
     onUpdate(c => ({ ...c, shareCustomCss: css }));
   };
 
-  const handleShareAll = async () => {
-    setSharingAll(true); setShareError(""); setConfirmShareAll(false);
-    try {
-      let shareGuid = campaign.shareGuid;
-      if (!campaign.shareEnabled) {
-        const result = await setSharing(true, campaign.shareTheme || "plain", campaign.shareCustomCss || "");
-        shareGuid = result.shareGuid;
-      }
-      onUpdate(c => ({
-        ...c,
-        shareEnabled: true,
-        shareGuid,
-        sectionSchema: c.sectionSchema.map(s => ({
-          ...s,
-          playerVisible: true,
-          playerEditable: s.playerEditable || false,
-          playerVisibleSubheaders: s.type === "text" ? (s.subheaders || []) : (s.playerVisibleSubheaders || []),
-          playerVisibleColumns: s.type === "table" ? (s.columns || []).map(col => col.id) : (s.playerVisibleColumns || []),
-        })),
-        pages: c.pages.map(p => ({ ...p, playerVisible: true, sectionVisibilityOverrides: {} })),
-      }));
-    } catch (e) { setShareError(e.message || "Failed"); }
-    setSharingAll(false);
-  };
 
   return (
     <div>
       <Row label="Enable player sharing" hint="Creates a separate read-only URL for players. All content is hidden by default." T={T} isMobile={isMobile}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
           <input type="checkbox" checked={campaign.shareEnabled || false}
             onChange={e => handleToggle(e.target.checked)}
             disabled={toggling}
-            style={{ accentColor: T.accent, width: 14, height: 14 }} />
-          <span style={{ fontSize: 12, color: T.textDim }}>{toggling ? "Updating…" : "Sharing enabled"}</span>
+            style={{ accentColor: T.accent, width: 13, height: 13 }} />
+          <span style={{ fontSize: 12, color: T.textDim }}>{toggling ? "Updating…" : "Public"}</span>
         </label>
         {shareError && <div style={{ fontSize: 11, color: T.danger, marginTop: 6 }}>{shareError}</div>}
         {!campaign.shareEnabled && (
@@ -182,49 +172,30 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
         )}
       </Row>
 
-      <Row label="Share all content" hint="End-of-campaign shortcut: make every page and every field visible to players at once." T={T} isMobile={isMobile}>
-        {confirmShareAll ? (
-          <div style={{ background: T.surface2, border: `1px solid ${T.warn}`, borderRadius: T.radius, padding: 12 }}>
-            <div style={{ fontSize: 12, color: T.warn, fontWeight: "bold", marginBottom: 6 }}>⚠ Make everything public?</div>
-            <div style={{ fontSize: 11, color: T.text, marginBottom: 10, lineHeight: 1.5 }}>
-              This will mark <strong>all {campaign.pages.length} page{campaign.pages.length !== 1 ? "s" : ""}</strong> and <strong>all {campaign.sectionSchema.length} section{campaign.sectionSchema.length !== 1 ? "s" : ""}</strong> (including every subheader and column) as visible to players.
-              {!campaign.shareEnabled && " Sharing will also be enabled automatically."}
-              {" "}You can still hide individual items afterwards.
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button style={{ ...css.btn("danger"), fontSize: 11 }} onClick={handleShareAll} disabled={sharingAll}>
-                {sharingAll ? "Sharing…" : "Yes, share everything"}
-              </button>
-              <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setConfirmShareAll(false)}>Cancel</button>
-            </div>
-          </div>
-        ) : (
-          <button style={{ ...css.btn("danger"), fontSize: 11 }} onClick={() => setConfirmShareAll(true)} disabled={sharingAll}>
-            Share all content…
-          </button>
-        )}
-        {shareError && <div style={{ fontSize: 11, color: T.danger, marginTop: 6 }}>{shareError}</div>}
-      </Row>
 
       {campaign.shareEnabled && shareUrl && (
         <>
           <Row label="Player share link" hint="Share this URL with your players. It only shows what you've marked as visible." T={T} isMobile={isMobile}>
-            <div style={{ fontFamily: "monospace", fontSize: 11, color: T.accentBright, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: "6px 10px", marginBottom: 8, wordBreak: "break-all" }}>{shareUrl}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <div style={{ fontFamily: "monospace", fontSize: 11, color: T.accentBright, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: "6px 10px", wordBreak: "break-all", flex: 1, filter: showShareUrl ? "none" : "blur(6px)", userSelect: showShareUrl ? "auto" : "none" }}>{shareUrl}</div>
+              <button style={{ ...css.btn(), fontSize: 11, flexShrink: 0 }} onClick={() => setShowShareUrl(v => !v)}>{showShareUrl ? "Hide" : "Show"}</button>
+            </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               <button style={{ ...css.btn("primary"), fontSize: 11 }} onClick={() => { navigator.clipboard.writeText(shareUrl); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); }}>
                 {shareCopied ? "Copied!" : "Copy link"}
               </button>
               <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => window.open(shareUrl, "_blank")}>Preview as player ↗</button>
-              {confirmRegen ? (
-                <>
-                  <span style={{ fontSize: 11, color: T.warn, alignSelf: "center" }}>Old link will stop working.</span>
-                  <button style={{ ...css.btn("danger"), fontSize: 11 }} onClick={handleRegen} disabled={toggling}>Confirm regenerate</button>
-                  <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setConfirmRegen(false)}>Cancel</button>
-                </>
-              ) : (
-                <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setConfirmRegen(true)} disabled={toggling}>
-                  {regenDone ? "Regenerated!" : "Regenerate link…"}
-                </button>
+              <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setConfirmRegen(true)} disabled={toggling}>
+                {regenDone ? "Regenerated!" : "Regenerate link…"}
+              </button>
+              {confirmRegen && (
+                <ConfirmModal
+                  title="Regenerate share link?"
+                  message="The old link will stop working immediately. Anyone using it will lose access."
+                  confirmLabel="Regenerate"
+                  onConfirm={handleRegen}
+                  onCancel={() => setConfirmRegen(false)}
+                />
               )}
             </div>
           </Row>
@@ -237,7 +208,7 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
           <Row label="Player view theme" hint="Theme used in the player-facing share view." T={T} isMobile={isMobile}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {Object.entries(THEMES).map(([key, theme]) => (
-                <button key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: theme.radius, border: `1px solid ${(campaign.shareTheme || "plain") === key ? theme.accentBright : T.border}`, background: (campaign.shareTheme || "plain") === key ? T.surface2 : "transparent", cursor: "pointer", fontFamily: theme.font, fontSize: 12, color: (campaign.shareTheme || "plain") === key ? theme.accentBright : T.textDim }} onClick={() => handleThemeChange(key)}>
+                <button key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: theme.radius, border: `1px solid ${(campaign.shareTheme || campaign.theme || "plain") === key ? theme.accentBright : T.border}`, background: (campaign.shareTheme || campaign.theme || "plain") === key ? T.surface2 : "transparent", cursor: "pointer", fontFamily: theme.font, fontSize: 12, color: (campaign.shareTheme || campaign.theme || "plain") === key ? theme.accentBright : T.textDim }} onClick={() => handleThemeChange(key)}>
                   <span style={{ width: 10, height: 10, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />{theme.label}
                 </button>
               ))}
@@ -266,6 +237,34 @@ export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigat
   const [guidCopied, setGuidCopied] = useState(false);
   const [adoptGuid, setAdoptGuid] = useState("");
   const [adoptDone, setAdoptDone] = useState(false);
+  const [confirmShareAll, setConfirmShareAll] = useState(false);
+  const [sharingAll, setSharingAll] = useState(false);
+  const [shareAllError, setShareAllError] = useState("");
+
+  const handleShareAll = async () => {
+    setSharingAll(true); setShareAllError(""); setConfirmShareAll(false);
+    try {
+      let shareGuid = campaign.shareGuid;
+      if (!campaign.shareEnabled) {
+        const result = await setSharing(true, campaign.shareTheme || campaign.theme || "plain", campaign.shareCustomCss || "");
+        shareGuid = result.shareGuid;
+      }
+      onUpdate(c => ({
+        ...c,
+        shareEnabled: true,
+        shareGuid,
+        sectionSchema: c.sectionSchema.map(s => ({
+          ...s,
+          playerVisible: true,
+          playerEditable: s.playerEditable || false,
+          playerVisibleSubheaders: s.type === "text" ? (s.subheaders || []) : (s.playerVisibleSubheaders || []),
+          playerVisibleColumns: s.type === "table" ? (s.columns || []).map(col => col.id) : (s.playerVisibleColumns || []),
+        })),
+        pages: c.pages.map(p => ({ ...p, playerVisible: true, sectionVisibilityOverrides: {} })),
+      }));
+    } catch (e) { setShareAllError(e.message || "Failed"); }
+    setSharingAll(false);
+  };
 
   const copyText = (text) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -376,14 +375,34 @@ export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigat
 
       <div style={{ ...css.section, borderColor: T.danger }}>
         <div style={{ fontSize: 11, color: T.danger, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>DANGER ZONE</div>
+        {campaign.shareEnabled && (
+          <Row label="Share all content" hint="End-of-campaign shortcut: make every page and every field visible to players at once." T={T} isMobile={isMobile}>
+            <button style={{ ...css.btn("danger"), fontSize: 11 }} onClick={() => setConfirmShareAll(true)} disabled={sharingAll}>
+              {sharingAll ? "Sharing…" : "Share all content…"}
+            </button>
+            {shareAllError && <div style={{ fontSize: 11, color: T.danger, marginTop: 6 }}>{shareAllError}</div>}
+            {confirmShareAll && (
+              <ConfirmModal
+                title="Share all content?"
+                message={`This will mark all ${campaign.pages.length} page${campaign.pages.length !== 1 ? "s" : ""} and all ${campaign.sectionSchema.length} section${campaign.sectionSchema.length !== 1 ? "s" : ""} (including every subheader and column) as visible to players. You can still hide individual items afterwards.`}
+                confirmLabel="Yes, share everything"
+                onConfirm={handleShareAll}
+                onCancel={() => setConfirmShareAll(false)}
+              />
+            )}
+          </Row>
+        )}
         <Row label="Clear all data" hint="Deletes all pages, schema, and flowchart. Cannot be undone." T={T} isMobile={isMobile}>
-          {confirmClear ? (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 11, color: T.danger }}>Are you sure?</span>
-              <button style={css.btn("danger")} onClick={() => { onClear(); setConfirmClear(false); }}>Yes, clear everything</button>
-              <button style={css.btn()} onClick={() => setConfirmClear(false)}>Cancel</button>
-            </div>
-          ) : <button style={css.btn("danger")} onClick={() => setConfirmClear(true)}>Clear campaign data...</button>}
+          <button style={css.btn("danger")} onClick={() => setConfirmClear(true)}>Clear campaign data…</button>
+          {confirmClear && (
+            <ConfirmModal
+              title="Clear all campaign data?"
+              message="This will permanently delete all pages, schema, and flowchart data. This cannot be undone."
+              confirmLabel="Yes, clear everything"
+              onConfirm={() => { onClear(); setConfirmClear(false); }}
+              onCancel={() => setConfirmClear(false)}
+            />
+          )}
         </Row>
       </div>
     </div>
