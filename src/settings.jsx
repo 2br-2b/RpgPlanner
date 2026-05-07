@@ -104,6 +104,8 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [regenDone, setRegenDone] = useState(false);
   const [shareError, setShareError] = useState("");
+  const [confirmShareAll, setConfirmShareAll] = useState(false);
+  const [sharingAll, setSharingAll] = useState(false);
 
   const shareUrl = campaign.shareGuid ? `${window.location.origin}/share/${campaign.shareGuid}` : null;
 
@@ -139,6 +141,31 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
     onUpdate(c => ({ ...c, shareCustomCss: css }));
   };
 
+  const handleShareAll = async () => {
+    setSharingAll(true); setShareError(""); setConfirmShareAll(false);
+    try {
+      let shareGuid = campaign.shareGuid;
+      if (!campaign.shareEnabled) {
+        const result = await setSharing(true, campaign.shareTheme || "plain", campaign.shareCustomCss || "");
+        shareGuid = result.shareGuid;
+      }
+      onUpdate(c => ({
+        ...c,
+        shareEnabled: true,
+        shareGuid,
+        sectionSchema: c.sectionSchema.map(s => ({
+          ...s,
+          playerVisible: true,
+          playerEditable: s.playerEditable || false,
+          playerVisibleSubheaders: s.type === "text" ? (s.subheaders || []) : (s.playerVisibleSubheaders || []),
+          playerVisibleColumns: s.type === "table" ? (s.columns || []).map(col => col.id) : (s.playerVisibleColumns || []),
+        })),
+        pages: c.pages.map(p => ({ ...p, playerVisible: true, sectionVisibilityOverrides: {} })),
+      }));
+    } catch (e) { setShareError(e.message || "Failed"); }
+    setSharingAll(false);
+  };
+
   return (
     <div>
       <Row label="Enable player sharing" hint="Creates a separate read-only URL for players. All content is hidden by default." T={T} isMobile={isMobile}>
@@ -153,6 +180,30 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
         {!campaign.shareEnabled && (
           <div style={{ fontSize: 11, color: T.textMuted, marginTop: 6 }}>When enabled, all pages and fields are hidden by default. Go to Schema to choose what players can see.</div>
         )}
+      </Row>
+
+      <Row label="Share all content" hint="End-of-campaign shortcut: make every page and every field visible to players at once." T={T} isMobile={isMobile}>
+        {confirmShareAll ? (
+          <div style={{ background: T.surface2, border: `1px solid ${T.warn}`, borderRadius: T.radius, padding: 12 }}>
+            <div style={{ fontSize: 12, color: T.warn, fontWeight: "bold", marginBottom: 6 }}>⚠ Make everything public?</div>
+            <div style={{ fontSize: 11, color: T.text, marginBottom: 10, lineHeight: 1.5 }}>
+              This will mark <strong>all {campaign.pages.length} page{campaign.pages.length !== 1 ? "s" : ""}</strong> and <strong>all {campaign.sectionSchema.length} section{campaign.sectionSchema.length !== 1 ? "s" : ""}</strong> (including every subheader and column) as visible to players.
+              {!campaign.shareEnabled && " Sharing will also be enabled automatically."}
+              {" "}You can still hide individual items afterwards.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={{ ...css.btn("danger"), fontSize: 11 }} onClick={handleShareAll} disabled={sharingAll}>
+                {sharingAll ? "Sharing…" : "Yes, share everything"}
+              </button>
+              <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setConfirmShareAll(false)}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <button style={{ ...css.btn("danger"), fontSize: 11 }} onClick={() => setConfirmShareAll(true)} disabled={sharingAll}>
+            Share all content…
+          </button>
+        )}
+        {shareError && <div style={{ fontSize: 11, color: T.danger, marginTop: 6 }}>{shareError}</div>}
       </Row>
 
       {campaign.shareEnabled && shareUrl && (
