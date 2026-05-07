@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "outDir": "build",
     "rootDir": ".",
-    "types": ["node", "better-sqlite3"]
+    "types": ["node"]
   },
   "include": ["server/**/*.ts"]
 }
