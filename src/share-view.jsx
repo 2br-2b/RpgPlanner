@@ -357,7 +357,7 @@ export function ShareApp({ shareGuid }) {
       <div style={{ fontFamily: "system-ui", padding: 48, textAlign: "center", color: "#666" }}>
         <div style={{ fontSize: 32, marginBottom: 16, opacity: 0.3 }}>◈</div>
         <div style={{ fontSize: 16, marginBottom: 8, color: "#333" }}>Campaign not found</div>
-        <div style={{ fontSize: 13 }}>This share link may be invalid or sharing may have been disabled by the GM.</div>
+        <div style={{ fontSize: 13 }}>This share link may be invalid, or sharing may have been disabled by the GM.</div>
       </div>
     );
   }
