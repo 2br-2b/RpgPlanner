@@ -244,29 +244,34 @@ function ShareSidebar({ pages, selectedId, onSelect, T, css }) {
 
   const renderTree = (parentId, depth) => {
     const children = sorted.filter(p => (p.parentId ?? null) === parentId);
-    return children.map(page => (
-      <div key={page.id}>
-        <div
-          onClick={() => onSelect(page.id)}
-          style={{
-            padding: `6px ${8 + depth * 14}px`,
-            cursor: "pointer",
-            fontSize: 12,
-            color: selectedId === page.id ? T.accentBright : T.text,
-            background: selectedId === page.id ? T.surface2 : "transparent",
-            borderLeft: selectedId === page.id ? `3px solid ${T.accent}` : "3px solid transparent",
-            borderRadius: T.radius,
-            display: "flex", alignItems: "center", gap: 6,
-          }}
-        >
-          <span style={{ fontSize: 9, color: page.type === "mission" ? T.accent : T.textDim }}>
-            {page.type === "mission" ? "⬟" : "◻"}
-          </span>
-          {page.name}
+    return children.map(page => {
+      const isPlaceholder = page.type === "placeholder";
+      return (
+        <div key={page.id}>
+          <div
+            onClick={() => !isPlaceholder && onSelect(page.id)}
+            style={{
+              padding: `6px ${8 + depth * 14}px`,
+              cursor: isPlaceholder ? "default" : "pointer",
+              fontSize: 12,
+              color: isPlaceholder ? T.textDim : (selectedId === page.id ? T.accentBright : T.text),
+              background: !isPlaceholder && selectedId === page.id ? T.surface2 : "transparent",
+              borderLeft: !isPlaceholder && selectedId === page.id ? `3px solid ${T.accent}` : "3px solid transparent",
+              borderRadius: T.radius,
+              display: "flex", alignItems: "center", gap: 6,
+              opacity: isPlaceholder ? 0.5 : 1,
+            }}
+          >
+            <span style={{ fontSize: 9, color: isPlaceholder ? T.textDim : (page.type === "mission" ? T.accent : T.textDim) }}>
+              {isPlaceholder ? "▢" : page.type === "mission" ? "⬟" : "◻"}
+            </span>
+            <span style={{ fontStyle: isPlaceholder ? "italic" : "normal" }}>{page.name}</span>
+            {isPlaceholder && <span style={{ fontSize: 9, color: T.textDim }}>[hidden]</span>}
+          </div>
+          {renderTree(page.id, depth + 1)}
         </div>
-        {renderTree(page.id, depth + 1)}
-      </div>
-    ));
+      );
+    });
   };
 
   return (
@@ -285,7 +290,7 @@ function ShareInner({ data, shareGuid }) {
   const { T, css } = useThemeCSS();
   const styleRef = useRef(null);
   const [selectedId, setSelectedId] = useState(() => {
-    const sorted = [...(data.pages || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const sorted = [...(data.pages || [])].filter(p => p.type !== "placeholder").sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     return sorted[0]?.id || null;
   });
 
@@ -297,7 +302,8 @@ function ShareInner({ data, shareGuid }) {
 
   const pages = data.pages || [];
   const schema = data.sectionSchema || [];
-  const selectedPage = pages.find(p => p.id === selectedId);
+  const selectedPage = pages.find(p => p.id === selectedId && p.type !== "placeholder");
+  const hasVisiblePages = pages.some(p => p.type !== "placeholder");
 
   return (
     <div style={{ ...css.app, minHeight: "100vh" }}>
@@ -307,11 +313,19 @@ function ShareInner({ data, shareGuid }) {
         <span style={{ fontSize: 10, color: T.textMuted, marginLeft: 8 }}>Player View</span>
       </div>
       <div style={{ ...css.body }}>
-        <ShareSidebar pages={pages} selectedId={selectedId} onSelect={setSelectedId} T={T} css={css} />
+        {hasVisiblePages && <ShareSidebar pages={pages} selectedId={selectedId} onSelect={setSelectedId} T={T} css={css} />}
         <div style={{ ...css.main }}>
-          {selectedPage
-            ? <SharePageView page={selectedPage} schema={schema} shareGuid={shareGuid} T={T} css={css} />
-            : <div style={{ color: T.textDim, textAlign: "center", padding: 48 }}>Select a page from the sidebar.</div>
+          {!hasVisiblePages
+            ? (
+              <div style={{ color: T.textDim, textAlign: "center", padding: 64 }}>
+                <div style={{ fontSize: 32, marginBottom: 16, opacity: 0.25 }}>◈</div>
+                <div style={{ fontSize: 15, color: T.text, marginBottom: 8 }}>Nothing shared yet</div>
+                <div style={{ fontSize: 13 }}>The GM hasn't made any pages visible to players.</div>
+              </div>
+            )
+            : selectedPage
+              ? <SharePageView page={selectedPage} schema={schema} shareGuid={shareGuid} T={T} css={css} />
+              : <div style={{ color: T.textDim, textAlign: "center", padding: 48 }}>Select a page from the sidebar.</div>
           }
         </div>
       </div>

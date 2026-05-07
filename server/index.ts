@@ -283,12 +283,31 @@ function filterCampaignForShare(raw: Record<string, unknown>): Record<string, un
       return { id: page.id, name: page.name, type: page.type, order: page.order, parentId: page.parentId, tags: page.tags || [], sections: filteredSections, costs: page.costs || [], awards: page.awards || [] };
     });
 
+  // Add placeholder ancestors for visible child pages whose parent isn't visible
+  const allPagesMap = new Map(pages.map((p: any) => [p.id, p]));
+  const visibleIds = new Set(visiblePages.map((p: any) => p.id));
+  const placeholderIds = new Set<string>();
+  for (const page of visiblePages) {
+    let pid: string | null = page.parentId ?? null;
+    while (pid !== null) {
+      if (visibleIds.has(pid) || placeholderIds.has(pid)) break;
+      const ancestor = allPagesMap.get(pid);
+      if (!ancestor) break;
+      placeholderIds.add(pid);
+      pid = ancestor.parentId ?? null;
+    }
+  }
+  const placeholders = [...placeholderIds].map((id) => {
+    const p = allPagesMap.get(id)!;
+    return { id: p.id, name: p.name, type: "placeholder", order: p.order, parentId: p.parentId ?? null };
+  });
+
   return {
     name: raw.name,
     shareTheme: raw.shareTheme || "plain",
     shareCustomCss: raw.shareCustomCss || "",
     sectionSchema: buildResponseSchema(schema),
-    pages: visiblePages,
+    pages: [...visiblePages, ...placeholders],
   };
 }
 

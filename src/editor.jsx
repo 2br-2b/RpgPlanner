@@ -147,12 +147,13 @@ function FieldVisibilityWarning({ onConfirm, onCancel }) {
   );
 }
 
-export function PageEditor({ page, schema, onUpdate, onBack, shareEnabled }) {
+export function PageEditor({ page, schema, allPages = [], onUpdate, onBack, shareEnabled }) {
   const { T, css } = useThemeCSS();
   const isMobile = useIsMobile();
   const [activeSection, setActiveSection] = useState(null);
   const [editTag, setEditTag] = useState("");
   const [showPageWarn, setShowPageWarn] = useState(false);
+  const [showParentWarn, setShowParentWarn] = useState(false);
   const freeImgRef = useRef(null);
   const freeEditorRef = useRef(null);
 
@@ -169,10 +170,14 @@ export function PageEditor({ page, schema, onUpdate, onBack, shareEnabled }) {
   };
 
   const handlePlayerVisibleToggle = (checked) => {
-    if (checked && !sessionStorage.getItem("page-vis-warn-dismissed")) {
+    if (!checked) { set("playerVisible", false); return; }
+    const parent = page.parentId ? allPages.find(p => p.id === page.parentId) : null;
+    if (parent && !parent.playerVisible) {
+      setShowParentWarn(true);
+    } else if (!sessionStorage.getItem("page-vis-warn-dismissed")) {
       setShowPageWarn(true);
     } else {
-      set("playerVisible", checked);
+      set("playerVisible", true);
     }
   };
 
@@ -197,8 +202,24 @@ export function PageEditor({ page, schema, onUpdate, onBack, shareEnabled }) {
     r.readAsDataURL(file); e.target.value = "";
   };
 
+  const parentPage = page.parentId ? allPages.find(p => p.id === page.parentId) : null;
+
   return (
     <div style={{ maxWidth: 860 }}>
+      {showParentWarn && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 24 }}>
+          <div style={{ background: "#fff", borderRadius: 8, padding: 24, maxWidth: 440, width: "100%", color: "#111", fontFamily: "system-ui, sans-serif" }}>
+            <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 10, color: "#cc7700" }}>⚠ Parent page is hidden</div>
+            <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
+              <strong>{parentPage?.name || "The parent page"}</strong> is not visible to players. Players won't be able to navigate to this page from the sidebar — a dimmed placeholder will be shown for the parent instead.
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowParentWarn(false)} style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid #ccc", background: "#f5f5f5", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Cancel</button>
+              <button onClick={() => { set("playerVisible", true); setShowParentWarn(false); }} style={{ padding: "7px 14px", borderRadius: 6, border: "none", background: "#cc7700", color: "#fff", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Make Visible Anyway</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showPageWarn && (
         <PageVisibilityWarning
           onConfirm={(suppress) => {
