@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState, useCallback } from "react";
+import { forwardRef, useImperativeHandle, useState, useCallback, useRef } from "react";
 import { Editor, rootCtx, defaultValueCtx, commandsCtx } from "@milkdown/core";
 import {
   commonmark,
@@ -80,6 +80,9 @@ function EditorToolbar({ cmd, visible }) {
 }
 
 const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, onBlur, focused }, ref) {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const { get } = useEditor((root) =>
     Editor.make()
       .config((ctx) => {
@@ -96,7 +99,7 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
       .use(listener)
       .config((ctx) => {
         ctx.get(listenerCtx).markdownUpdated((_, markdown) => {
-          onChange?.(markdown);
+          onChangeRef.current?.(markdown);
         });
       })
   );
