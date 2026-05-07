@@ -19,11 +19,28 @@ function waypointLabels(count) {
 // Exported so MissionSection can use it to derive the last label for display.
 export { waypointLabel };
 
-export function WaypointsSection({ sec, sectionData, onChange }) {
+export function WaypointsSection({ sec, sectionData, onChange, showVisibility }) {
   const { T, css } = useThemeCSS();
   const raw = (typeof sectionData === "object" && sectionData !== null && !Array.isArray(sectionData)) ? sectionData : {};
   const count = Math.min(702, Math.max(0, raw.count != null ? Number(raw.count) : 1));
   const waypoints = raw.waypoints || {};
+  const waypointVisibility = raw.waypointVisibility || {};
+
+  const toggleVisibility = (label) => {
+    // Default absent = visible; toggle to explicit false then back to absent (= visible)
+    const current = waypointVisibility[label];
+    if (current === false) {
+      // Remove the key (back to default visible)
+      const { [label]: _, ...rest } = waypointVisibility;
+      onChange("__waypoints_vis__" + label, undefined);
+      // Use a sentinel: undefined means remove the key
+      const newVis = { ...waypointVisibility };
+      delete newVis[label];
+      onChange("__waypoints_vis_obj__", newVis);
+    } else {
+      onChange("__waypoints_vis__" + label, false);
+    }
+  };
 
   return (
     <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
@@ -35,15 +52,27 @@ export function WaypointsSection({ sec, sectionData, onChange }) {
         {count > 0 && <span style={{ fontSize: 10, color: T.textMuted }}>A–{waypointLabel(count - 1)}</span>}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-        {waypointLabels(count).map(label => (
-          <div key={label} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ ...css.tag, alignSelf: "flex-start" }}>{label}</span>
-            <textarea style={{ ...css.textarea, minHeight: 80, resize: "vertical" }}
-              placeholder={`Waypoint ${label}: Do…`}
-              value={waypoints[label] || ""}
-              onChange={e => onChange("__waypoints_wp__" + label, e.target.value)} />
-          </div>
-        ))}
+        {waypointLabels(count).map(label => {
+          const isVisible = waypointVisibility[label] !== false;
+          return (
+            <div key={label} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 10, display: "flex", flexDirection: "column", gap: 6, opacity: (!showVisibility || isVisible) ? 1 : 0.5 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ ...css.tag, alignSelf: "flex-start" }}>{label}</span>
+                {showVisibility && (
+                  <span style={{ fontSize: 11, cursor: "pointer", marginLeft: "auto", color: isVisible ? T.accent : T.textMuted, userSelect: "none" }}
+                    title={isVisible ? "Visible to players — click to hide" : "Hidden from players — click to show"}
+                    onClick={() => toggleVisibility(label)}>
+                    {isVisible ? "👁" : "🚫"}
+                  </span>
+                )}
+              </div>
+              <textarea style={{ ...css.textarea, minHeight: 80, resize: "vertical" }}
+                placeholder={`Waypoint ${label}: Do…`}
+                value={waypoints[label] || ""}
+                onChange={e => onChange("__waypoints_wp__" + label, e.target.value)} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -7,7 +7,10 @@ export const uid = () => crypto.randomUUID();
 // v5: sectionSchema entries with type "table" gain .columns ([])
 // v6: table columns gain .type (text|number|checkbox) and .summary
 // v7: table columns gain optional .formula (string) for "formula" type
-export const SCHEMA_VERSION = 7;
+// v8: player sharing — shareEnabled/shareGuid/shareTheme/shareCustomCss on campaign;
+//     playerVisible/playerEditable/playerVisibleSubheaders/playerVisibleColumns on schema sections;
+//     playerVisible/sectionVisibilityOverrides on pages
+export const SCHEMA_VERSION = 8;
 
 export function migrateCampaign(data) {
   const v = data.schemaVersion || 1;
@@ -74,6 +77,28 @@ export function migrateCampaign(data) {
     };
   }
 
+  if (v < 8) {
+    d = {
+      ...d,
+      shareEnabled: false,
+      shareGuid: null,
+      shareTheme: "plain",
+      shareCustomCss: "",
+      sectionSchema: (d.sectionSchema || []).map(s => ({
+        playerVisible: false,
+        playerEditable: false,
+        playerVisibleSubheaders: [],
+        playerVisibleColumns: [],
+        ...s,
+      })),
+      pages: (d.pages || []).map(p => ({
+        playerVisible: false,
+        sectionVisibilityOverrides: {},
+        ...p,
+      })),
+    };
+  }
+
   return { ...d, schemaVersion: SCHEMA_VERSION };
 }
 
@@ -85,10 +110,11 @@ function preferredTheme() {
 export function defaultCampaign() {
   return {
     id: uid(), name: "New Campaign", theme: preferredTheme(),
+    shareEnabled: false, shareGuid: null, shareTheme: "plain", shareCustomCss: "",
     sectionSchema: [
-      { id: uid(), name: "Overview", type: "text", subheaders: ["Background", "Objectives"] },
-      { id: uid(), name: "Setup", type: "text", subheaders: ["Deployment", "Special Rules"] },
-      { id: uid(), name: "Rewards", type: "text", subheaders: ["C-Bills", "XP", "Salvage"] },
+      { id: uid(), name: "Overview", type: "text", subheaders: ["Background", "Objectives"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
+      { id: uid(), name: "Setup", type: "text", subheaders: ["Deployment", "Special Rules"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
+      { id: uid(), name: "Rewards", type: "text", subheaders: ["C-Bills", "XP", "Salvage"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
     ],
     schemaVersion: SCHEMA_VERSION,
     pages: [], flowchart: { nodes: [], edges: [] },
@@ -166,6 +192,40 @@ export async function saveData(data) {
       body: JSON.stringify({ data }),
     });
   } catch (e) { console.warn("Remote save failed (offline?):", e); }
+}
+
+// ── Share API helpers ─────────────────────────────────────────────────────────
+
+export async function loadShareData(shareGuid) {
+  const r = await fetch(`${API_BASE}/share/${shareGuid}`);
+  if (!r.ok) return null;
+  return await r.json();
+}
+
+export async function setSharing(shareEnabled, shareTheme, shareCustomCss) {
+  const r = await fetch(`${API_BASE}/campaign/${SESSION_GUID}/share`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ shareEnabled, shareTheme, shareCustomCss }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update sharing");
+  }
+  return await r.json();
+}
+
+export async function patchShareField(shareGuid, pageId, patch) {
+  const r = await fetch(`${API_BASE}/share/${shareGuid}/page/${pageId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to save");
+  }
+  return await r.json();
 }
 
 // ── Snapshot API helpers ──────────────────────────────────────────────────────

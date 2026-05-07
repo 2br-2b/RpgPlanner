@@ -104,11 +104,55 @@ function OutlineCard({ page, schema, showCosts, onSelect, onUpdate, onFilterByTa
   );
 }
 
-export function PageEditor({ page, schema, onUpdate, onBack }) {
+function PageVisibilityWarning({ onConfirm, onCancel }) {
+  const [suppress, setSuppress] = useState(false);
+  const T = { text: "#111", danger: "#cc0000", warn: "#cc7700", border: "#ddd" };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 24 }}>
+      <div style={{ background: "#fff", borderRadius: 8, padding: 24, maxWidth: 420, width: "100%", color: T.text, fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 10, color: T.warn }}>⚠ Make page visible to players?</div>
+        <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
+          This page will be visible to anyone with the share link. Only player-visible fields will be shown.
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#555", marginBottom: 16, cursor: "pointer" }}>
+          <input type="checkbox" checked={suppress} onChange={e => setSuppress(e.target.checked)} />
+          Don't remind me this session
+        </label>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onCancel} style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid #ccc", background: "#f5f5f5", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Cancel</button>
+          <button onClick={() => onConfirm(suppress)} style={{ padding: "7px 14px", borderRadius: 6, border: "none", background: T.warn, color: "#fff", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Make Visible</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FieldVisibilityWarning({ onConfirm, onCancel }) {
+  const [suppress, setSuppress] = useState(false);
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 24 }}>
+      <div style={{ background: "#fff", borderRadius: 8, padding: 24, maxWidth: 380, width: "100%", color: "#111", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ fontWeight: "bold", fontSize: 14, marginBottom: 8, color: "#cc7700" }}>⚠ Show field to players?</div>
+        <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>The page is already visible. This field will immediately become visible to players with the share link.</div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#555", marginBottom: 16, cursor: "pointer" }}>
+          <input type="checkbox" checked={suppress} onChange={e => setSuppress(e.target.checked)} />
+          Don't remind me this session
+        </label>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onCancel} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ccc", background: "#f5f5f5", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Cancel</button>
+          <button onClick={() => onConfirm(suppress)} style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "#cc7700", color: "#fff", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Show Field</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function PageEditor({ page, schema, onUpdate, onBack, shareEnabled }) {
   const { T, css } = useThemeCSS();
   const isMobile = useIsMobile();
   const [activeSection, setActiveSection] = useState(null);
   const [editTag, setEditTag] = useState("");
+  const [showPageWarn, setShowPageWarn] = useState(false);
   const freeImgRef = useRef(null);
   const freeEditorRef = useRef(null);
 
@@ -122,6 +166,19 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
         return { ...p, sections: { ...p.sections, [sid]: { ...prev, [subKey]: v } } };
       });
     }
+  };
+
+  const handlePlayerVisibleToggle = (checked) => {
+    if (checked && !sessionStorage.getItem("page-vis-warn-dismissed")) {
+      setShowPageWarn(true);
+    } else {
+      set("playerVisible", checked);
+    }
+  };
+
+  const setSectionOverride = (sectionId, value) => {
+    const overrides = { ...(page.sectionVisibilityOverrides || {}), [sectionId]: value };
+    set("sectionVisibilityOverrides", overrides);
   };
 
   const addTag = () => {
@@ -142,10 +199,31 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
 
   return (
     <div style={{ maxWidth: 860 }}>
+      {showPageWarn && (
+        <PageVisibilityWarning
+          onConfirm={(suppress) => {
+            if (suppress) sessionStorage.setItem("page-vis-warn-dismissed", "1");
+            set("playerVisible", true);
+            setShowPageWarn(false);
+          }}
+          onCancel={() => setShowPageWarn(false)}
+        />
+      )}
       {isMobile && onBack && (
         <button style={{ ...css.btn(), marginBottom: 12, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }} onClick={onBack}>← Outline</button>
       )}
       <input style={{ ...css.input, fontSize: "clamp(16px, 4vw, 20px)", fontWeight: "bold", marginBottom: 12, color: T.accentBright, maxWidth: "100%", boxSizing: "border-box" }} value={page.name} onChange={e => set("name", e.target.value)} />
+      {shareEnabled && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "8px 12px", background: page.playerVisible ? T.surface2 : "transparent", border: `1px solid ${page.playerVisible ? T.accent : T.border}`, borderRadius: T.radius }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: T.textDim }}>
+            <input type="checkbox" checked={page.playerVisible || false}
+              onChange={e => handlePlayerVisibleToggle(e.target.checked)}
+              style={{ accentColor: T.accent, width: 14, height: 14 }} />
+            Show this page to players
+          </label>
+          {page.playerVisible && <span style={{ fontSize: 10, color: T.accent, fontWeight: "bold", letterSpacing: "0.08em" }}>SHARED</span>}
+        </div>
+      )}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16, alignItems: "center" }}>
         <span style={{ ...css.label, margin: 0 }}>Tags:</span>
         {(page.tags || []).map(tag => <span key={tag} style={{ ...css.tag, cursor: "pointer" }} onClick={() => onUpdate(p => ({ ...p, tags: (p.tags || []).filter(t => t !== tag) }))}>{tag} ×</span>)}
@@ -176,12 +254,14 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
           </div>
           {activeSection === null && schema.map(sec => (
             <MissionSection key={sec.id} sec={sec} sectionData={page.sections[sec.id]}
-              onChange={(subKey, v) => setSection(sec.id, subKey, v)} />
+              onChange={(subKey, v) => setSection(sec.id, subKey, v)}
+              shareEnabled={shareEnabled} page={page} onOverride={setSectionOverride} />
           ))}
           {activeSection !== null && activeSection !== "__costs" && (() => {
             const sec = schema.find(s => s.id === activeSection);
             return sec ? <MissionSection sec={sec} sectionData={page.sections[sec.id]}
-              onChange={(subKey, v) => setSection(sec.id, subKey, v)} expanded /> : null;
+              onChange={(subKey, v) => setSection(sec.id, subKey, v)} expanded
+              shareEnabled={shareEnabled} page={page} onOverride={setSectionOverride} /> : null;
           })()}
           {activeSection === "__costs" && (
             <CostsAwards
@@ -200,8 +280,10 @@ export function PageEditor({ page, schema, onUpdate, onBack }) {
   );
 }
 
-function SubBox({ label, value, onChange, expanded }) {
+function SubBox({ label, value, onChange, expanded, shareEnabled, sec, subheader, page, onOverride }) {
   const { T, css } = useThemeCSS();
+  const [showWarn, setShowWarn] = useState(false);
+  const [pendingVis, setPendingVis] = useState(null);
   const imgRef = useRef(null);
   const editorRef = useRef(null);
 
@@ -214,23 +296,123 @@ function SubBox({ label, value, onChange, expanded }) {
     r.readAsDataURL(file); e.target.value = "";
   };
 
+  // Per-subheader visibility
+  let subheaderVisible = null;
+  let subheaderVisibleEffective = false;
+  if (shareEnabled && sec && subheader && onOverride) {
+    const overrides = page?.sectionVisibilityOverrides || {};
+    const secOverride = overrides[sec.id];
+    if (typeof secOverride === "object" && secOverride !== null && subheader in secOverride) {
+      subheaderVisibleEffective = secOverride[subheader] === true;
+    } else if (typeof secOverride === "boolean") {
+      subheaderVisibleEffective = secOverride;
+    } else {
+      subheaderVisibleEffective = (sec.playerVisibleSubheaders || []).includes(subheader);
+    }
+
+    const setSubVis = (val) => {
+      const secOverrideObj = (typeof secOverride === "object" && secOverride !== null) ? secOverride : {};
+      const newOverride = { ...secOverrideObj, [subheader]: val };
+      onOverride(sec.id, newOverride);
+    };
+    const trySetVis = (val) => {
+      if (val && page?.playerVisible && !sessionStorage.getItem("field-vis-warn-dismissed")) {
+        setPendingVis(val); setShowWarn(true);
+      } else {
+        setSubVis(val);
+      }
+    };
+
+    subheaderVisible = (
+      <span style={{ fontSize: 9, color: subheaderVisibleEffective ? T.accent : T.textMuted, cursor: "pointer", userSelect: "none" }}
+        title={subheaderVisibleEffective ? "Visible to players — click to hide" : "Hidden from players — click to show"}
+        onClick={() => trySetVis(!subheaderVisibleEffective)}>
+        {subheaderVisibleEffective ? "👁" : "🚫"}
+      </span>
+    );
+  }
+
   return (
-    <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-      <input ref={imgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImg} />
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.08em", flex: 1 }}>{label.toUpperCase()}</span>
-        <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={() => imgRef.current?.click()}>🖼</button>
+    <>
+      {showWarn && (
+        <FieldVisibilityWarning
+          onConfirm={(suppress) => {
+            if (suppress) sessionStorage.setItem("field-vis-warn-dismissed", "1");
+            const overrides = page?.sectionVisibilityOverrides || {};
+            const secOverride = overrides[sec.id];
+            const secOverrideObj = (typeof secOverride === "object" && secOverride !== null) ? secOverride : {};
+            onOverride(sec.id, { ...secOverrideObj, [subheader]: pendingVis });
+            setShowWarn(false);
+          }}
+          onCancel={() => { setShowWarn(false); setPendingVis(null); }}
+        />
+      )}
+      <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+        <input ref={imgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImg} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.08em", flex: 1 }}>{label.toUpperCase()}</span>
+          {subheaderVisible}
+          <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={() => imgRef.current?.click()}>🖼</button>
+        </div>
+        <MilkdownEditor ref={editorRef} value={value} onChange={onChange} minHeight={expanded ? 400 : 200} />
       </div>
-      <MilkdownEditor ref={editorRef} value={value} onChange={onChange} minHeight={expanded ? 400 : 200} />
-    </div>
+    </>
   );
 }
 
-function MissionSection({ sec, sectionData, onChange, expanded }) {
+function SectionVisibilityBadge({ sec, page, onOverride, T, css }) {
+  const [showWarn, setShowWarn] = useState(false);
+  const [pendingOverride, setPendingOverride] = useState(null);
+
+  const overrides = page?.sectionVisibilityOverrides || {};
+  const override = overrides[sec.id];
+  const schemaDefault = sec.playerVisible || false;
+  const effective = typeof override === "boolean" ? override : schemaDefault;
+  const isOverridden = override !== undefined;
+
+  const trySet = (value) => {
+    if (value && page?.playerVisible && !sessionStorage.getItem("field-vis-warn-dismissed")) {
+      setPendingOverride(value);
+      setShowWarn(true);
+    } else {
+      onOverride(sec.id, value);
+    }
+  };
+
+  const label = effective ? "👁 Visible" : "🚫 Hidden";
+  const color = effective ? T.accent : T.textMuted;
+
+  return (
+    <>
+      {showWarn && (
+        <FieldVisibilityWarning
+          onConfirm={(suppress) => {
+            if (suppress) sessionStorage.setItem("field-vis-warn-dismissed", "1");
+            onOverride(sec.id, pendingOverride);
+            setShowWarn(false);
+          }}
+          onCancel={() => { setShowWarn(false); setPendingOverride(null); }}
+        />
+      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color }}>
+        <span title={isOverridden ? "Overriding schema default" : "Using schema default"}>{label}{isOverridden ? " (override)" : ""}</span>
+        <button style={{ ...css.btn(), fontSize: 9, padding: "1px 5px" }} onClick={() => trySet(!effective)}>toggle</button>
+        {isOverridden && <button style={{ ...css.btn(), fontSize: 9, padding: "1px 5px" }} onClick={() => onOverride(sec.id, undefined)} title="Reset to schema default">reset</button>}
+      </div>
+    </>
+  );
+}
+
+function MissionSection({ sec, sectionData, onChange, expanded, shareEnabled, page, onOverride }) {
   const { T, css } = useThemeCSS();
 
   if (sec.type === "table") {
-    return <TableSection sec={sec} sectionData={sectionData} onChange={(newData) => onChange(undefined, newData)} />;
+    return (
+      <div>
+        {shareEnabled && onOverride && <div style={{ marginBottom: 4 }}><SectionVisibilityBadge sec={sec} page={page} onOverride={onOverride} T={T} css={css} /></div>}
+        <TableSection sec={sec} sectionData={sectionData} onChange={(newData) => onChange(undefined, newData)} />
+      </div>
+    );
   }
 
   if (sec.type === "waypoints") {
@@ -241,9 +423,19 @@ function MissionSection({ sec, sectionData, onChange, expanded }) {
       } else if (specialKey?.startsWith("__waypoints_wp__")) {
         const label = specialKey.slice("__waypoints_wp__".length);
         onChange(undefined, { ...raw, waypoints: { ...(raw.waypoints || {}), [label]: v } });
+      } else if (specialKey === "__waypoints_vis_obj__") {
+        onChange(undefined, { ...raw, waypointVisibility: v });
+      } else if (specialKey?.startsWith("__waypoints_vis__")) {
+        const label = specialKey.slice("__waypoints_vis__".length);
+        onChange(undefined, { ...raw, waypointVisibility: { ...(raw.waypointVisibility || {}), [label]: v } });
       }
     };
-    return <WaypointsSection sec={sec} sectionData={sectionData} onChange={handleChange} />;
+    return (
+      <div>
+        {shareEnabled && onOverride && <div style={{ marginBottom: 4 }}><SectionVisibilityBadge sec={sec} page={page} onOverride={onOverride} T={T} css={css} /></div>}
+        <WaypointsSection sec={sec} sectionData={sectionData} onChange={handleChange} showVisibility={shareEnabled} />
+      </div>
+    );
   }
 
   const getVal = (sh) => {
@@ -254,14 +446,16 @@ function MissionSection({ sec, sectionData, onChange, expanded }) {
 
   return (
     <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
-      <div style={{ marginBottom: 10 }}>
-        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em" }}>{sec.name.toUpperCase()}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em", flex: 1 }}>{sec.name.toUpperCase()}</span>
+        {shareEnabled && onOverride && <SectionVisibilityBadge sec={sec} page={page} onOverride={onOverride} T={T} css={css} />}
       </div>
       {sec.subheaders.length > 0
         ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
             {sec.subheaders.map(sh => (
-              <SubBox key={sh} label={sh} value={getVal(sh)} onChange={v => onChange(sh, v)} expanded={expanded} />
+              <SubBox key={sh} label={sh} value={getVal(sh)} onChange={v => onChange(sh, v)} expanded={expanded}
+                shareEnabled={shareEnabled} sec={sec} subheader={sh} page={page} onOverride={onOverride} />
             ))}
           </div>
         )
