@@ -240,6 +240,7 @@ export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigat
   const [confirmShareAll, setConfirmShareAll] = useState(false);
   const [sharingAll, setSharingAll] = useState(false);
   const [shareAllError, setShareAllError] = useState("");
+  const [showSyncId, setShowSyncId] = useState(false);
 
   const handleShareAll = async () => {
     setSharingAll(true); setShareAllError(""); setConfirmShareAll(false);
@@ -298,7 +299,10 @@ export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigat
       <div style={{ ...css.section, marginBottom: 24 }}>
         <div style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>SYNC &amp; SHARING</div>
         <Row label="Your sync ID" hint="All saves go to this ID on the server. Share it to sync across devices." T={T} isMobile={isMobile}>
-          <div style={{ fontFamily: "monospace", fontSize: 11, color: T.accentBright, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: "6px 10px", marginBottom: 8, wordBreak: "break-all" }}>{SESSION_GUID}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <div style={{ fontFamily: "monospace", fontSize: 11, color: T.accentBright, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: "6px 10px", wordBreak: "break-all", flex: 1, filter: showSyncId ? "none" : "blur(6px)", userSelect: showSyncId ? "auto" : "none" }}>{SESSION_GUID}</div>
+            <button style={{ ...css.btn(), fontSize: 11, flexShrink: 0 }} onClick={() => setShowSyncId(v => !v)}>{showSyncId ? "Hide" : "Show"}</button>
+          </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button style={{ ...css.btn("primary"), fontSize: 11 }} onClick={() => copyText(`${window.location.origin}${window.location.pathname}?guid=${SESSION_GUID}`)}>{guidCopied ? "Copied!" : "Copy share link"}</button>
             <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => copyText(SESSION_GUID)}>Copy ID only</button>
