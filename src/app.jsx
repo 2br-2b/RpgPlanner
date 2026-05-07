@@ -47,11 +47,11 @@ function ThemePicker({ current, onChange }) {
         {THEMES[current]?.label || "Theme"} v
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "110%", right: 0, background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.radius, zIndex: 200, minWidth: 150, boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
+        <div style={{ position: "absolute", top: "110%", right: 0, background: "#111", border: "1px solid #333", borderRadius: 6, zIndex: 200, padding: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
           {Object.entries(THEMES).map(([key, theme]) => (
-            <button key={key} style={{ width: "100%", padding: "8px 14px", cursor: "pointer", fontSize: 12, fontFamily: theme.font, color: key === current ? theme.accentBright : T.text, background: key === current ? T.surface2 : "transparent", border: "none", borderLeft: `3px solid ${key === current ? theme.accentBright : "transparent"}`, display: "flex", alignItems: "center", gap: 8, textAlign: "left" }} onClick={() => { onChange(key); setOpen(false); }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />
-              {theme.label}
+            <button key={key} onClick={() => { onChange(key); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 11px", cursor: "pointer", fontSize: 12, fontFamily: theme.font, color: theme.text, background: theme.surface, border: `2px solid ${key === current ? theme.accentBright : theme.border}`, borderRadius: theme.radius || 4, textAlign: "left", transition: "border-color 0.1s" }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />
+              <span style={{ color: key === current ? theme.accentBright : theme.text }}>{theme.label}</span>
             </button>
           ))}
         </div>
