@@ -9,7 +9,7 @@ import "./theme-newspaper.css";
 import "./theme-blueprint.css";
 import "./theme-battletech.css";
 
-const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+const shareMatch = window.location.pathname.match(/^\/share\/(.+)$/);
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
