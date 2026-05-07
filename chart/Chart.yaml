@@ -2,7 +2,7 @@ apiVersion: v2
 name: campaign-manager
 description: Self-hosted BattleTech campaign manager with GUID-based sync
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "latest"
 keywords:
   - battletech

@@ -8,8 +8,36 @@ image:
 
 # imagePullSecrets: []   # uncomment + add a secret name if your GHCR package is private
 
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# "*" allows any origin (fine for a private/internal deployment).
+# For a public-facing instance, lock this down to your actual frontend URL:
+#   allowedOrigins: "https://campaign.example.com"
+# Multiple origins are comma-separated:
+#   allowedOrigins: "https://campaign.example.com,https://other.example.com"
+cors:
+  allowedOrigins: "*"
+
 # ── Deployment ────────────────────────────────────────────────────────────────
 replicaCount: 1
+
+# Pod-level security: runs as the built-in "node" user (uid/gid 1000).
+# fsGroup ensures the node user can write to the /data PVC.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level security: no privilege escalation, read-only root fs,
+# all Linux capabilities dropped. /tmp is provided by an emptyDir volume.
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
 
 resources:
   requests:
@@ -49,6 +77,11 @@ livenessProbe:
   path: /api/health
   initialDelaySeconds: 5
   periodSeconds: 30
+
+readinessProbe:
+  path: /api/health
+  initialDelaySeconds: 3
+  periodSeconds: 10
 
 # ── Service ───────────────────────────────────────────────────────────────────
 service:

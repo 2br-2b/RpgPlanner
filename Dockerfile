@@ -10,5 +10,6 @@ COPY server/ server/
 RUN npm run build
 RUN npm prune --omit=dev
 
+USER node
 EXPOSE 8000
 CMD ["node", "build/server/index.js"]

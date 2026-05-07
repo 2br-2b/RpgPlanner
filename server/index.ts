@@ -10,6 +10,14 @@ const MAX_PAYLOAD_MB = 10;
 const PORT = Number(process.env.PORT || 8000);
 const MAX_SNAPSHOTS_PER_CAMPAIGN = 50;
 
+// CORS_ALLOWED_ORIGINS: "*" (default) or comma-separated list of origins,
+// e.g. "https://campaign.example.com,https://campaign2.example.com"
+const rawCorsOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? "*").trim();
+const CORS_ORIGINS: "*" | Set<string> =
+  rawCorsOrigins === "*"
+    ? "*"
+    : new Set(rawCorsOrigins.split(",").map((o) => o.trim()).filter(Boolean));
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 const distDir = process.env.DIST_DIR || path.join(repoRoot, "dist");
@@ -119,19 +127,54 @@ const asyncRoute = (handler: RequestHandler): RequestHandler => (req, res, next)
 const app = express();
 
 app.disable("x-powered-by");
-app.use((_req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+app.use((req, res, next) => {
+  if (CORS_ORIGINS === "*") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  } else {
+    const origin = req.headers.origin;
+    if (origin && CORS_ORIGINS.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      // Vary: Origin tells caches that the response differs by origin,
+      // preventing a cached wildcard response from leaking to other origins.
+      res.setHeader("Vary", "Origin");
+    }
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  next();
-});
-app.use((req, res, next) => {
   if (req.method === "OPTIONS") {
     res.sendStatus(204);
     return;
   }
   next();
 });
+
+// Security headers for all responses
+app.use((_req, res, next) => {
+  // Prevent MIME-type sniffing
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  // Disallow embedding in iframes (clickjacking)
+  res.setHeader("X-Frame-Options", "DENY");
+  // Don't send the full URL as Referer to third parties
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  // Disable browser features the app never uses
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  // CSP: scripts/fonts/connect from same origin only; styles allow inline (React style={{}} props);
+  // images allow data: URIs (SVG hex-grid backgrounds in theme.js)
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data:",
+      "font-src 'self'",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  );
+  next();
+});
+
 app.use(express.json({ limit: `${MAX_PAYLOAD_MB}mb` }));
 
 app.get("/api/health", (_req, res) => {
