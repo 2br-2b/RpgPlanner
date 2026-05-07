@@ -1,4 +1,4 @@
-FROM node:26-slim
+FROM node:22-slim
 
 WORKDIR /app
 ENV DATA_DIR=/data
