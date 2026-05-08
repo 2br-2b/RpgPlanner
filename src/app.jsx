@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlowchartView } from "./flowchart.jsx";
-import { ImportExportModal } from "./io.jsx";
+import { ExportDropdown } from "./io.jsx";
 import { OutlineView, PageEditor } from "./editor.jsx";
 import { SchemaEditor } from "./schema-editor.jsx";
 import { SettingsView } from "./settings.jsx";
@@ -134,7 +134,7 @@ export function App() {
   const [view, setView] = useState("outline");
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState("saved");
-  const [showIO, setShowIO] = useState(false);
+
   const [showSearch, setShowSearch] = useState(false);
   const [showCampaigns, setShowCampaigns] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -235,7 +235,6 @@ export function App() {
       const state = window.history.state;
       if (!state) return;
       if (showSearch) { setShowSearch(false); window.history.pushState(state, ""); return; }
-      if (showIO) { setShowIO(false); window.history.pushState(state, ""); return; }
       if (showCampaigns) { setShowCampaigns(false); window.history.pushState(state, ""); return; }
       if (sidebarOpen) { setSidebarOpen(false); window.history.pushState(state, ""); return; }
       setView(state.view);
@@ -243,7 +242,7 @@ export function App() {
     };
     window.addEventListener("popstate", handler);
     return () => window.removeEventListener("popstate", handler);
-  }, [showSearch, showIO, showCampaigns, sidebarOpen]);
+  }, [showSearch, showCampaigns, sidebarOpen]);
 
   if (loading) {
     const isDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
@@ -286,7 +285,7 @@ export function App() {
               <button key={key} style={{ ...css.btn(view === key ? "primary" : "default"), letterSpacing: "0.06em", fontSize: 11 }} onClick={() => navigateTo(key)}>{label.toUpperCase()}</button>
             ))}
             <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key }))} />
-            <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setShowIO(true)}>Data</button>
+            <ExportDropdown campaign={campaign} />
             <span style={{ fontSize: 10, color: saveStatus === "local storage full" ? T.warn : T.textMuted, flexShrink: 0 }} title={saveStatus === "local storage full" ? "Local backup failed: browser storage is full. Data is saved to the server." : undefined}>{saveStatus}</span>
           </div>
         )}
@@ -297,7 +296,7 @@ export function App() {
             <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{view === "editor" && selectedPage ? selectedPage.name : (NAV_ITEMS.find((item) => item.key === view)?.label || view)}</span>
             <button style={{ ...css.btn(), fontSize: 14, padding: "4px 8px", flexShrink: 0 }} onClick={() => setShowSearch(true)} title="Search">⌕</button>
             <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key }))} />
-            <button style={{ ...css.btn(), fontSize: 11, padding: "4px 8px", flexShrink: 0 }} onClick={() => setShowIO(true)}>Data</button>
+            <ExportDropdown campaign={campaign} />
             <span style={{ fontSize: 9, color: T.textMuted, flexShrink: 0 }}>{saveStatus === "saving" ? "*" : "o"}</span>
           </div>
         )}
@@ -345,7 +344,7 @@ export function App() {
             {view === "schema" && <SchemaEditor campaign={campaign} onUpdate={update} />}
             {view === "flowchart" && <FlowchartView campaign={campaign} onUpdate={update} />}
             {view === "simulate" && <SimulatorView campaign={campaign} />}
-            {view === "settings" && <SettingsView campaign={campaign} onUpdate={update} onRestore={(data) => { const m = migrateCampaign(data); setCampaign(m); persist(m); }} onClear={() => { const fresh = defaultCampaign(); setCampaign(fresh); persist(fresh); navigateTo("outline"); }} onNavigate={navigateTo} />}
+            {view === "settings" && <SettingsView campaign={campaign} onUpdate={update} onRestore={(data) => { const m = migrateCampaign(data); setCampaign(m); persist(m); }} onImport={(data) => { setCampaign(data); persist(data); }} onClear={() => { const fresh = defaultCampaign(); setCampaign(fresh); persist(fresh); navigateTo("outline"); }} onNavigate={navigateTo} />}
           </div>
         </div>
 
@@ -361,7 +360,7 @@ export function App() {
           </div>
         )}
 
-        {showIO && <ImportExportModal campaign={campaign} onImport={(data) => { setCampaign(data); persist(data); }} onClose={() => setShowIO(false)} />}
+
         {showSearch && <SearchModal campaign={campaign} onNavigate={(id) => navigateTo("editor", id)} onClose={() => setShowSearch(false)} T={T} css={css} />}
         {showCampaigns && <CampaignSwitcher current={SESSION_GUID} onClose={() => setShowCampaigns(false)} T={T} css={css} />}
       </div>

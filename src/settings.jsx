@@ -3,6 +3,7 @@ import { useIsMobile, useThemeCSS } from "./theme.js";
 import { ThemeChipRow } from "./theme-picker.jsx";
 import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign, setSharing } from "./storage.js";
 import { ConfirmModal } from "./ui.jsx";
+import { ExportDropdown, ImportButton } from "./io.jsx";
 
 function Row({ label, hint, children, T, isMobile }) {
   return (
@@ -211,7 +212,7 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
   );
 }
 
-export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigate }) {
+export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear, onNavigate }) {
   const { T, css } = useThemeCSS();
   const isMobile = useIsMobile();
   const [confirmClear, setConfirmClear] = useState(false);
@@ -351,6 +352,16 @@ export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigat
             </div>
           ))}
         </div>
+      </div>
+
+      <div style={{ ...css.section, marginBottom: 24 }}>
+        <div style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>DATA</div>
+        <Row label="Export" hint="Download the campaign in your chosen format." T={T} isMobile={isMobile}>
+          <ExportDropdown campaign={campaign} />
+        </Row>
+        <Row label="Import JSON" hint="Replace the current campaign with a previously exported JSON file." T={T} isMobile={isMobile}>
+          <ImportButton campaign={campaign} onImport={onImport} />
+        </Row>
       </div>
 
       <div style={{ ...css.section, borderColor: T.danger }}>

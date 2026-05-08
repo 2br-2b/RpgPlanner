@@ -19,10 +19,15 @@ export function renderMarkdown(text, theme) {
   if (!text) return "";
   text = normalizeMarkdownHeadingLevels(text);
   const t = theme || THEMES.tactical;
+  // Preserve hard line breaks (<br />) before HTML escaping
+  const BR = "\x00BR\x00";
+  text = text.replace(/<br\s*\/?>/gi, BR);
+
   let html = text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
+    .replace(new RegExp(BR, "g"), "<br/>")
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:4px;margin:8px 0;" />')
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
