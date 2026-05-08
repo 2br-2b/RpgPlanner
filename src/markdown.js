@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import { THEMES } from "./theme.js";
 
 const normalizeMarkdownHeadingLevels = (text) => {
@@ -39,5 +40,6 @@ export function renderMarkdown(text, theme) {
   html = html.replace(/(<li[^>]*>.*?<\/li>(?:<br\/>)*)+/g, (match) => (
     `<ul style="padding-left:20px;margin:6px 0;">${match.replace(/<br\/>/g, "")}</ul>`
   ));
-  return `<p style="margin:0;line-height:1.7;">${html}</p>`;
+  const raw = `<p style="margin:0;line-height:1.7;">${html}</p>`;
+  return DOMPurify.sanitize(raw, { FORCE_BODY: false, ADD_ATTR: ["style"] });
 }
