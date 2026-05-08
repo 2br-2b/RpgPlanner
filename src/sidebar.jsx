@@ -12,7 +12,7 @@ function reorder(pages, siblings) {
   return pages.map(p => ids.has(p.id) ? updated.find(u => u.id === p.id) : p);
 }
 
-export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
+export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width }) {
   const { T, css } = useThemeCSS();
   const [name, setName] = useState("");
   const [type, setType] = useState(campaign.defaultPageType || "mission");
@@ -124,19 +124,35 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
             <button style={{ ...css.btn("danger"), padding: "1px 5px", fontSize: 10, opacity: 0.6, flexShrink: 0 }}
               onClick={e => { e.stopPropagation(); setPendingDelete(isDeleting ? null : page.id); }}>×</button>
           </div>
-          {isDeleting && (
-            <div style={{ background: T.danger + "22", borderBottom: `1px solid ${T.border}`, paddingLeft: 4 + depth * 16, paddingRight: 8, paddingTop: 6, paddingBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, color: T.danger, flex: 1 }}>Delete{children.length > 0 ? " (and children)?" : "?"}</span>
-              <button style={{ ...css.btn("danger"), padding: "2px 8px", fontSize: 10 }} onClick={() => {
-                const toDelete = new Set();
-                const collect = (id) => { toDelete.add(id); getSiblings(campaign.pages, id).forEach(c => collect(c.id)); };
-                collect(page.id);
-                onUpdate(c => ({ ...c, pages: c.pages.filter(p => !toDelete.has(p.id)) }));
-                setPendingDelete(null);
-              }}>Yes</button>
-              <button style={{ ...css.btn(), padding: "2px 8px", fontSize: 10 }} onClick={() => setPendingDelete(null)}>No</button>
-            </div>
-          )}
+          {isDeleting && (() => {
+            const collectNames = (id) => {
+              const kids = getSiblings(campaign.pages, id);
+              return kids.flatMap(k => [k.name, ...collectNames(k.id)]);
+            };
+            const childNames = collectNames(page.id);
+            return (
+              <div style={{ background: T.danger + "22", borderBottom: `1px solid ${T.border}`, paddingLeft: 4 + depth * 16, paddingRight: 8, paddingTop: 6, paddingBottom: 6 }}>
+                <div style={{ fontSize: 10, color: T.danger, marginBottom: childNames.length ? 4 : 0 }}>
+                  Delete &ldquo;{page.name}&rdquo;{childNames.length > 0 ? " and its children?" : "?"}
+                </div>
+                {childNames.length > 0 && (
+                  <div style={{ fontSize: 9, color: T.textDim, marginBottom: 6, lineHeight: 1.5 }}>
+                    {childNames.map(n => <span key={n} style={{ display: "inline-block", background: T.surface2, borderRadius: 3, padding: "0 4px", marginRight: 4 }}>{n}</span>)}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button style={{ ...css.btn("danger"), padding: "2px 8px", fontSize: 10 }} onClick={() => {
+                    const toDelete = new Set();
+                    const collect = (id) => { toDelete.add(id); getSiblings(campaign.pages, id).forEach(c => collect(c.id)); };
+                    collect(page.id);
+                    onUpdate(c => ({ ...c, pages: c.pages.filter(p => !toDelete.has(p.id)) }));
+                    setPendingDelete(null);
+                  }}>Yes, delete</button>
+                  <button style={{ ...css.btn(), padding: "2px 8px", fontSize: 10 }} onClick={() => setPendingDelete(null)}>Cancel</button>
+                </div>
+              </div>
+            );
+          })()}
           {hasChildren && !isCollapsed && renderTree(page.id, depth + 1)}
         </div>
       );
@@ -144,7 +160,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate }) {
   };
 
   return (
-    <div className="sk-sidebar" style={css.sidebar}>
+    <div className="sk-sidebar" style={{ ...css.sidebar, width: width ?? css.sidebar.width }}>
       <div style={{ padding: "10px 12px", borderBottom: `1px solid ${T.border}` }}>
         <div style={css.label}>Pages</div>
         <input style={{ ...css.input, fontSize: 11, marginBottom: nameError ? 2 : 6, borderColor: nameError ? T.danger : undefined, outline: nameError ? `1px solid ${T.danger}` : undefined }}
