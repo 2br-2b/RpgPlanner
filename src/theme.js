@@ -24,6 +24,7 @@ export const THEMES = {
     accentBright: "#82d46e", text: "#d4e8c2", textDim: "#7ea87e",
     textMuted: "#3d5c3d", danger: "#b84848", warn: "#a09038",
     tag: "#1e3e28", tagText: "#82cc82", tagBorder: "#2e6238", radius: 3,
+    chipShadow: "inset 0 1px 0 rgba(130,212,110,0.1), 0 2px 4px rgba(0,0,0,0.6)",
   },
   industrial: {
     label: "Industrial",
@@ -44,6 +45,7 @@ export const THEMES = {
     tagText: "#de9628",
     tagBorder: "#685828",
     radius: 2,
+    chipShadow: "inset 0 1px 0 rgba(255,220,100,0.08), 0 3px 6px rgba(0,0,0,0.7)",
     skeuomorphic: true,
     rivetColor: "#6a6838",
     hexStroke: "rgba(200,170,70,0.18)",
@@ -58,6 +60,7 @@ export const THEMES = {
     accentBright: "#60deff", text: "#b0e0f8", textDim: "#4c7a9a",
     textMuted: "#162e48", danger: "#ff5070", warn: "#ffbe18",
     tag: "#081e30", tagText: "#18c4ff", tagBorder: "#1a5a90", radius: 0,
+    chipShadow: "0 0 8px rgba(24,196,255,0.25), 0 2px 4px rgba(0,0,0,0.5)",
   },
   materialLight: {
     label: "Material Light",
@@ -67,6 +70,7 @@ export const THEMES = {
     accentBright: "#1461a8", text: "#1a1f2e", textDim: "#5a6475",
     textMuted: "#b0b8c4", danger: "#c62828", warn: "#e06500",
     tag: "#ddeeff", tagText: "#1461a8", tagBorder: "#80b8f0", radius: 6,
+    chipShadow: "0 1px 4px rgba(0,0,0,0.15)",
   },
   materialDark: {
     label: "Material Dark",
@@ -76,6 +80,7 @@ export const THEMES = {
     accentBright: "#b0d4ff", text: "#e8e8e8", textDim: "#909090",
     textMuted: "#484848", danger: "#f08080", warn: "#ffcc70",
     tag: "#1c3050", tagText: "#7ab8f8", tagBorder: "#2c4870", radius: 6,
+    chipShadow: "0 2px 6px rgba(0,0,0,0.5)",
   },
   parchment: {
     label: "Parchment",
@@ -85,6 +90,7 @@ export const THEMES = {
     accentBright: "#6a3c18", text: "#2e1e0a", textDim: "#7a6040",
     textMuted: "#c0a87a", danger: "#9a3020", warn: "#8a7210",
     tag: "#e0cca0", tagText: "#5a3418", tagBorder: "#b08848", radius: 3,
+    chipShadow: "1px 2px 6px rgba(100,70,20,0.25), inset 0 1px 0 rgba(255,255,255,0.6)",
   },
   noir: {
     label: "Noir",
@@ -94,6 +100,7 @@ export const THEMES = {
     accentBright: "#f8f8f8", text: "#d0d0d0", textDim: "#787878",
     textMuted: "#404040", danger: "#c05050", warn: "#c0a848",
     tag: "#242424", tagText: "#d0d0d0", tagBorder: "#505050", radius: 0,
+    chipShadow: "2px 2px 0 rgba(0,0,0,0.8)",
   },
   bloodmoon: {
     label: "Blood Moon",
@@ -103,6 +110,7 @@ export const THEMES = {
     accentBright: "#e86868", text: "#ecc8c8", textDim: "#9a5858",
     textMuted: "#501c1c", danger: "#d04040", warn: "#cc8030",
     tag: "#280a0a", tagText: "#e86868", tagBorder: "#781c1c", radius: 3,
+    chipShadow: "0 0 8px rgba(200,40,40,0.3), inset 0 1px 0 rgba(255,100,100,0.08)",
   },
   chalkboard: {
     label: "Chalkboard",
@@ -112,6 +120,7 @@ export const THEMES = {
     accentBright: "#fffaaa", text: "#eef0e0", textDim: "#a8b090",
     textMuted: "#587058", danger: "#e86060", warn: "#ecc048",
     tag: "#1e2e1e", tagText: "#eef0e0", tagBorder: "#587058", radius: 0,
+    chipShadow: "inset 0 0 0 1px rgba(238,248,200,0.12), 0 2px 4px rgba(0,0,0,0.5)",
   },
   corkboard: {
     label: "Corkboard",
@@ -121,6 +130,8 @@ export const THEMES = {
     accentBright: "#d84040", text: "#1c1208", textDim: "#6a5030",
     textMuted: "#c0a070", danger: "#b82828", warn: "#b86820",
     tag: "#e8e0d0", tagText: "#3a2010", tagBorder: "#c0a880", radius: 2,
+    chipShadow: "2px 4px 8px rgba(80,50,10,0.35)",
+    chipBg: "#fefef0",
   },
   newspaper: {
     label: "Newspaper",
@@ -130,6 +141,7 @@ export const THEMES = {
     accentBright: "#980000", text: "#181410", textDim: "#504840",
     textMuted: "#908870", danger: "#b81010", warn: "#bb7000",
     tag: "#181410", tagText: "#f8f2e0", tagBorder: "#383020", radius: 0,
+    chipShadow: "3px 3px 0 rgba(30,24,10,0.18)",
   },
   blueprint: {
     label: "Blueprint",
@@ -139,6 +151,7 @@ export const THEMES = {
     accentBright: "#a8d8ff", text: "#d8eeff", textDim: "#6898cc",
     textMuted: "#2a4870", danger: "#ff7070", warn: "#ffcc50",
     tag: "#0e2030", tagText: "#70c0ff", tagBorder: "#3a78c0", radius: 0,
+    chipShadow: "0 0 6px rgba(112,192,255,0.2), inset 0 0 4px rgba(14,55,110,0.4)",
   },
   plain: {
     label: "Plain",
@@ -148,6 +161,7 @@ export const THEMES = {
     accentBright: "#004499", text: "#222222", textDim: "#555555",
     textMuted: "#999999", danger: "#cc0000", warn: "#cc7700",
     tag: "#e8f0ff", tagText: "#004499", tagBorder: "#b0c8ff", radius: 4,
+    chipShadow: "0 1px 3px rgba(0,0,0,0.1)",
   },
   battletech: {
     label: "American Mecha",
@@ -157,6 +171,7 @@ export const THEMES = {
     accentBright: "#f0d060", text: "#e0d4b0", textDim: "#8a7a48",
     textMuted: "#48401e", danger: "#c03822", warn: "#c08818",
     tag: "#221a08", tagText: "#d8a830", tagBorder: "#685018", radius: 0,
+    chipShadow: "inset 0 1px 0 rgba(220,180,50,0.12), 0 3px 6px rgba(0,0,0,0.7)",
     skeuomorphic: true,
     skDark: "#0e0c06",
     rivetColor: "#7a6018",

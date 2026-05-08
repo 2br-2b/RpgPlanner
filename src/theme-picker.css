@@ -1,0 +1,8 @@
+/* Isolation wrapper for the theme picker dropdown — overrides sk-topbar * !important rules */
+[data-theme] .sk-topbar .theme-chip-isolate,
+[data-theme] .sk-topbar .theme-chip-isolate * {
+  color: unset !important;
+  border-color: unset !important;
+  font-family: unset !important;
+  letter-spacing: unset !important;
+}

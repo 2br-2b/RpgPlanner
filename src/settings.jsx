@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { THEMES, useIsMobile, useThemeCSS } from "./theme.js";
+import { useIsMobile, useThemeCSS } from "./theme.js";
+import { ThemeChipRow } from "./theme-picker.jsx";
 import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign, setSharing } from "./storage.js";
 
 function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel, danger = true }) {
@@ -206,16 +207,7 @@ function SharingPanel({ campaign, onUpdate, onNavigateSchema, T, css, isMobile }
           </Row>
 
           <Row label="Player view theme" hint="Theme used in the player-facing share view." T={T} isMobile={isMobile}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {Object.entries(THEMES).map(([key, theme]) => {
-                const selected = (campaign.shareTheme || campaign.theme || "plain") === key;
-                return (
-                  <button key={key} onClick={() => handleThemeChange(key)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: theme.radius || 4, border: `2px solid ${selected ? theme.accentBright : theme.border}`, background: theme.surface, cursor: "pointer", fontFamily: theme.font, fontSize: 12, color: selected ? theme.accentBright : theme.text }}>
-                    <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />{theme.label}
-                  </button>
-                );
-              })}
-            </div>
+            <ThemeChipRow current={campaign.shareTheme || campaign.theme || "plain"} onChange={handleThemeChange} />
           </Row>
 
           <Row label="Custom CSS" hint="Advanced: inject CSS into the player view. Players will see a safety warning before it's applied." T={T} isMobile={isMobile}>
@@ -343,16 +335,8 @@ export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigat
       <div style={{ ...css.section, marginBottom: 24 }}>
         <div style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>DISPLAY</div>
         <Row label="Theme" hint="Also accessible from the topbar dropdown." T={T} isMobile={isMobile}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {Object.entries(THEMES).map(([key, theme]) => {
-              const selected = campaign.theme === key;
-              return (
-                <button key={key} onClick={() => onUpdate((data) => ({ ...data, theme: key }))} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: theme.radius || 4, border: `2px solid ${selected ? theme.accentBright : theme.border}`, background: theme.surface, cursor: "pointer", fontFamily: theme.font, fontSize: 12, color: selected ? theme.accentBright : theme.text }}>
-                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />{theme.label}
-                </button>
-              );
-            })}
-          </div>
+          <ThemeChipRow current={campaign.theme} onChange={key => onUpdate(data => ({ ...data, theme: key }))} />
+          <a href="/themes" target="_blank" rel="noopener" style={{ display: "inline-block", marginTop: 8, fontSize: 11, color: T.textDim, textDecoration: "none" }}>Compare all themes →</a>
         </Row>
         <Row label="Show projected costs in outline" hint="Show cost/award totals on mission cards in the outline view." T={T} isMobile={isMobile}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
@@ -415,6 +399,8 @@ export function SettingsView({ campaign, onUpdate, onRestore, onClear, onNavigat
           )}
         </Row>
       </div>
+
+
     </div>
   );
 }

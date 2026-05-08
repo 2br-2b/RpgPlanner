@@ -7,6 +7,7 @@ import { SettingsView } from "./settings.jsx";
 import { Sidebar } from "./sidebar.jsx";
 import { SimulatorView } from "./simulator.jsx";
 import { ThemeCtx, THEMES, makeCSS, useIsMobile, useThemeCSS } from "./theme.js";
+import { ThemePicker } from "./theme-picker.jsx";
 import {
   SESSION_GUID,
   defaultCampaign,
@@ -27,38 +28,6 @@ const NAV_ITEMS = [
   { key: "settings", icon: "#", label: "Settings" },
 ];
 
-function ThemePicker({ current, onChange }) {
-  const { T, css } = useThemeCSS();
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button style={{ ...css.btn(), fontSize: 11, display: "flex", alignItems: "center", gap: 6 }} onClick={() => setOpen(!open)}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.accent, display: "inline-block" }} />
-        {THEMES[current]?.label || "Theme"} v
-      </button>
-      {open && (
-        <div style={{ position: "absolute", top: "110%", right: 0, background: "#111", border: "1px solid #333", borderRadius: 6, zIndex: 200, padding: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column", gap: 4, minWidth: 180 }}>
-          {Object.entries(THEMES).map(([key, theme]) => (
-            <button key={key} onClick={() => { onChange(key); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 11px", cursor: "pointer", fontSize: 12, fontFamily: theme.font, color: theme.text, background: theme.surface, border: `2px solid ${key === current ? theme.accentBright : theme.border}`, borderRadius: theme.radius || 4, textAlign: "left", transition: "border-color 0.1s" }}>
-              <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, flexShrink: 0 }} />
-              <span style={{ color: key === current ? theme.accentBright : theme.text }}>{theme.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function SearchModal({ campaign, onNavigate, onClose, T, css }) {
   const [query, setQuery] = useState("");
