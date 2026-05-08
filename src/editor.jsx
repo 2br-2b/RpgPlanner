@@ -19,10 +19,10 @@ export function OutlineView({ campaign, onSelect, onUpdate }) {
         {allTags.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
             <span style={{ fontSize: 10, color: T.textDim, letterSpacing: "0.08em" }}>FILTER:</span>
-            <span style={{ ...css.tag, cursor: "pointer", opacity: !filterTag ? 1 : 0.45, outline: !filterTag ? `1px solid ${T.accent}` : "none" }} onClick={() => setFilterTag("")}>ALL</span>
+            <button style={{ ...css.tag, cursor: "pointer", opacity: !filterTag ? 1 : 0.45, outline: !filterTag ? `1px solid ${T.accent}` : "none", border: "none", fontFamily: T.font, textTransform: "uppercase" }} onClick={() => setFilterTag("")}>All</button>
             {allTags.map(tag => (
-              <span key={tag} style={{ ...css.tag, cursor: "pointer", opacity: filterTag === tag ? 1 : 0.45, outline: filterTag === tag ? `1px solid ${T.accent}` : "none" }}
-                onClick={() => setFilterTag(filterTag === tag ? "" : tag)}>{tag}</span>
+              <button key={tag} style={{ ...css.tag, cursor: "pointer", opacity: filterTag === tag ? 1 : 0.45, outline: filterTag === tag ? `1px solid ${T.accent}` : "none", border: "none", fontFamily: T.font }}
+                onClick={() => setFilterTag(filterTag === tag ? "" : tag)}>{tag}</button>
             ))}
           </div>
         )}
@@ -83,7 +83,7 @@ function OutlineCard({ page, schema, showCosts, onSelect, onUpdate, onFilterByTa
         <div style={{ fontSize: 11 }} onClick={() => onSelect(page.id)}>
           {schema.map(sec => (
             <div key={sec.id} style={{ marginBottom: 6 }}>
-              <div style={{ color: T.textDim, marginBottom: 3, fontSize: 10, letterSpacing: "0.06em" }}>▸ {sec.name.toUpperCase()}</div>
+              <div style={{ color: T.textDim, marginBottom: 3, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" }}>▸ {sec.name}</div>
               {sec.subheaders.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, paddingLeft: 8 }}>
                   {sec.subheaders.map(sh => (
@@ -354,7 +354,7 @@ function SubBox({ label, value, onChange, expanded, shareEnabled, sec, subheader
       <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
         <input ref={imgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImg} />
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.08em", flex: 1 }}>{label.toUpperCase()}</span>
+          <span style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.08em", flex: 1, textTransform: "uppercase" }}>{label}</span>
           {subheaderVisible}
           <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={() => imgRef.current?.click()}>🖼</button>
         </div>
@@ -451,7 +451,7 @@ function MissionSection({ sec, sectionData, onChange, expanded, shareEnabled, pa
   return (
     <div className="sk-section" style={{ ...css.section, marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em", flex: 1 }}>{sec.name.toUpperCase()}</span>
+        <span style={{ color: T.accentBright, fontWeight: "bold", fontSize: 13, letterSpacing: "0.1em", flex: 1, textTransform: "uppercase" }}>{sec.name}</span>
         {shareEnabled && onOverride && <SectionVisibilityBadge sec={sec} page={page} onOverride={onOverride} T={T} css={css} />}
       </div>
       {sec.subheaders.length > 0
