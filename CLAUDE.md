@@ -75,11 +75,15 @@ src/
   io.jsx            — Import/Export modal (JSON and Markdown)
   storage.js        — GUID persistence, loadData/saveData, migrateCampaign
   theme.js          — 14 theme definitions, makeCSS(), useTheme(), useThemeCSS()
+  theme-picker.jsx  — ThemeChip, ThemeChipRow, ThemePicker (shared across topbar and settings)
+  theme-picker.css  — CSS isolation for the picker dropdown (.theme-chip-isolate)
   theme-test.jsx    — Side-by-side theme comparison page (served at /themes)
   markdown.js       — Minimal markdown → HTML renderer
 ```
 
-**Theme system**: Themes are plain objects in `THEMES` (theme.js) with color/font/radius fields. `makeCSS(T)` returns a JS style-object map (`btn`, `input`, `section`, etc.). Skeuomorphic themes (parchment, chalkboard, corkboard, blueprint, newspaper, battletech) also have companion CSS files (`theme-*.css`) that apply `!important` rules to `button` elements inside `.sk-main`/`.sk-section` for texture effects. **When rendering theme-picker chips, use `<div role="button">` instead of `<button>` so the skeuomorphic CSS selectors don't override the chip's own inline styles.**
+**Theme system**: Themes are plain objects in `THEMES` (theme.js) with color/font/radius fields. `makeCSS(T)` returns a JS style-object map (`btn`, `input`, `section`, etc.). Each theme also has `chipShadow` (and optionally `chipBg`) fields used by `ThemeChip` to self-style with the theme's own look. Skeuomorphic themes (parchment, chalkboard, corkboard, blueprint, newspaper, battletech) also have companion CSS files (`theme-*.css`) that apply `!important` rules to `*` elements inside `.sk-topbar`, `.sk-main`, `.sk-section` for texture effects — overriding `color`, `border-color`, `font-family`, etc.
+
+**Theme picker isolation**: `ThemeChip` uses `<div role="button">` (not `<button>`) so skeuomorphic button selectors don't apply. Chips use `outline` instead of `border` to avoid `border-color: !important` overrides. The `ThemePicker` dropdown renders via `createPortal` into `document.body` so it is entirely outside `.sk-topbar` and immune to all skeuomorphic `!important` rules. Do not move it back inside the topbar DOM subtree.
 
 ## Infrastructure
 
