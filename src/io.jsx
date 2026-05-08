@@ -49,7 +49,7 @@ export function validateImport(data) {
 
 // ── Markdown export ───────────────────────────────────────────────────────────
 
-function buildMarkdownLines(campaign, hideEmpty) {
+function buildMarkdownLines(campaign, hideEmpty, hidePlayerHidden) {
   const lines = [`# ${campaign.name}`, `_Campaign export — ${new Date().toLocaleDateString()}_\n`];
   for (const page of campaign.pages) {
     lines.push(`---\n## ${page.name}`);
@@ -57,6 +57,7 @@ function buildMarkdownLines(campaign, hideEmpty) {
     if (page.type === "mission") {
       for (const sec of campaign.sectionSchema) {
         const raw = page.sections?.[sec.id];
+        if (!isSectionVisible(sec, page, hidePlayerHidden)) continue;
         if (hideEmpty && isSectionEmpty(sec, raw)) continue;
         lines.push(`### ${sec.name}`);
         if (sec.type === "table") {
@@ -126,8 +127,8 @@ function buildMarkdownLines(campaign, hideEmpty) {
   return lines;
 }
 
-function exportMarkdown(campaign, hideEmpty) {
-  const lines = buildMarkdownLines(campaign, hideEmpty);
+function exportMarkdown(campaign, hideEmpty, hidePlayerHidden) {
+  const lines = buildMarkdownLines(campaign, hideEmpty, hidePlayerHidden);
   const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${campaign.name.replace(/\s+/g, "_")}.campaign.md` });
   a.click(); URL.revokeObjectURL(a.href);
@@ -139,7 +140,7 @@ function escapeHtml(str) {
   return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function buildPrintHTML(campaign, hideEmpty, themeKey = "plain") {
+function buildPrintHTML(campaign, hideEmpty, themeKey = "plain", hidePlayerHidden = false) {
   const printTheme = THEMES[themeKey] || THEMES.plain;
   const sections = [];
 
@@ -151,6 +152,7 @@ function buildPrintHTML(campaign, hideEmpty, themeKey = "plain") {
     if (page.type === "mission") {
       for (const sec of campaign.sectionSchema) {
         const raw = page.sections?.[sec.id];
+        if (!isSectionVisible(sec, page, hidePlayerHidden)) continue;
         if (hideEmpty && isSectionEmpty(sec, raw)) continue;
         parts.push(`<h3>${escapeHtml(sec.name)}</h3>`);
         if (sec.type === "table") {
@@ -229,8 +231,8 @@ ${sections.join("\n")}
 </body></html>`;
 }
 
-function printCampaign(campaign, hideEmpty, themeKey = "plain") {
-  const html = buildPrintHTML(campaign, hideEmpty, themeKey);
+function printCampaign(campaign, hideEmpty, themeKey = "plain", hidePlayerHidden = false) {
+  const html = buildPrintHTML(campaign, hideEmpty, themeKey, hidePlayerHidden);
   const w = window.open("", "_blank");
   if (!w) { alert("Pop-up blocked — allow pop-ups for this site to use Print."); return; }
   w.document.write(html);
@@ -239,8 +241,8 @@ function printCampaign(campaign, hideEmpty, themeKey = "plain") {
   setTimeout(() => w.print(), 400);
 }
 
-function exportHTML(campaign, hideEmpty, themeKey = "plain") {
-  const html = buildPrintHTML(campaign, hideEmpty, themeKey);
+function exportHTML(campaign, hideEmpty, themeKey = "plain", hidePlayerHidden = false) {
+  const html = buildPrintHTML(campaign, hideEmpty, themeKey, hidePlayerHidden);
   const blob = new Blob([html], { type: "text/html" });
   const a = Object.assign(document.createElement("a"), {
     href: URL.createObjectURL(blob),
@@ -250,10 +252,10 @@ function exportHTML(campaign, hideEmpty, themeKey = "plain") {
   URL.revokeObjectURL(a.href);
 }
 
-async function exportPDF(campaign, hideEmpty, themeKey, setWorking) {
+async function exportPDF(campaign, hideEmpty, themeKey, setWorking, hidePlayerHidden = false) {
   setWorking(true);
   try {
-    const html = buildPrintHTML(campaign, hideEmpty, themeKey);
+    const html = buildPrintHTML(campaign, hideEmpty, themeKey, hidePlayerHidden);
     const iframe = document.createElement("iframe");
     iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:850px;height:1px;border:none;visibility:hidden;";
     document.body.appendChild(iframe);
@@ -316,7 +318,7 @@ function textToDocxParagraphs(text) {
   });
 }
 
-async function exportWord(campaign, hideEmpty) {
+async function exportWord(campaign, hideEmpty, hidePlayerHidden = false) {
   const children = [
     new Paragraph({ text: campaign.name, heading: HeadingLevel.TITLE }),
     new Paragraph({ children: [new TextRun({ text: `Exported ${new Date().toLocaleDateString()}`, italics: true, color: "666666" })] }),
@@ -330,6 +332,7 @@ async function exportWord(campaign, hideEmpty) {
     if (page.type === "mission") {
       for (const sec of campaign.sectionSchema) {
         const raw = page.sections?.[sec.id];
+        if (!isSectionVisible(sec, page, hidePlayerHidden)) continue;
         if (hideEmpty && isSectionEmpty(sec, raw)) continue;
         children.push(new Paragraph({ text: sec.name, heading: HeadingLevel.HEADING_2 }));
 
@@ -420,7 +423,7 @@ function saveExportPrefs(prefs) {
   try { localStorage.setItem(CACHE_KEY, JSON.stringify(prefs)); } catch {}
 }
 
-export function ExportDropdown({ campaign }) {
+export function ExportDropdown({ campaign, currentPage }) {
   const { T, css } = useThemeCSS();
   const [open, setOpen] = useState(false);
 
@@ -432,43 +435,74 @@ export function ExportDropdown({ campaign }) {
       >
         ⬇ Export
       </button>
-      {open && <ExportModal campaign={campaign} onClose={() => setOpen(false)} T={T} css={css} />}
+      {open && <ExportModal campaign={campaign} currentPage={currentPage} onClose={() => setOpen(false)} T={T} css={css} />}
     </>
   );
 }
 
-function ExportModal({ campaign, onClose, T, css }) {
+function filterCampaignForExport(campaign, scope, hidePlayerHidden) {
+  let pages = scope === "page-only" && campaign._currentPage
+    ? [campaign._currentPage]
+    : campaign.pages;
+
+  if (hidePlayerHidden) {
+    pages = pages.filter(p => p.playerVisible);
+  }
+
+  return { ...campaign, pages };
+}
+
+function isSectionVisible(sec, page, hidePlayerHidden) {
+  if (!hidePlayerHidden) return true;
+  const overrides = page.sectionVisibilityOverrides || {};
+  return overrides[sec.id] !== undefined ? overrides[sec.id] : (sec.playerVisible || false);
+}
+
+function ExportModal({ campaign, currentPage, onClose, T, css }) {
   const prefs = loadExportPrefs();
   const [format, setFormat] = useState(prefs.format || "pdf");
   const [themeKey, setThemeKey] = useState(prefs.theme || "plain");
-  const [hideEmpty, setHideEmpty] = useState(prefs.hideEmpty || false);
+  const [hideEmpty, setHideEmpty] = useState(prefs.hideEmpty ?? false);
+  const [hidePlayerHidden, setHidePlayerHidden] = useState(prefs.hidePlayerHidden ?? false);
+  const [scope, setScope] = useState(prefs.scope || "all");
   const [working, setWorking] = useState(false);
 
   const fmt = FORMATS.find(f => f.key === format) || FORMATS[0];
 
   const persist = (patch) => {
-    const next = { format, themeKey, hideEmpty, ...patch };
-    saveExportPrefs({ format: next.format, theme: next.themeKey, hideEmpty: next.hideEmpty });
+    const next = { format, themeKey, hideEmpty, hidePlayerHidden, scope, ...patch };
+    saveExportPrefs({ format: next.format, theme: next.themeKey, hideEmpty: next.hideEmpty, hidePlayerHidden: next.hidePlayerHidden, scope: next.scope });
   };
 
   const handleFormat = (v) => { setFormat(v); persist({ format: v }); };
   const handleTheme = (v) => { setThemeKey(v); persist({ themeKey: v }); };
   const handleHideEmpty = (v) => { setHideEmpty(v); persist({ hideEmpty: v }); };
+  const handleHidePlayerHidden = (v) => { setHidePlayerHidden(v); persist({ hidePlayerHidden: v }); };
+  const handleScope = (v) => { setScope(v); persist({ scope: v }); };
+
+  const buildCampaign = () => {
+    const c = scope === "page-only" && currentPage
+      ? { ...campaign, pages: [currentPage] }
+      : campaign;
+    return c;
+  };
 
   const run = async () => {
+    const c = buildCampaign();
     switch (format) {
-      case "pdf":      await exportPDF(campaign, hideEmpty, themeKey, setWorking); break;
-      case "print":    printCampaign(campaign, hideEmpty, themeKey); break;
-      case "html":     exportHTML(campaign, hideEmpty, themeKey); break;
-      case "word":     await exportWord(campaign, hideEmpty); break;
-      case "markdown": exportMarkdown(campaign, hideEmpty); break;
-      case "json":     exportJSON(campaign); break;
+      case "pdf":      await exportPDF(c, hideEmpty, themeKey, setWorking, hidePlayerHidden); break;
+      case "print":    printCampaign(c, hideEmpty, themeKey, hidePlayerHidden); break;
+      case "html":     exportHTML(c, hideEmpty, themeKey, hidePlayerHidden); break;
+      case "word":     await exportWord(c, hideEmpty, hidePlayerHidden); break;
+      case "markdown": exportMarkdown(c, hideEmpty, hidePlayerHidden); break;
+      case "json":     exportJSON(c); break;
     }
     if (format !== "print") onClose();
   };
 
   const labelStyle = { fontSize: 12, color: T.textDim, marginBottom: 4, display: "block" };
   const rowStyle = { marginBottom: 14 };
+  const checkRowStyle = { display: "flex", alignItems: "center", gap: 8, marginBottom: 14, cursor: "pointer" };
 
   return (
     <div
@@ -477,7 +511,7 @@ function ExportModal({ campaign, onClose, T, css }) {
     >
       <div style={{ ...css.section, width: 320, padding: 24, borderRadius: T.radius, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <span style={{ fontSize: 15, fontWeight: "bold", color: T.accentBright }}>Export Campaign</span>
+          <span style={{ fontSize: 15, fontWeight: "bold", color: T.accentBright }}>Export</span>
           <button style={{ ...css.btn(), padding: "2px 8px", fontSize: 13 }} onClick={onClose}>✕</button>
         </div>
 
@@ -498,12 +532,22 @@ function ExportModal({ campaign, onClose, T, css }) {
         )}
 
         <div style={rowStyle}>
-          <label style={labelStyle}>Content</label>
-          <select value={hideEmpty ? "1" : "0"} onChange={e => handleHideEmpty(e.target.value === "1")} style={{ ...css.input, width: "100%" }}>
-            <option value="0">All sections</option>
-            <option value="1">Hide empty sections</option>
+          <label style={labelStyle}>Pages</label>
+          <select value={scope} onChange={e => handleScope(e.target.value)} style={{ ...css.input, width: "100%" }}>
+            <option value="all">Whole campaign</option>
+            <option value="page-only" disabled={!currentPage}>{currentPage ? `Current page: ${currentPage.name}` : "Current page (none open)"}</option>
           </select>
         </div>
+
+        <label style={checkRowStyle}>
+          <input type="checkbox" checked={hidePlayerHidden} onChange={e => handleHidePlayerHidden(e.target.checked)} />
+          <span style={{ fontSize: 12, color: T.text }}>Hide sections not visible to players</span>
+        </label>
+
+        <label style={checkRowStyle}>
+          <input type="checkbox" checked={hideEmpty} onChange={e => handleHideEmpty(e.target.checked)} />
+          <span style={{ fontSize: 12, color: T.text }}>Hide empty sections</span>
+        </label>
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
           <button style={{ ...css.btn(), fontSize: 13 }} onClick={onClose}>Cancel</button>
