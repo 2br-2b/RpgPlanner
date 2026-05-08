@@ -136,15 +136,23 @@ export function registerCampaign(guid, name) {
   localStorage.setItem("campaign-manager-campaigns", JSON.stringify(list));
 }
 
-export function switchCampaign(guid) {
-  localStorage.setItem("campaign-manager-guid", guid);
+// Pending save callback — app.jsx sets this so switch/create can flush first.
+let _pendingSaveFlush = null;
+export function registerSaveFlush(fn) { _pendingSaveFlush = fn; }
+
+async function flushAndReload(setGuid) {
+  setGuid();
+  if (_pendingSaveFlush) await _pendingSaveFlush();
   window.location.reload();
+}
+
+export function switchCampaign(guid) {
+  flushAndReload(() => localStorage.setItem("campaign-manager-guid", guid));
 }
 
 export function createNewCampaign() {
   const guid = crypto.randomUUID();
-  localStorage.setItem("campaign-manager-guid", guid);
-  window.location.reload();
+  flushAndReload(() => localStorage.setItem("campaign-manager-guid", guid));
 }
 
 export function forgetCampaign(guid) {
@@ -184,7 +192,14 @@ export async function loadData() {
 
 export async function saveData(data) {
   registerCampaign(SESSION_GUID, data.name);
-  try { localStorage.setItem("campaign-manager-local", JSON.stringify(data)); } catch {}
+  let localQuotaExceeded = false;
+  try {
+    localStorage.setItem("campaign-manager-local", JSON.stringify(data));
+  } catch (e) {
+    if (e instanceof DOMException && (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
+      localQuotaExceeded = true;
+    }
+  }
   try {
     await fetch(`${API_BASE}/campaign/${SESSION_GUID}`, {
       method: "PUT",
@@ -192,6 +207,7 @@ export async function saveData(data) {
       body: JSON.stringify({ data }),
     });
   } catch (e) { console.warn("Remote save failed (offline?):", e); }
+  return { localQuotaExceeded };
 }
 
 // ── Share API helpers ─────────────────────────────────────────────────────────

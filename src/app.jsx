@@ -19,6 +19,7 @@ import {
   switchCampaign,
   createNewCampaign,
   forgetCampaign,
+  registerSaveFlush,
 } from "./storage.js";
 
 const NAV_ITEMS = [
@@ -137,6 +138,11 @@ export function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [showCampaigns, setShowCampaigns] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const stored = localStorage.getItem("campaign-manager-sidebar-width");
+    return stored ? Number(stored) : 240;
+  });
+  const sidebarDragRef = useRef(null);
   const isMobile = useIsMobile();
   const saveTimer = useRef(null);
   const historyRef = useRef({ stack: [], idx: -1 });
@@ -154,8 +160,20 @@ export function App() {
     setSaveStatus("saving");
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveData(nextCampaign).then(() => setSaveStatus("saved"));
+      saveData(nextCampaign).then(({ localQuotaExceeded } = {}) => {
+        setSaveStatus(localQuotaExceeded ? "local storage full" : "saved");
+      });
     }, 800);
+  }, []);
+
+  // Let storage.js flush an immediate save before reloading on campaign switch.
+  const campaignRef = useRef(null);
+  useEffect(() => { campaignRef.current = campaign; }, [campaign]);
+  useEffect(() => {
+    registerSaveFlush(() => {
+      clearTimeout(saveTimer.current);
+      return campaignRef.current ? saveData(campaignRef.current) : Promise.resolve();
+    });
   }, []);
 
   const update = useCallback((fn) => {
@@ -269,7 +287,7 @@ export function App() {
             ))}
             <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key }))} />
             <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setShowIO(true)}>Data</button>
-            <span style={{ fontSize: 10, color: T.textMuted, flexShrink: 0 }}>{saveStatus}</span>
+            <span style={{ fontSize: 10, color: saveStatus === "local storage full" ? T.warn : T.textMuted, flexShrink: 0 }} title={saveStatus === "local storage full" ? "Local backup failed: browser storage is full. Data is saved to the server." : undefined}>{saveStatus}</span>
           </div>
         )}
 
@@ -294,7 +312,31 @@ export function App() {
             </div>
           )}
 
-          {!isMobile && showSidebar && <Sidebar campaign={campaign} selectedPageId={selectedPageId} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} />}
+          {!isMobile && showSidebar && (
+            <div style={{ display: "flex", flexShrink: 0 }}>
+              <Sidebar campaign={campaign} selectedPageId={selectedPageId} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} width={sidebarWidth} />
+              <div
+                style={{ width: 5, cursor: "col-resize", background: "transparent", flexShrink: 0, zIndex: 10 }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const startX = e.clientX;
+                  const startW = sidebarWidth;
+                  const onMove = (ev) => {
+                    const next = Math.max(160, Math.min(480, startW + ev.clientX - startX));
+                    setSidebarWidth(next);
+                    localStorage.setItem("campaign-manager-sidebar-width", next);
+                  };
+                  const onUp = () => {
+                    window.removeEventListener("mousemove", onMove);
+                    window.removeEventListener("mouseup", onUp);
+                  };
+                  window.addEventListener("mousemove", onMove);
+                  window.addEventListener("mouseup", onUp);
+                }}
+                title="Drag to resize sidebar"
+              />
+            </div>
+          )}
 
           <div className="sk-main" style={{ ...css.main, padding: mainPad, paddingBottom: isMobile ? "68px" : mainPad, overflowY: "auto" }}>
             {view === "outline" && <OutlineView campaign={campaign} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} />}
