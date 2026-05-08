@@ -123,6 +123,37 @@ export function FlowchartView({ campaign, onUpdate }) {
     if (!dragging) return;
     setFC((fc) => ({ ...fc, nodes: fc.nodes.map((node) => node.id === dragging.nodeId ? { ...node, x: dragging.ox + event.clientX - dragging.sx, y: dragging.oy + event.clientY - dragging.sy } : node) }));
   };
+  const autoLayout = () => {
+    if (nodes.length === 0) return;
+    // Kahn's algorithm for topological layers, then assign x/y by layer.
+    const indegree = {};
+    const adj = {};
+    nodes.forEach(n => { indegree[n.id] = 0; adj[n.id] = []; });
+    edges.forEach(e => { if (adj[e.from] && indegree[e.to] !== undefined) { adj[e.from].push(e.to); indegree[e.to]++; } });
+    const layers = [];
+    let queue = nodes.filter(n => indegree[n.id] === 0).map(n => n.id);
+    const visited = new Set();
+    while (queue.length > 0) {
+      layers.push([...queue]);
+      queue.forEach(id => visited.add(id));
+      const next = [];
+      queue.forEach(id => (adj[id] || []).forEach(to => { if (!visited.has(to)) { indegree[to]--; if (indegree[to] === 0) next.push(to); } }));
+      queue = next;
+    }
+    // Any nodes not reached (cycles) go in a final layer.
+    const unreached = nodes.filter(n => !visited.has(n.id)).map(n => n.id);
+    if (unreached.length) layers.push(unreached);
+
+    const PAD_X = 220, PAD_Y = 110, START_X = 60, START_Y = 60;
+    const positions = {};
+    layers.forEach((layer, li) => {
+      layer.forEach((id, ci) => {
+        positions[id] = { x: START_X + li * PAD_X, y: START_Y + ci * PAD_Y };
+      });
+    });
+    setFC(fc => ({ ...fc, nodes: fc.nodes.map(n => positions[n.id] ? { ...n, ...positions[n.id] } : n) }));
+  };
+
   const unusedPages = campaign.pages.filter((page) => !nodes.some((node) => node.pageId === page.id));
   const selectedEdgeData = selectedEdge ? edges.find((edge) => edge.from === selectedEdge.from && edge.to === selectedEdge.to) : null;
 
@@ -132,6 +163,7 @@ export function FlowchartView({ campaign, onUpdate }) {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, color: T.accentBright, fontSize: 16, letterSpacing: "0.1em" }}>FLOWCHART</h2>
           <span style={{ fontSize: 10, color: T.textDim }}>drag nodes, connect with dot, mark start/end, click dot on node to color</span>
+          {nodes.length > 0 && <button style={{ ...css.btn(), fontSize: 10, padding: "3px 8px" }} onClick={autoLayout} title="Auto-arrange nodes into layers">⬡ Auto-layout</button>}
         </div>
         {unusedPages.length > 0 && (
           <div style={{ marginBottom: 10, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
@@ -176,7 +208,7 @@ export function FlowchartView({ campaign, onUpdate }) {
                   style={{ cursor: "grab" }}>
                   <rect width={NW} height={NH} rx={T.radius} fill={nodeFill} stroke={borderColor} strokeWidth={node.isStart || node.isEnd || isTarget ? 2 : 1}
                     onClick={() => { if (isTarget) { connectNodes(connecting, node.id); setConnecting(null); } }} />
-                  <text x={8} y={15} fill={page.type === "mission" ? T.accentBright : T.textDim} fontSize={9} fontFamily={T.font}>{node.isStart ? "> START" : node.isEnd ? "[] END" : page.type.toUpperCase()}</text>
+                  <text x={8} y={15} fill={page.type === "mission" ? T.accentBright : T.textDim} fontSize={9} fontFamily={T.font} style={{ textTransform: "uppercase" }}>{node.isStart ? "> START" : node.isEnd ? "[] END" : page.type}</text>
                   <text x={8} y={33} fill={T.text} fontSize={12} fontFamily={T.font}>{page.name.length > 19 ? `${page.name.slice(0, 17)}...` : page.name}</text>
                   {/* color swatch — click to toggle picker */}
                   <circle cx={NW - 56} cy={10} r={5} fill={nodeColor || T.surface} stroke={T.border} strokeWidth={1} style={{ cursor: "pointer" }}
