@@ -2,21 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useIsMobile, useThemeCSS } from "./theme.js";
 import { ThemeChipRow } from "./theme-picker.jsx";
 import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign, setSharing } from "./storage.js";
-
-function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel, danger = true }) {
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 24 }}>
-      <div style={{ background: "#1e1e2e", border: "1px solid #444", borderRadius: 8, padding: 28, maxWidth: 420, width: "100%", color: "#eee", fontFamily: "system-ui, sans-serif", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
-        <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 12, color: danger ? "#f87171" : "#eee" }}>{title}</div>
-        <div style={{ fontSize: 12, lineHeight: 1.6, color: "#bbb", marginBottom: 20 }}>{message}</div>
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ padding: "7px 16px", borderRadius: 6, border: "1px solid #555", background: "transparent", color: "#ccc", cursor: "pointer", fontSize: 12, fontFamily: "system-ui" }}>Cancel</button>
-          <button onClick={onConfirm} style={{ padding: "7px 16px", borderRadius: 6, border: `1px solid ${danger ? "#ef4444" : "#3b82f6"}`, background: danger ? "#ef4444" : "#3b82f6", color: "#fff", cursor: "pointer", fontSize: 12, fontFamily: "system-ui", fontWeight: "bold" }}>{confirmLabel}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { ConfirmModal } from "./ui.jsx";
 
 function Row({ label, hint, children, T, isMobile }) {
   return (

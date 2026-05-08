@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useThemeCSS, useIsMobile } from "./theme.js";
 import { uid } from "./storage.js";
+import { ConfirmModal } from "./ui.jsx";
 import { TableSection } from "./table-section.jsx";
 import { WaypointsSection } from "./waypoints-section.jsx";
 import { MilkdownEditor } from "./milkdown-editor.jsx";
@@ -105,45 +106,30 @@ function OutlineCard({ page, schema, showCosts, onSelect, onUpdate, onFilterByTa
 }
 
 function PageVisibilityWarning({ onConfirm, onCancel }) {
-  const [suppress, setSuppress] = useState(false);
-  const T = { text: "#111", danger: "#cc0000", warn: "#cc7700", border: "#ddd" };
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 24 }}>
-      <div style={{ background: "#fff", borderRadius: 8, padding: 24, maxWidth: 420, width: "100%", color: T.text, fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 10, color: T.warn }}>⚠ Make page visible to players?</div>
-        <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
-          This page will be visible to anyone with the share link. Only player-visible fields will be shown.
-        </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#555", marginBottom: 16, cursor: "pointer" }}>
-          <input type="checkbox" checked={suppress} onChange={e => setSuppress(e.target.checked)} />
-          Don't remind me this session
-        </label>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid #ccc", background: "#f5f5f5", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Cancel</button>
-          <button onClick={() => onConfirm(suppress)} style={{ padding: "7px 14px", borderRadius: 6, border: "none", background: T.warn, color: "#fff", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Make Visible</button>
-        </div>
-      </div>
-    </div>
+    <ConfirmModal
+      title="⚠ Make page visible to players?"
+      message="This page will be visible to anyone with the share link. Only player-visible fields will be shown."
+      confirmLabel="Make Visible"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+      warn
+      suppressLabel="Don't remind me this session"
+    />
   );
 }
 
 function FieldVisibilityWarning({ onConfirm, onCancel }) {
-  const [suppress, setSuppress] = useState(false);
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 24 }}>
-      <div style={{ background: "#fff", borderRadius: 8, padding: 24, maxWidth: 380, width: "100%", color: "#111", fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ fontWeight: "bold", fontSize: 14, marginBottom: 8, color: "#cc7700" }}>⚠ Show field to players?</div>
-        <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>The page is already visible. This field will immediately become visible to players with the share link.</div>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#555", marginBottom: 16, cursor: "pointer" }}>
-          <input type="checkbox" checked={suppress} onChange={e => setSuppress(e.target.checked)} />
-          Don't remind me this session
-        </label>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ccc", background: "#f5f5f5", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Cancel</button>
-          <button onClick={() => onConfirm(suppress)} style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "#cc7700", color: "#fff", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Show Field</button>
-        </div>
-      </div>
-    </div>
+    <ConfirmModal
+      title="⚠ Show field to players?"
+      message="The page is already visible. This field will immediately become visible to players with the share link."
+      confirmLabel="Show Field"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+      warn
+      suppressLabel="Don't remind me this session"
+    />
   );
 }
 
@@ -207,18 +193,15 @@ export function PageEditor({ page, schema, allPages = [], onUpdate, onBack, shar
   return (
     <div style={{ maxWidth: 860 }}>
       {showParentWarn && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 24 }}>
-          <div style={{ background: "#fff", borderRadius: 8, padding: 24, maxWidth: 440, width: "100%", color: "#111", fontFamily: "system-ui, sans-serif" }}>
-            <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 10, color: "#cc7700" }}>⚠ Parent page is hidden</div>
-            <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
-              <strong>{parentPage?.name || "The parent page"}</strong> is not visible to players. Players won't be able to navigate to this page from the sidebar — a dimmed placeholder will be shown for the parent instead.
-            </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => setShowParentWarn(false)} style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid #ccc", background: "#f5f5f5", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Cancel</button>
-              <button onClick={() => { set("playerVisible", true); setShowParentWarn(false); }} style={{ padding: "7px 14px", borderRadius: 6, border: "none", background: "#cc7700", color: "#fff", cursor: "pointer", fontFamily: "system-ui", fontSize: 13 }}>Make Visible Anyway</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          title="⚠ Parent page is hidden"
+          confirmLabel="Make Visible Anyway"
+          onConfirm={() => { set("playerVisible", true); setShowParentWarn(false); }}
+          onCancel={() => setShowParentWarn(false)}
+          warn
+        >
+          <strong>{parentPage?.name || "The parent page"}</strong> is not visible to players. Players won't be able to navigate to this page from the sidebar — a dimmed placeholder will be shown for the parent instead.
+        </ConfirmModal>
       )}
       {showPageWarn && (
         <PageVisibilityWarning

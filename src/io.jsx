@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useThemeCSS } from "./theme.js";
 import { SCHEMA_VERSION, migrateCampaign } from "./storage.js";
+import { ModalOverlay } from "./ui.jsx";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -247,8 +248,7 @@ export function ImportExportModal({ campaign, onImport, onClose }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
+    <ModalOverlay onClose={onClose} zIndex={1000}>
       <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 24, width: 500, maxWidth: "90vw", fontFamily: T.font }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
           <span style={{ fontWeight: "bold", color: T.accentBright, letterSpacing: "0.1em", fontSize: 14 }}>EXPORT / IMPORT</span>
@@ -290,6 +290,6 @@ export function ImportExportModal({ campaign, onImport, onClose }) {
           </>
         )}
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

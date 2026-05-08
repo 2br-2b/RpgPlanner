@@ -8,6 +8,7 @@ import { Sidebar } from "./sidebar.jsx";
 import { SimulatorView } from "./simulator.jsx";
 import { ThemeCtx, THEMES, makeCSS, useIsMobile, useThemeCSS } from "./theme.js";
 import { ThemePicker } from "./theme-picker.jsx";
+import { useEscapeKey, ModalOverlay } from "./ui.jsx";
 import {
   SESSION_GUID,
   defaultCampaign,
@@ -34,12 +35,7 @@ function SearchModal({ campaign, onNavigate, onClose, T, css }) {
   const inputRef = useRef(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
-
-  useEffect(() => {
-    const handler = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  useEscapeKey(onClose);
 
   const q = query.trim().toLowerCase();
   const results = q
@@ -47,8 +43,7 @@ function SearchModal({ campaign, onNavigate, onClose, T, css }) {
     : campaign.pages.slice(0, 12);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 2000, paddingTop: 80 }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
+    <ModalOverlay onClose={onClose} align="top" zIndex={2000}>
       <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.radius, width: 480, maxWidth: "90vw", boxShadow: "0 8px 40px rgba(0,0,0,0.6)", overflow: "hidden" }}>
         <div style={{ padding: "10px 14px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ color: T.textDim, fontSize: 14 }}>⌕</span>
@@ -77,7 +72,7 @@ function SearchModal({ campaign, onNavigate, onClose, T, css }) {
           <div style={{ padding: "6px 16px", fontSize: 10, color: T.textMuted, borderTop: `1px solid ${T.border}` }}>Type to search all {campaign.pages.length} pages</div>
         )}
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 
@@ -85,17 +80,12 @@ function CampaignSwitcher({ current, onClose, T, css }) {
   const [campaigns, setCampaigns] = useState(() => getKnownCampaigns());
   const [confirmForget, setConfirmForget] = useState(null);
 
-  useEffect(() => {
-    const handler = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  useEscapeKey(onClose);
 
   const sorted = [...campaigns].sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0));
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
+    <ModalOverlay onClose={onClose} zIndex={2000}>
       <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: T.radius, width: 460, maxWidth: "90vw", boxShadow: "0 8px 40px rgba(0,0,0,0.6)", overflow: "hidden" }}>
         <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center" }}>
           <span style={{ fontWeight: "bold", color: T.accentBright, letterSpacing: "0.1em", fontSize: 13 }}>CAMPAIGNS</span>
@@ -133,7 +123,7 @@ function CampaignSwitcher({ current, onClose, T, css }) {
           <button style={{ ...css.btn("primary"), width: "100%" }} onClick={() => createNewCampaign()}>+ New Campaign</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 

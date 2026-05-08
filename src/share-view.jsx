@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { THEMES, ThemeCtx, makeCSS, useTheme, useThemeCSS } from "./theme.js";
 import { loadShareData, patchShareField } from "./storage.js";
 import { renderMarkdown } from "./markdown.js";
+import { ModalOverlay } from "./ui.jsx";
 
 // ── CSS Safety Modal ──────────────────────────────────────────────────────────
 
@@ -10,7 +11,7 @@ function CssSafetyModal({ campaignName, onAccept, onDecline }) {
   const T = THEMES.materialLight;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 24 }}>
+    <ModalOverlay zIndex={9999}>
       <div style={{ background: "#fff", borderRadius: 8, padding: 32, maxWidth: 520, width: "100%", color: "#111", fontFamily: "system-ui, sans-serif" }}>
         <div style={{ fontSize: 20, fontWeight: "bold", marginBottom: 12, color: "#cc0000" }}>⚠ GM Custom CSS Active</div>
         <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 16, color: "#333" }}>
@@ -44,7 +45,7 @@ function CssSafetyModal({ campaignName, onAccept, onDecline }) {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 
