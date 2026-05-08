@@ -340,7 +340,9 @@ export function ShareApp({ shareGuid }) {
   const [cssChoice, setCssChoice] = useState(null); // null | "yes" | "no"
 
   useEffect(() => {
+    const timeout = setTimeout(() => setState("error"), 10000);
     loadShareData(shareGuid).then(result => {
+      clearTimeout(timeout);
       if (!result) { setState("error"); return; }
       setData(result);
       if (result.shareCustomCss) {
@@ -350,7 +352,7 @@ export function ShareApp({ shareGuid }) {
       } else {
         setState("ready");
       }
-    }).catch(() => setState("error"));
+    }).catch(() => { clearTimeout(timeout); setState("error"); });
   }, [shareGuid]);
 
   const handleCssAccept = () => {
