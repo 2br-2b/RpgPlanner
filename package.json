@@ -24,6 +24,7 @@
     "@milkdown/react": "^7.20.0",
     "@milkdown/utils": "^7.20.0",
     "@types/dompurify": "^3.0.5",
+    "@xyflow/react": "^12.10.2",
     "docx": "^9.6.1",
     "dompurify": "^3.4.2",
     "express": "^5.1.0",

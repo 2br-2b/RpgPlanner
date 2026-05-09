@@ -343,7 +343,7 @@ export function App() {
             {view === "editor" && !selectedPage && <div style={{ color: T.textDim, textAlign: "center", marginTop: 80 }}>{isMobile ? "Open the menu to select a page" : "Select a page to edit"}</div>}
             {view === "schema" && <SchemaEditor campaign={campaign} onUpdate={update} />}
             {view === "flowchart" && <FlowchartView campaign={campaign} onUpdate={update} />}
-            {view === "simulate" && <SimulatorView campaign={campaign} />}
+            {view === "simulate" && <SimulatorView campaign={campaign} onUpdate={update} />}
             {view === "settings" && <SettingsView campaign={campaign} onUpdate={update} onRestore={(data) => { const m = migrateCampaign(data); setCampaign(m); persist(m); }} onImport={(data) => { setCampaign(data); persist(data); }} onClear={() => { const fresh = defaultCampaign(); setCampaign(fresh); persist(fresh); navigateTo("outline"); }} onNavigate={navigateTo} />}
           </div>
         </div>

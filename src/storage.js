@@ -10,7 +10,8 @@ export const uid = () => crypto.randomUUID();
 // v8: player sharing — shareEnabled/shareGuid/shareTheme/shareCustomCss on campaign;
 //     playerVisible/playerEditable/playerVisibleSubheaders/playerVisibleColumns on schema sections;
 //     playerVisible/sectionVisibilityOverrides on pages
-export const SCHEMA_VERSION = 8;
+// v9: statDefs [] on campaign; statDeltas [] on all edge events
+export const SCHEMA_VERSION = 9;
 
 export function migrateCampaign(data) {
   const v = data.schemaVersion || 1;
@@ -99,6 +100,20 @@ export function migrateCampaign(data) {
     };
   }
 
+  if (v < 9) {
+    d = {
+      ...d,
+      statDefs: d.statDefs || [],
+      flowchart: {
+        nodes: d.flowchart?.nodes || [],
+        edges: (d.flowchart?.edges || []).map(e => ({
+          ...e,
+          events: (e.events || []).map(ev => ({ statDeltas: [], ...ev })),
+        })),
+      },
+    };
+  }
+
   return { ...d, schemaVersion: SCHEMA_VERSION };
 }
 
@@ -117,6 +132,7 @@ export function defaultCampaign() {
       { id: uid(), name: "Rewards", type: "text", subheaders: ["C-Bills", "XP", "Salvage"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
     ],
     schemaVersion: SCHEMA_VERSION,
+    statDefs: [],
     pages: [], flowchart: { nodes: [], edges: [] },
   };
 }
