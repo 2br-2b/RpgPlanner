@@ -79,7 +79,7 @@ function getConnectedIds(selectedNodeId, fcNodes, fcEdges) {
 
 // ── Conversion helpers ────────────────────────────────────────────────────────
 
-function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId) {
+function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId) {
   const connected = selectedNodeId ? getConnectedIds(selectedNodeId, fcNodes, []) : null;
   // For edge selection: find adjacent nodes
   let edgeAdjacentNodes = null;
@@ -101,7 +101,8 @@ function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId) {
       data: {
         pageId: n.pageId,
         pageName: page?.name ?? "?",
-        pageType: page?.type ?? "mission",
+        pageType: page?.type ?? firstPageTypeId,
+        isMissionType: (page?.type ?? firstPageTypeId) === firstPageTypeId,
         isStart: n.isStart,
         isEnd: n.isEnd,
         color: n.color,
@@ -163,7 +164,7 @@ function MissionNode({ data, selected }) {
   const [hovered, setHovered] = useState(false);
   const accent = data.color || (data.isStart ? T.accentBright : data.isEnd ? T.danger : T.accent);
   const bg = data.color ? `${data.color}22` : data.isStart ? `${T.accentBright}22` : data.isEnd ? `${T.danger}22` : T.surface2;
-  const isMission = data.pageType === "mission";
+  const isMission = data.isMissionType !== false;
 
   const hasCosts = data.pageCosts > 0;
   const hasAwards = data.pageAwards > 0;
@@ -292,7 +293,7 @@ const edgeTypes = { missionEdge: MissionEdge };
 
 function NodePanel({ node, pages, onUpdate, onDelete, onNavigate, T, css }) {
   const page = pages.find(p => p.id === node.data.pageId);
-  const isMission = page?.type === "mission";
+  const isMission = node.data.isMissionType !== false;
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -491,9 +492,10 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
 
+  const firstPageTypeId = (campaign.pageTypes || [])[0]?.id;
   const rfNodes = useMemo(
-    () => toRFNodes(fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId),
-    [fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId]
+    () => toRFNodes(fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId),
+    [fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId]
   );
   const rfEdges = useMemo(
     () => toRFEdges(fcEdges, T, selectedNodeId, selectedEdgeId),
@@ -604,10 +606,10 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
     onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, nodes: data.flowchart.nodes.map(n => positions[n.id] ? { ...n, ...positions[n.id] } : n) } }));
   };
 
-  // Separate unused missions from unused free pages for clearer toolbar
+  // Separate unused pages by type for clearer toolbar
   const unusedPages = campaign.pages.filter(p => !fcNodes.some(n => n.pageId === p.id));
-  const unusedMissions = unusedPages.filter(p => p.type === "mission");
-  const unusedFree = unusedPages.filter(p => p.type !== "mission");
+  const unusedMissions = unusedPages.filter(p => p.type === firstPageTypeId);
+  const unusedFree = unusedPages.filter(p => p.type !== firstPageTypeId);
 
   const selectedNodeRF = selectedNodeId ? rfNodes.find(n => n.id === selectedNodeId) : null;
   const selectedEdgeFC = selectedEdgeId ? fcEdges.find(e => `${e.from}--${e.to}` === selectedEdgeId) : null;

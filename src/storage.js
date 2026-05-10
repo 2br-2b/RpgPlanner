@@ -15,7 +15,9 @@ export const pageAwardTotal = (page) => (page?.awards || []).reduce((s, a) => s 
 //     playerVisible/sectionVisibilityOverrides on pages
 // v9: statDefs [] on campaign; statDeltas [] on all edge events
 // v10: edgeType "default" on all edges
-export const SCHEMA_VERSION = 10;
+// v11: sectionSchema replaced by pageTypes[]; page.type becomes a pageTypeId;
+//      old "free" pages become mission-style with 1 section (content migrated)
+export const SCHEMA_VERSION = 11;
 
 export function migrateCampaign(data) {
   const v = data.schemaVersion || 1;
@@ -128,6 +130,56 @@ export function migrateCampaign(data) {
     };
   }
 
+  if (v < 11) {
+    // Create the "Mission" page type from the existing sectionSchema
+    const missionTypeId = uid();
+    const missionType = {
+      id: missionTypeId,
+      name: "Mission",
+      sectionSchema: (d.sectionSchema || []),
+    };
+    // Create a "Free Page" type with one content section (no subheaders)
+    const freeContentSectionId = uid();
+    const freeTypeId = uid();
+    const freeType = {
+      id: freeTypeId,
+      name: "Free Page",
+      sectionSchema: [
+        {
+          id: freeContentSectionId,
+          name: "Content",
+          type: "text",
+          subheaders: [],
+          playerVisible: false,
+          playerEditable: false,
+          playerVisibleSubheaders: [],
+          playerVisibleColumns: [],
+        },
+      ],
+    };
+    // Migrate pages: remap type strings to pageType IDs, migrate free page content
+    const migratedPages = (d.pages || []).map(p => {
+      if ((p.type ?? "mission") === "free") {
+        // Move page.content → page.sections[freeContentSectionId] (flat string value)
+        const existingContent = p.content || "";
+        return {
+          ...p,
+          type: freeTypeId,
+          sections: { ...(p.sections || {}), [freeContentSectionId]: existingContent },
+          content: undefined,
+        };
+      }
+      // mission (or anything else)
+      return { ...p, type: missionTypeId };
+    });
+    d = {
+      ...d,
+      pageTypes: [missionType, freeType],
+      sectionSchema: undefined,
+      pages: migratedPages,
+    };
+  }
+
   return { ...d, schemaVersion: SCHEMA_VERSION };
 }
 
@@ -136,15 +188,40 @@ function preferredTheme() {
   return "materialLight";
 }
 
+export function defaultPageTypes() {
+  const missionTypeId = uid();
+  const freeTypeId = uid();
+  const freeContentSectionId = uid();
+  return {
+    missionTypeId,
+    freeTypeId,
+    pageTypes: [
+      {
+        id: missionTypeId,
+        name: "Mission",
+        sectionSchema: [
+          { id: uid(), name: "Overview", type: "text", subheaders: ["Background", "Objectives"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
+          { id: uid(), name: "Setup", type: "text", subheaders: ["Deployment", "Special Rules"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
+          { id: uid(), name: "Rewards", type: "text", subheaders: ["C-Bills", "XP", "Salvage"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
+        ],
+      },
+      {
+        id: freeTypeId,
+        name: "Free Page",
+        sectionSchema: [
+          { id: freeContentSectionId, name: "Content", type: "text", subheaders: [], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
+        ],
+      },
+    ],
+  };
+}
+
 export function defaultCampaign() {
+  const { pageTypes } = defaultPageTypes();
   return {
     id: uid(), name: "New Campaign", theme: preferredTheme(),
     shareEnabled: false, shareGuid: null, shareTheme: preferredTheme(), shareCustomCss: "",
-    sectionSchema: [
-      { id: uid(), name: "Overview", type: "text", subheaders: ["Background", "Objectives"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
-      { id: uid(), name: "Setup", type: "text", subheaders: ["Deployment", "Special Rules"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
-      { id: uid(), name: "Rewards", type: "text", subheaders: ["C-Bills", "XP", "Salvage"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
-    ],
+    pageTypes,
     schemaVersion: SCHEMA_VERSION,
     statDefs: [],
     pages: [], flowchart: { nodes: [], edges: [] },

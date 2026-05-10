@@ -191,15 +191,6 @@ function SharePageView({ page, schema, shareGuid, T, css }) {
     await patchShareField(shareGuid, page.id, patch);
   };
 
-  if (page.type === "free") {
-    return (
-      <div>
-        <h2 style={{ margin: "0 0 16px", color: T.accentBright, fontSize: 18 }}>{page.name}</h2>
-        <div style={{ lineHeight: 1.7, color: T.text }} dangerouslySetInnerHTML={{ __html: renderMarkdown(page.content || "", T) }} />
-      </div>
-    );
-  }
-
   return (
     <div>
       <h2 style={{ margin: "0 0 16px", color: T.accentBright, fontSize: 18 }}>{page.name}</h2>
@@ -263,8 +254,8 @@ function ShareSidebar({ pages, selectedId, onSelect, T, css }) {
               opacity: isPlaceholder ? 0.5 : 1,
             }}
           >
-            <span style={{ fontSize: 9, color: isPlaceholder ? T.textDim : (page.type === "mission" ? T.accent : T.textDim) }}>
-              {isPlaceholder ? "▢" : page.type === "mission" ? "⬟" : "◻"}
+            <span style={{ fontSize: 9, color: isPlaceholder ? T.textDim : T.accent }}>
+              {isPlaceholder ? "▢" : "⬟"}
             </span>
             <span style={{ fontStyle: isPlaceholder ? "italic" : "normal" }}>{page.name}</span>
             {isPlaceholder && <span style={{ fontSize: 9, color: T.textDim }}>[hidden]</span>}
@@ -302,7 +293,7 @@ function ShareInner({ data, shareGuid }) {
   }, [data.shareCustomCss]);
 
   const pages = data.pages || [];
-  const schema = data.sectionSchema || [];
+  const pageTypes = data.pageTypes || [];
   const selectedPage = pages.find(p => p.id === selectedId && p.type !== "placeholder");
   const hasVisiblePages = pages.some(p => p.type !== "placeholder");
 
@@ -325,7 +316,7 @@ function ShareInner({ data, shareGuid }) {
               </div>
             )
             : selectedPage
-              ? <SharePageView page={selectedPage} schema={schema} shareGuid={shareGuid} T={T} css={css} />
+              ? <SharePageView page={selectedPage} schema={(pageTypes.find(t => t.id === selectedPage.type) || pageTypes[0])?.sectionSchema || []} shareGuid={shareGuid} T={T} css={css} />
               : <div style={{ color: T.textDim, textAlign: "center", padding: 48 }}>Select a page from the sidebar.</div>
           }
         </div>

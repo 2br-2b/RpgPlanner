@@ -236,12 +236,15 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
         ...c,
         shareEnabled: true,
         shareGuid,
-        sectionSchema: c.sectionSchema.map(s => ({
-          ...s,
-          playerVisible: true,
-          playerEditable: s.playerEditable || false,
-          playerVisibleSubheaders: s.type === "text" ? (s.subheaders || []) : (s.playerVisibleSubheaders || []),
-          playerVisibleColumns: s.type === "table" ? (s.columns || []).map(col => col.id) : (s.playerVisibleColumns || []),
+        pageTypes: (c.pageTypes || []).map(pt => ({
+          ...pt,
+          sectionSchema: (pt.sectionSchema || []).map(s => ({
+            ...s,
+            playerVisible: true,
+            playerEditable: s.playerEditable || false,
+            playerVisibleSubheaders: s.type === "text" ? (s.subheaders || []) : (s.playerVisibleSubheaders || []),
+            playerVisibleColumns: s.type === "table" ? (s.columns || []).map(col => col.id) : (s.playerVisibleColumns || []),
+          })),
         })),
         pages: c.pages.map(p => ({ ...p, playerVisible: true, sectionVisibilityOverrides: {} })),
       }));
@@ -263,11 +266,9 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
     setTimeout(() => window.location.reload(), 1200);
   };
 
-  const missions = campaign.pages.filter((page) => page.type === "mission");
-  const freePages = campaign.pages.filter((page) => page.type === "free");
   const allTags = [...new Set(campaign.pages.flatMap((page) => page.tags || []))];
-  const totalCost = missions.reduce((sum, page) => sum + pageCostTotal(page), 0);
-  const totalAward = missions.reduce((sum, page) => sum + pageAwardTotal(page), 0);
+  const totalCost = campaign.pages.reduce((sum, page) => sum + pageCostTotal(page), 0);
+  const totalAward = campaign.pages.reduce((sum, page) => sum + pageAwardTotal(page), 0);
 
   return (
     <div style={{ maxWidth: 680 }}>
@@ -338,8 +339,7 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
           {[
             ["Total pages", campaign.pages.length],
-            ["Missions", missions.length],
-            ["Free pages", freePages.length],
+            ["Page types", (campaign.pageTypes || []).length],
             ["Unique tags", allTags.length],
             ["Flowchart nodes", campaign.flowchart.nodes.length],
             ["Flowchart edges", campaign.flowchart.edges.length],
@@ -375,7 +375,7 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
             {confirmShareAll && (
               <ConfirmModal
                 title="Share all content?"
-                message={`This will mark all ${campaign.pages.length} page${campaign.pages.length !== 1 ? "s" : ""} and all ${campaign.sectionSchema.length} section${campaign.sectionSchema.length !== 1 ? "s" : ""} (including every subheader and column) as visible to players. You can still hide individual items afterwards.`}
+                message={`This will mark all ${campaign.pages.length} page${campaign.pages.length !== 1 ? "s" : ""} as visible to players and expose all sections and columns. You can still hide individual items afterwards.`}
                 confirmLabel="Yes, share everything"
                 onConfirm={handleShareAll}
                 onCancel={() => setConfirmShareAll(false)}

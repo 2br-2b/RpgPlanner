@@ -24,7 +24,7 @@ import {
 
 const NAV_ITEMS = [
   { key: "outline", icon: "=", label: "Outline" },
-  { key: "schema", icon: "*", label: "Schema" },
+  { key: "schema", icon: "*", label: "Types" },
   { key: "flowchart", icon: "o", label: "Flow" },
   { key: "simulate", icon: ">", label: "Simulate" },
   { key: "settings", icon: "#", label: "Settings" },
@@ -61,7 +61,7 @@ function SearchModal({ campaign, onNavigate, onClose, T, css }) {
               onMouseEnter={e => e.currentTarget.style.background = T.surface2}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
               onClick={() => { onNavigate(page.id); onClose(); }}>
-              <span style={{ fontSize: 10, color: page.type === "mission" ? T.accent : T.textDim, flexShrink: 0 }}>{page.type === "mission" ? "⬟" : "◻"}</span>
+              <span style={{ fontSize: 10, color: T.accent, flexShrink: 0 }}>⬟</span>
               <span style={{ flex: 1, fontSize: 13 }}>{page.name}</span>
               {(page.tags || []).length > 0 && (
                 <span style={{ fontSize: 10, color: T.textMuted }}>{page.tags.join(", ")}</span>
@@ -159,7 +159,7 @@ function SplitView({ campaign, leftPageId, rightPageId, onUpdate, onNavigate, sp
       {/* Left pane */}
       <div style={{ ...paneStyle, width: `${splitRatio * 100}%`, flexShrink: 0 }}>
         {leftPage
-          ? <PageEditor key={leftPage.id} page={leftPage} schema={campaign.sectionSchema} allPages={campaign.pages}
+          ? <PageEditor key={leftPage.id} page={leftPage} pageTypes={campaign.pageTypes || []} allPages={campaign.pages}
               onUpdate={(updater) => onUpdate((data) => ({ ...data, pages: data.pages.map(p => p.id === leftPageId ? updater(p) : p) }))}
               onBack={() => onNavigate("outline")} shareEnabled={campaign.shareEnabled || false} />
           : <div style={{ color: T.textDim, textAlign: "center", marginTop: 80, fontSize: 13 }}>
@@ -181,7 +181,7 @@ function SplitView({ campaign, leftPageId, rightPageId, onUpdate, onNavigate, sp
       {/* Right pane */}
       <div style={{ ...paneStyle, flex: 1, minWidth: 0 }}>
         {rightPage
-          ? <PageEditor key={rightPage.id} page={rightPage} schema={campaign.sectionSchema} allPages={campaign.pages}
+          ? <PageEditor key={rightPage.id} page={rightPage} pageTypes={campaign.pageTypes || []} allPages={campaign.pages}
               onUpdate={(updater) => onUpdate((data) => ({ ...data, pages: data.pages.map(p => p.id === rightPageId ? updater(p) : p) }))}
               onBack={() => {}} shareEnabled={campaign.shareEnabled || false} />
           : <div style={{ color: T.textDim, textAlign: "center", marginTop: 80 }}>
@@ -469,7 +469,7 @@ export function App() {
           ) : (
             <div className="sk-main" style={{ ...css.main, padding: mainPad, paddingBottom: isMobile ? "68px" : mainPad, overflowY: "auto" }}>
               {view === "outline" && <OutlineView campaign={campaign} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} />}
-              {view === "editor" && selectedPage && <PageEditor key={selectedPage.id} page={selectedPage} schema={campaign.sectionSchema} allPages={campaign.pages} onUpdate={(updater) => update((data) => ({ ...data, pages: data.pages.map((item) => item.id === selectedPageId ? updater(item) : item) }))} onBack={() => navigateTo("outline")} shareEnabled={campaign.shareEnabled || false} />}
+              {view === "editor" && selectedPage && <PageEditor key={selectedPage.id} page={selectedPage} pageTypes={campaign.pageTypes || []} allPages={campaign.pages} onUpdate={(updater) => update((data) => ({ ...data, pages: data.pages.map((item) => item.id === selectedPageId ? updater(item) : item) }))} onBack={() => navigateTo("outline")} shareEnabled={campaign.shareEnabled || false} />}
               {view === "editor" && !selectedPage && <div style={{ color: T.textDim, textAlign: "center", marginTop: 80 }}>{isMobile ? "Open the menu to select a page" : "Select a page to edit"}</div>}
               {view === "schema" && <SchemaEditor campaign={campaign} onUpdate={update} />}
               {view === "flowchart" && <FlowchartView campaign={campaign} onUpdate={update} onNavigate={navigateTo} />}

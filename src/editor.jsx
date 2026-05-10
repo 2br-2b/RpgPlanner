@@ -11,6 +11,7 @@ export function OutlineView({ campaign, onSelect, onUpdate }) {
   const [filterTag, setFilterTag] = useState("");
   const allTags = [...new Set(campaign.pages.flatMap(p => p.tags || []))];
   const filtered = campaign.pages.filter(p => !filterTag || (p.tags || []).includes(filterTag));
+  const pageTypes = campaign.pageTypes || [];
 
   return (
     <div>
@@ -33,23 +34,27 @@ export function OutlineView({ campaign, onSelect, onUpdate }) {
             <div>
               <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>◈</div>
               <div style={{ fontSize: 15, marginBottom: 8 }}>No pages yet</div>
-              <div style={{ fontSize: 12, color: T.textMuted }}>Use the sidebar to add a mission or free page.</div>
+              <div style={{ fontSize: 12, color: T.textMuted }}>Use the sidebar to add a page.</div>
             </div>
           ) : <span>No pages match this tag filter.</span>}
         </div>
       )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
-        {filtered.map(page => <OutlineCard key={page.id} page={page} schema={campaign.sectionSchema} showCosts={campaign.showCostsInOutline !== false} onSelect={onSelect} onUpdate={onUpdate} onFilterByTag={tag => setFilterTag(filterTag === tag ? "" : tag)} />)}
+        {filtered.map(page => {
+          const pt = pageTypes.find(t => t.id === page.type) || pageTypes[0];
+          return <OutlineCard key={page.id} page={page} pageType={pt} showCosts={campaign.showCostsInOutline !== false} onSelect={onSelect} onUpdate={onUpdate} onFilterByTag={tag => setFilterTag(filterTag === tag ? "" : tag)} />;
+        })}
       </div>
     </div>
   );
 }
 
-function OutlineCard({ page, schema, showCosts, onSelect, onUpdate, onFilterByTag }) {
+function OutlineCard({ page, pageType, showCosts, onSelect, onUpdate, onFilterByTag }) {
   const { T, css } = useThemeCSS();
   const [editTag, setEditTag] = useState("");
   const tc = pageCostTotal(page);
   const ta = pageAwardTotal(page);
+  const schema = pageType?.sectionSchema || [];
 
   const addTag = () => {
     const t = editTag.trim().toLowerCase();
@@ -63,7 +68,7 @@ function OutlineCard({ page, schema, showCosts, onSelect, onUpdate, onFilterByTa
       onMouseEnter={e => e.currentTarget.style.borderColor = T.accent}
       onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }} onClick={() => onSelect(page.id)}>
-        <span style={{ fontSize: 10, color: page.type === "mission" ? T.accent : T.textDim }}>{page.type === "mission" ? "⬟ MISSION" : "◻ PAGE"}</span>
+        <span style={{ fontSize: 10, color: T.accent }}>⬟ {(pageType?.name || "").toUpperCase()}</span>
         <span style={{ flex: 1, fontWeight: "bold", fontSize: 14, color: T.accentBright }}>{page.name}</span>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
@@ -79,12 +84,12 @@ function OutlineCard({ page, schema, showCosts, onSelect, onUpdate, onFilterByTa
           onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") addTag(); }}
           onClick={e => e.stopPropagation()} />
       </div>
-      {page.type === "mission" && (
+      {schema.length > 0 && (
         <div style={{ fontSize: 11 }} onClick={() => onSelect(page.id)}>
           {schema.map(sec => (
             <div key={sec.id} style={{ marginBottom: 6 }}>
               <div style={{ color: T.textDim, marginBottom: 3, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase" }}>▸ {sec.name}</div>
-              {sec.subheaders.length > 0 && (
+              {(sec.subheaders || []).length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, paddingLeft: 8 }}>
                   {sec.subheaders.map(sh => (
                     <span key={sh} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, color: T.textDim, fontSize: 9, padding: "1px 6px", letterSpacing: "0.04em" }}>{sh}</span>
@@ -133,15 +138,17 @@ function FieldVisibilityWarning({ onConfirm, onCancel }) {
   );
 }
 
-export function PageEditor({ page, schema, allPages = [], onUpdate, onBack, shareEnabled }) {
+export function PageEditor({ page, pageTypes = [], allPages = [], onUpdate, onBack, shareEnabled }) {
   const { T, css } = useThemeCSS();
   const isMobile = useIsMobile();
   const [activeSection, setActiveSection] = useState(null);
   const [editTag, setEditTag] = useState("");
   const [showPageWarn, setShowPageWarn] = useState(false);
   const [showParentWarn, setShowParentWarn] = useState(false);
-  const freeImgRef = useRef(null);
-  const freeEditorRef = useRef(null);
+
+  // Look up this page's type definition; fall back to first type
+  const pageType = pageTypes.find(t => t.id === page.type) || pageTypes[0] || { sectionSchema: [] };
+  const schema = pageType.sectionSchema || [];
 
   const set = (k, v) => onUpdate(p => ({ ...p, [k]: v }));
   const setSection = (sid, subKey, v) => {
@@ -179,19 +186,13 @@ export function PageEditor({ page, schema, allPages = [], onUpdate, onBack, shar
     setEditTag("");
   };
 
-  const handleFreeImg = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const r = new FileReader();
-    r.onload = (ev) => {
-      freeEditorRef.current?.insertImage(ev.target.result, file.name);
-    };
-    r.readAsDataURL(file); e.target.value = "";
-  };
-
   const parentPage = page.parentId ? allPages.find(p => p.id === page.parentId) : null;
 
+  // Single-section with 0-1 subheaders → expand full-width, hide section nav
+  const isSingleSimple = schema.length === 1 && (schema[0].subheaders || []).length <= 1;
+
   return (
-    <div style={{ maxWidth: 860 }}>
+    <div style={{ maxWidth: isSingleSimple ? "100%" : 860 }}>
       {showParentWarn && (
         <ConfirmModal
           title="⚠ Parent page is hidden"
@@ -235,50 +236,42 @@ export function PageEditor({ page, schema, allPages = [], onUpdate, onBack, shar
           onChange={e => setEditTag(e.target.value)} onKeyDown={e => e.key === "Enter" && addTag()} />
       </div>
 
-      {page.type === "free" && (
-        <div>
-          <input ref={freeImgRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFreeImg} />
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <button style={css.btn()} onClick={() => freeImgRef.current?.click()}>🖼 Image</button>
-          </div>
-          <MilkdownEditor ref={freeEditorRef} value={page.content || ""} onChange={v => set("content", v)} minHeight={400} />
+      {/* Section tabs — hidden for single-simple layouts */}
+      {!isSingleSimple && (
+        <div style={{ display: "flex", gap: 4, marginBottom: 16, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
+          <button style={{ ...css.btn(activeSection === null ? "primary" : "default"), fontSize: 11, flexShrink: 0 }} onClick={() => setActiveSection(null)}>All</button>
+          {schema.map(sec => (
+            <button key={sec.id} style={{ ...css.btn(activeSection === sec.id ? "primary" : "default"), fontSize: 11, flexShrink: 0 }}
+              onClick={() => setActiveSection(activeSection === sec.id ? null : sec.id)}>{sec.name}</button>
+          ))}
+          <button style={{ ...css.btn(activeSection === "__costs" ? "primary" : "default"), fontSize: 11, flexShrink: 0 }}
+            onClick={() => setActiveSection(activeSection === "__costs" ? null : "__costs")}>Costs / Awards</button>
         </div>
       )}
 
-      {page.type === "mission" && (
-        <div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 16, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
-            <button style={{ ...css.btn(activeSection === null ? "primary" : "default"), fontSize: 11, flexShrink: 0 }} onClick={() => setActiveSection(null)}>All</button>
-            {schema.map(sec => (
-              <button key={sec.id} style={{ ...css.btn(activeSection === sec.id ? "primary" : "default"), fontSize: 11, flexShrink: 0 }}
-                onClick={() => setActiveSection(activeSection === sec.id ? null : sec.id)}>{sec.name}</button>
-            ))}
-            <button style={{ ...css.btn(activeSection === "__costs" ? "primary" : "default"), fontSize: 11, flexShrink: 0 }}
-              onClick={() => setActiveSection(activeSection === "__costs" ? null : "__costs")}>Costs / Awards</button>
-          </div>
-          {activeSection === null && schema.map(sec => (
-            <MissionSection key={sec.id} sec={sec} sectionData={page.sections[sec.id]}
-              onChange={(subKey, v) => setSection(sec.id, subKey, v)}
-              shareEnabled={shareEnabled} page={page} onOverride={setSectionOverride} />
-          ))}
-          {activeSection !== null && activeSection !== "__costs" && (() => {
-            const sec = schema.find(s => s.id === activeSection);
-            return sec ? <MissionSection sec={sec} sectionData={page.sections[sec.id]}
-              onChange={(subKey, v) => setSection(sec.id, subKey, v)} expanded
-              shareEnabled={shareEnabled} page={page} onOverride={setSectionOverride} /> : null;
-          })()}
-          {activeSection === "__costs" && (
-            <CostsAwards
-              costs={page.costs || []} awards={page.awards || []}
-              onAddCost={() => onUpdate(p => ({ ...p, costs: [...(p.costs || []), { id: uid(), label: "", amount: 0 }] }))}
-              onAddAward={() => onUpdate(p => ({ ...p, awards: [...(p.awards || []), { id: uid(), label: "", amount: 0 }] }))}
-              onUpdateCost={(id, f, v) => onUpdate(p => ({ ...p, costs: (p.costs || []).map(c => c.id === id ? { ...c, [f]: v } : c) }))}
-              onUpdateAward={(id, f, v) => onUpdate(p => ({ ...p, awards: (p.awards || []).map(a => a.id === id ? { ...a, [f]: v } : a) }))}
-              onRemoveCost={id => onUpdate(p => ({ ...p, costs: (p.costs || []).filter(c => c.id !== id) }))}
-              onRemoveAward={id => onUpdate(p => ({ ...p, awards: (p.awards || []).filter(a => a.id !== id) }))}
-            />
-          )}
-        </div>
+      {/* Sections */}
+      {(activeSection === null || isSingleSimple) && schema.map(sec => (
+        <MissionSection key={sec.id} sec={sec} sectionData={(page.sections || {})[sec.id]}
+          onChange={(subKey, v) => setSection(sec.id, subKey, v)}
+          expanded={isSingleSimple}
+          shareEnabled={shareEnabled} page={page} onOverride={setSectionOverride} />
+      ))}
+      {!isSingleSimple && activeSection !== null && activeSection !== "__costs" && (() => {
+        const sec = schema.find(s => s.id === activeSection);
+        return sec ? <MissionSection sec={sec} sectionData={(page.sections || {})[sec.id]}
+          onChange={(subKey, v) => setSection(sec.id, subKey, v)} expanded
+          shareEnabled={shareEnabled} page={page} onOverride={setSectionOverride} /> : null;
+      })()}
+      {!isSingleSimple && activeSection === "__costs" && (
+        <CostsAwards
+          costs={page.costs || []} awards={page.awards || []}
+          onAddCost={() => onUpdate(p => ({ ...p, costs: [...(p.costs || []), { id: uid(), label: "", amount: 0 }] }))}
+          onAddAward={() => onUpdate(p => ({ ...p, awards: [...(p.awards || []), { id: uid(), label: "", amount: 0 }] }))}
+          onUpdateCost={(id, f, v) => onUpdate(p => ({ ...p, costs: (p.costs || []).map(c => c.id === id ? { ...c, [f]: v } : c) }))}
+          onUpdateAward={(id, f, v) => onUpdate(p => ({ ...p, awards: (p.awards || []).map(a => a.id === id ? { ...a, [f]: v } : a) }))}
+          onRemoveCost={id => onUpdate(p => ({ ...p, costs: (p.costs || []).filter(c => c.id !== id) }))}
+          onRemoveAward={id => onUpdate(p => ({ ...p, awards: (p.awards || []).filter(a => a.id !== id) }))}
+        />
       )}
     </div>
   );

@@ -40,7 +40,6 @@ function exportJSON(campaign) {
 export function validateImport(data) {
   if (typeof data !== "object" || !data) return "Not an object";
   if (typeof data.name !== "string") return "Missing name";
-  if (!Array.isArray(data.sectionSchema)) return "Missing sectionSchema";
   if (!Array.isArray(data.pages)) return "Missing pages";
   const v = data.schemaVersion || 1;
   if (v > SCHEMA_VERSION) return `Saved with a newer version (v${v}). Update the app to import.`;
@@ -50,68 +49,64 @@ export function validateImport(data) {
 // ── Markdown export ───────────────────────────────────────────────────────────
 
 function buildMarkdownLines(campaign, hideEmpty, hidePlayerHidden) {
+  const pageTypes = campaign.pageTypes || [];
   const lines = [`# ${campaign.name}`, `_Campaign export — ${new Date().toLocaleDateString()}_\n`];
   for (const page of campaign.pages) {
+    const pt = pageTypes.find(t => t.id === page.type) || pageTypes[0];
+    const schema = pt?.sectionSchema || [];
+    const typeName = pt?.name || page.type;
     lines.push(`---\n## ${page.name}`);
-    lines.push(`**Type:** ${page.type}${page.tags?.length ? `  |  **Tags:** ${page.tags.join(", ")}` : ""}\n`);
-    if (page.type === "mission") {
-      for (const sec of campaign.sectionSchema) {
-        const raw = page.sections?.[sec.id];
-        if (!isSectionVisible(sec, page, hidePlayerHidden)) continue;
-        if (hideEmpty && isSectionEmpty(sec, raw)) continue;
-        lines.push(`### ${sec.name}`);
-        if (sec.type === "table") {
-          const columns = (sec.columns || []).filter(c => c.type !== "formula");
-          if (columns.length === 0) {
-            lines.push("_No columns defined_");
-          } else if (typeof raw === "object" && raw !== null && Array.isArray(raw.rows) && raw.rows.length > 0) {
-            lines.push("| " + columns.map(c => c.label).join(" | ") + " |");
-            lines.push("| " + columns.map(() => "---").join(" | ") + " |");
-            for (const row of raw.rows) {
-              lines.push("| " + columns.map(c => String(row[c.id] ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ")).join(" | ") + " |");
-            }
-          } else {
-            lines.push("_No content_");
+    lines.push(`**Type:** ${typeName}${page.tags?.length ? `  |  **Tags:** ${page.tags.join(", ")}` : ""}\n`);
+    for (const sec of schema) {
+      const raw = page.sections?.[sec.id];
+      if (!isSectionVisible(sec, page, hidePlayerHidden)) continue;
+      if (hideEmpty && isSectionEmpty(sec, raw)) continue;
+      lines.push(`### ${sec.name}`);
+      if (sec.type === "table") {
+        const columns = (sec.columns || []).filter(c => c.type !== "formula");
+        if (columns.length === 0) {
+          lines.push("_No columns defined_");
+        } else if (typeof raw === "object" && raw !== null && Array.isArray(raw.rows) && raw.rows.length > 0) {
+          lines.push("| " + columns.map(c => c.label).join(" | ") + " |");
+          lines.push("| " + columns.map(() => "---").join(" | ") + " |");
+          for (const row of raw.rows) {
+            lines.push("| " + columns.map(c => String(row[c.id] ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ")).join(" | ") + " |");
           }
-        } else if (sec.type === "waypoints") {
-          if (typeof raw === "object" && raw !== null) {
-            const count = Math.min(26, Math.max(1, Number(raw.count) || 1));
-            const wps = raw.waypoints || {};
-            const entries = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".slice(0, count).split("").filter(l => wps[l]).map(l => `- **${l}**: ${wps[l].replace(/\n/g, " ")}`);
-            entries.length > 0 ? lines.push(...entries) : lines.push("_No content_");
+        } else {
+          lines.push("_No content_");
+        }
+      } else if (sec.type === "waypoints") {
+        if (typeof raw === "object" && raw !== null) {
+          const count = Math.min(26, Math.max(1, Number(raw.count) || 1));
+          const wps = raw.waypoints || {};
+          const entries = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".slice(0, count).split("").filter(l => wps[l]).map(l => `- **${l}**: ${wps[l].replace(/\n/g, " ")}`);
+          entries.length > 0 ? lines.push(...entries) : lines.push("_No content_");
+        } else {
+          lines.push("_No content_");
+        }
+      } else {
+        if (typeof raw === "object" && raw !== null) {
+          const hasAny = (sec.subheaders || []).some(sh => raw[sh]);
+          if (hasAny) {
+            (sec.subheaders || []).forEach(sh => {
+              if (raw[sh]) lines.push(`#### ${sh}\n${raw[sh].replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]")}`);
+            });
           } else {
             lines.push("_No content_");
           }
         } else {
-          if (typeof raw === "object" && raw !== null) {
-            const hasAny = sec.subheaders.some(sh => raw[sh]);
-            if (hasAny) {
-              sec.subheaders.forEach(sh => {
-                if (raw[sh]) lines.push(`#### ${sh}\n${raw[sh].replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]")}`);
-              });
-            } else {
-              lines.push("_No content_");
-            }
-          } else {
-            lines.push(raw ? raw.replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]") : "_No content_");
-          }
+          lines.push(raw ? raw.replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]") : "_No content_");
         }
-        lines.push("");
-      }
-      const costs = page.costs || [], awards = page.awards || [];
-      if (costs.length || awards.length) {
-        lines.push("### Costs & Awards");
-        costs.forEach(c => lines.push(`- Cost: ${c.label} — ${Number(c.amount).toLocaleString()} C-Bills`));
-        awards.forEach(a => lines.push(`- Award: ${a.label} — ${Number(a.amount).toLocaleString()} C-Bills`));
-        const net = pageAwardTotal(page) - pageCostTotal(page);
-        lines.push(`- **Net:** ${net.toLocaleString()} C-Bills\n`);
-      }
-    } else {
-      const content = page.content ? page.content.replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]") : "";
-      if (!hideEmpty || content.trim()) {
-        lines.push(content || "_No content_");
       }
       lines.push("");
+    }
+    const costs = page.costs || [], awards = page.awards || [];
+    if (costs.length || awards.length) {
+      lines.push("### Costs & Awards");
+      costs.forEach(c => lines.push(`- Cost: ${c.label} — ${Number(c.amount).toLocaleString()} C-Bills`));
+      awards.forEach(a => lines.push(`- Award: ${a.label} — ${Number(a.amount).toLocaleString()} C-Bills`));
+      const net = pageAwardTotal(page) - pageCostTotal(page);
+      lines.push(`- **Net:** ${net.toLocaleString()} C-Bills\n`);
     }
   }
   if (campaign.flowchart.edges.length) {
@@ -142,66 +137,64 @@ function escapeHtml(str) {
 
 function buildPrintHTML(campaign, hideEmpty, themeKey = "plain", hidePlayerHidden = false) {
   const printTheme = THEMES[themeKey] || THEMES.plain;
+  const pageTypes = campaign.pageTypes || [];
   const sections = [];
 
   for (const page of campaign.pages) {
+    const pt = pageTypes.find(t => t.id === page.type) || pageTypes[0];
+    const schema = pt?.sectionSchema || [];
     const parts = [];
     parts.push(`<h2>${escapeHtml(page.name)}</h2>`);
     if (page.tags?.length) parts.push(`<p style="color:#555;font-size:11px">Tags: ${page.tags.map(escapeHtml).join(", ")}</p>`);
 
-    if (page.type === "mission") {
-      for (const sec of campaign.sectionSchema) {
-        const raw = page.sections?.[sec.id];
-        if (!isSectionVisible(sec, page, hidePlayerHidden)) continue;
-        if (hideEmpty && isSectionEmpty(sec, raw)) continue;
-        parts.push(`<h3>${escapeHtml(sec.name)}</h3>`);
-        if (sec.type === "table") {
-          const columns = (sec.columns || []).filter(c => c.type !== "formula");
-          if (columns.length > 0 && typeof raw === "object" && raw?.rows?.length > 0) {
-            parts.push("<table><thead><tr>" + columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join("") + "</tr></thead><tbody>");
-            for (const row of raw.rows) {
-              parts.push("<tr>" + columns.map(c => `<td>${escapeHtml(row[c.id] ?? "")}</td>`).join("") + "</tr>");
-            }
-            parts.push("</tbody></table>");
+    for (const sec of schema) {
+      const raw = page.sections?.[sec.id];
+      if (!isSectionVisible(sec, page, hidePlayerHidden)) continue;
+      if (hideEmpty && isSectionEmpty(sec, raw)) continue;
+      parts.push(`<h3>${escapeHtml(sec.name)}</h3>`);
+      if (sec.type === "table") {
+        const columns = (sec.columns || []).filter(c => c.type !== "formula");
+        if (columns.length > 0 && typeof raw === "object" && raw?.rows?.length > 0) {
+          parts.push("<table><thead><tr>" + columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join("") + "</tr></thead><tbody>");
+          for (const row of raw.rows) {
+            parts.push("<tr>" + columns.map(c => `<td>${escapeHtml(row[c.id] ?? "")}</td>`).join("") + "</tr>");
+          }
+          parts.push("</tbody></table>");
+        } else {
+          parts.push("<p><em>No content</em></p>");
+        }
+      } else if (sec.type === "waypoints") {
+        if (typeof raw === "object" && raw !== null) {
+          const count = Math.min(26, Math.max(1, Number(raw.count) || 1));
+          const wps = raw.waypoints || {};
+          const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".slice(0, count).split("").filter(l => wps[l]);
+          if (letters.length) {
+            parts.push("<ul>" + letters.map(l => `<li><strong>${l}:</strong> ${escapeHtml(wps[l])}</li>`).join("") + "</ul>");
           } else {
             parts.push("<p><em>No content</em></p>");
           }
-        } else if (sec.type === "waypoints") {
-          if (typeof raw === "object" && raw !== null) {
-            const count = Math.min(26, Math.max(1, Number(raw.count) || 1));
-            const wps = raw.waypoints || {};
-            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".slice(0, count).split("").filter(l => wps[l]);
-            if (letters.length) {
-              parts.push("<ul>" + letters.map(l => `<li><strong>${l}:</strong> ${escapeHtml(wps[l])}</li>`).join("") + "</ul>");
-            } else {
-              parts.push("<p><em>No content</em></p>");
-            }
-          }
+        }
+      } else {
+        if (typeof raw === "object" && raw !== null && (sec.subheaders || []).length > 0) {
+          (sec.subheaders || []).forEach(sh => {
+            const v = raw[sh];
+            if (!v && hideEmpty) return;
+            parts.push(`<h4>${escapeHtml(sh)}</h4>`);
+            parts.push(renderMarkdown(v || "", printTheme));
+          });
         } else {
-          if (typeof raw === "object" && raw !== null && sec.subheaders?.length > 0) {
-            sec.subheaders.forEach(sh => {
-              const v = raw[sh];
-              if (!v && hideEmpty) return;
-              parts.push(`<h4>${escapeHtml(sh)}</h4>`);
-              parts.push(renderMarkdown(v || "", printTheme));
-            });
-          } else {
-            const v = typeof raw === "string" ? raw : "";
-            if (!hideEmpty || v.trim()) parts.push(renderMarkdown(v, printTheme));
-          }
+          const v = typeof raw === "string" ? raw : "";
+          if (!hideEmpty || v.trim()) parts.push(renderMarkdown(v, printTheme));
         }
       }
-      const costs = page.costs || [], awards = page.awards || [];
-      if (costs.length || awards.length) {
-        parts.push("<h3>Costs &amp; Awards</h3><ul>");
-        costs.forEach(c => parts.push(`<li>Cost: ${escapeHtml(c.label)} — ${Number(c.amount).toLocaleString()} C-Bills</li>`));
-        awards.forEach(a => parts.push(`<li>Award: ${escapeHtml(a.label)} — ${Number(a.amount).toLocaleString()} C-Bills</li>`));
-        const net = pageAwardTotal(page) - pageCostTotal(page);
-        parts.push(`<li><strong>Net: ${net.toLocaleString()} C-Bills</strong></li></ul>`);
-      }
-    } else {
-      const content = (page.content || "").replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]");
-      if (!hideEmpty || content.trim()) parts.push(renderMarkdown(content, printTheme));
+    }
+    const costs = page.costs || [], awards = page.awards || [];
+    if (costs.length || awards.length) {
+      parts.push("<h3>Costs &amp; Awards</h3><ul>");
+      costs.forEach(c => parts.push(`<li>Cost: ${escapeHtml(c.label)} — ${Number(c.amount).toLocaleString()} C-Bills</li>`));
+      awards.forEach(a => parts.push(`<li>Award: ${escapeHtml(a.label)} — ${Number(a.amount).toLocaleString()} C-Bills</li>`));
+      const net = pageAwardTotal(page) - pageCostTotal(page);
+      parts.push(`<li><strong>Net: ${net.toLocaleString()} C-Bills</strong></li></ul>`);
     }
 
     sections.push(`<section style="page-break-after:always">${parts.join("\n")}</section>`);
@@ -325,70 +318,68 @@ async function exportWord(campaign, hideEmpty, hidePlayerHidden = false) {
     new Paragraph(""),
   ];
 
+  const docxPageTypes = campaign.pageTypes || [];
   for (const page of campaign.pages) {
+    const pt = docxPageTypes.find(t => t.id === page.type) || docxPageTypes[0];
+    const schema = pt?.sectionSchema || [];
     children.push(new Paragraph({ text: page.name, heading: HeadingLevel.HEADING_1 }));
     if (page.tags?.length) children.push(new Paragraph({ children: [new TextRun({ text: `Tags: ${page.tags.join(", ")}`, italics: true, color: "555555", size: 20 })] }));
 
-    if (page.type === "mission") {
-      for (const sec of campaign.sectionSchema) {
-        const raw = page.sections?.[sec.id];
-        if (!isSectionVisible(sec, page, hidePlayerHidden)) continue;
-        if (hideEmpty && isSectionEmpty(sec, raw)) continue;
-        children.push(new Paragraph({ text: sec.name, heading: HeadingLevel.HEADING_2 }));
+    for (const sec of schema) {
+      const raw = page.sections?.[sec.id];
+      if (!isSectionVisible(sec, page, hidePlayerHidden)) continue;
+      if (hideEmpty && isSectionEmpty(sec, raw)) continue;
+      children.push(new Paragraph({ text: sec.name, heading: HeadingLevel.HEADING_2 }));
 
-        if (sec.type === "table") {
-          const columns = (sec.columns || []).filter(c => c.type !== "formula");
-          if (columns.length > 0 && typeof raw === "object" && raw?.rows?.length > 0) {
-            const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
-            const borders = { top: border, bottom: border, left: border, right: border };
-            const headerRow = new TableRow({
-              children: columns.map(c => new TableCell({
-                children: [new Paragraph({ children: [new TextRun({ text: c.label, bold: true })] })],
-                borders, shading: { fill: "F0F0F0" },
-              })),
-            });
-            const dataRows = raw.rows.map(row => new TableRow({
-              children: columns.map(c => new TableCell({
-                children: [new Paragraph(String(row[c.id] ?? ""))],
-                borders,
-              })),
-            }));
-            children.push(new Table({ rows: [headerRow, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } }));
-          } else {
-            children.push(new Paragraph({ children: [new TextRun({ text: "No content", italics: true })] }));
-          }
-        } else if (sec.type === "waypoints") {
-          if (typeof raw === "object" && raw !== null) {
-            const count = Math.min(26, Math.max(1, Number(raw.count) || 1));
-            const wps = raw.waypoints || {};
-            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".slice(0, count).split("").filter(l => wps[l]);
-            letters.forEach(l => children.push(new Paragraph({ children: [new TextRun({ text: `${l}: `, bold: true }), new TextRun(wps[l])], bullet: { level: 0 } })));
-          }
+      if (sec.type === "table") {
+        const columns = (sec.columns || []).filter(c => c.type !== "formula");
+        if (columns.length > 0 && typeof raw === "object" && raw?.rows?.length > 0) {
+          const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
+          const borders = { top: border, bottom: border, left: border, right: border };
+          const headerRow = new TableRow({
+            children: columns.map(c => new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: c.label, bold: true })] })],
+              borders, shading: { fill: "F0F0F0" },
+            })),
+          });
+          const dataRows = raw.rows.map(row => new TableRow({
+            children: columns.map(c => new TableCell({
+              children: [new Paragraph(String(row[c.id] ?? ""))],
+              borders,
+            })),
+          }));
+          children.push(new Table({ rows: [headerRow, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } }));
         } else {
-          if (typeof raw === "object" && raw !== null && sec.subheaders?.length > 0) {
-            sec.subheaders.forEach(sh => {
-              const v = raw[sh];
-              if (!v && hideEmpty) return;
-              children.push(new Paragraph({ text: sh, heading: HeadingLevel.HEADING_3 }));
-              children.push(...textToDocxParagraphs(v || ""));
-            });
-          } else {
-            const v = typeof raw === "string" ? raw : "";
-            if (!hideEmpty || v.trim()) children.push(...textToDocxParagraphs(v));
-          }
+          children.push(new Paragraph({ children: [new TextRun({ text: "No content", italics: true })] }));
+        }
+      } else if (sec.type === "waypoints") {
+        if (typeof raw === "object" && raw !== null) {
+          const count = Math.min(26, Math.max(1, Number(raw.count) || 1));
+          const wps = raw.waypoints || {};
+          const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".slice(0, count).split("").filter(l => wps[l]);
+          letters.forEach(l => children.push(new Paragraph({ children: [new TextRun({ text: `${l}: `, bold: true }), new TextRun(wps[l])], bullet: { level: 0 } })));
+        }
+      } else {
+        if (typeof raw === "object" && raw !== null && (sec.subheaders || []).length > 0) {
+          (sec.subheaders || []).forEach(sh => {
+            const v = raw[sh];
+            if (!v && hideEmpty) return;
+            children.push(new Paragraph({ text: sh, heading: HeadingLevel.HEADING_3 }));
+            children.push(...textToDocxParagraphs(v || ""));
+          });
+        } else {
+          const v = typeof raw === "string" ? raw : "";
+          if (!hideEmpty || v.trim()) children.push(...textToDocxParagraphs(v));
         }
       }
-      const costs = page.costs || [], awards = page.awards || [];
-      if (costs.length || awards.length) {
-        children.push(new Paragraph({ text: "Costs & Awards", heading: HeadingLevel.HEADING_2 }));
-        costs.forEach(c => children.push(new Paragraph({ children: [new TextRun(`Cost: ${c.label} — ${Number(c.amount).toLocaleString()} C-Bills`)], bullet: { level: 0 } })));
-        awards.forEach(a => children.push(new Paragraph({ children: [new TextRun(`Award: ${a.label} — ${Number(a.amount).toLocaleString()} C-Bills`)], bullet: { level: 0 } })));
-        const net = pageAwardTotal(page) - pageCostTotal(page);
-        children.push(new Paragraph({ children: [new TextRun({ text: `Net: ${net.toLocaleString()} C-Bills`, bold: true })], bullet: { level: 0 } }));
-      }
-    } else {
-      const content = (page.content || "").replace(/!\[[^\]]*\]\(data:[^)]+\)/g, "[image]");
-      if (!hideEmpty || content.trim()) children.push(...textToDocxParagraphs(content));
+    }
+    const costs = page.costs || [], awards = page.awards || [];
+    if (costs.length || awards.length) {
+      children.push(new Paragraph({ text: "Costs & Awards", heading: HeadingLevel.HEADING_2 }));
+      costs.forEach(c => children.push(new Paragraph({ children: [new TextRun(`Cost: ${c.label} — ${Number(c.amount).toLocaleString()} C-Bills`)], bullet: { level: 0 } })));
+      awards.forEach(a => children.push(new Paragraph({ children: [new TextRun(`Award: ${a.label} — ${Number(a.amount).toLocaleString()} C-Bills`)], bullet: { level: 0 } })));
+      const net = pageAwardTotal(page) - pageCostTotal(page);
+      children.push(new Paragraph({ children: [new TextRun({ text: `Net: ${net.toLocaleString()} C-Bills`, bold: true })], bullet: { level: 0 } }));
     }
     children.push(new Paragraph(""));
   }
@@ -592,7 +583,7 @@ export function ImportButton({ campaign, onImport }) {
           <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: T.radius, padding: 10, marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: T.textDim, marginBottom: 4 }}>Ready to import:</div>
             <div style={{ fontSize: 13, color: T.accentBright, fontWeight: "bold" }}>{preview.name}</div>
-            <div style={{ fontSize: 11, color: T.textDim }}>{preview.pages.length} pages · {preview.sectionSchema.length} sections</div>
+            <div style={{ fontSize: 11, color: T.textDim }}>{preview.pages.length} pages · {(preview.pageTypes || []).length} page types</div>
             <div style={{ fontSize: 10, color: T.danger, marginTop: 6 }}>⚠ This will replace your current campaign data.</div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>

@@ -15,17 +15,23 @@ function reorder(pages, siblings) {
 export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, splitActive, splitTarget, onSplitTargetChange, splitPageId }) {
   const { T, css } = useThemeCSS();
   const [name, setName] = useState("");
-  const [type, setType] = useState(campaign.defaultPageType || "mission");
+  const pageTypes = campaign.pageTypes || [];
+  const [type, setType] = useState(() => pageTypes[0]?.id || "");
   const [pendingDelete, setPendingDelete] = useState(null);
   const [nameError, setNameError] = useState(false);
   const [collapsed, setCollapsed] = useState(new Set());
-  useEffect(() => { setType(campaign.defaultPageType || "mission"); }, [campaign.defaultPageType]);
+  useEffect(() => {
+    setType(prev => {
+      const ids = (campaign.pageTypes || []).map(t => t.id);
+      return ids.includes(prev) ? prev : (ids[0] || "");
+    });
+  }, [campaign.pageTypes]);
 
   const add = () => {
     if (!name.trim()) { setNameError(true); return; }
     setNameError(false);
     const siblings = getSiblings(campaign.pages, null);
-    onUpdate(c => ({ ...c, pages: [...c.pages, { id: uid(), name: name.trim(), type, tags: [], content: "", sections: {}, costs: [], awards: [], parentId: null, order: siblings.length }] }));
+    onUpdate(c => ({ ...c, pages: [...c.pages, { id: uid(), name: name.trim(), type, tags: [], sections: {}, costs: [], awards: [], parentId: null, order: siblings.length }] }));
     setName("");
   };
 
@@ -110,7 +116,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
               onClick={e => { e.stopPropagation(); if (hasChildren) toggleCollapse(page.id); }}
               title={hasChildren ? (isCollapsed ? "Expand" : "Collapse") : undefined}
             >{hasChildren ? (isCollapsed ? "▶" : "▼") : "·"}</button>
-            <span style={{ fontSize: 10, color: page.type === "mission" ? T.accent : T.textDim, flexShrink: 0 }}>{page.type === "mission" ? "⬟" : "◻"}</span>
+            <span style={{ fontSize: 10, color: T.accent, flexShrink: 0 }}>⬟</span>
             <span style={{ flex: 1, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{page.name}</span>
             {isRightPane && <span style={{ fontSize: 9, color: T.accentBright, flexShrink: 0 }} title="Open in right pane">◨</span>}
             <div style={{ display: "flex", flexDirection: "column", gap: 1, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -172,8 +178,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
         {nameError && <div style={{ fontSize: 10, color: T.danger, marginBottom: 4 }}>Name is required</div>}
         <div style={{ display: "flex", gap: 4 }}>
           <select style={{ ...css.input, fontSize: 11, flex: 1 }} value={type} onChange={e => setType(e.target.value)}>
-            <option value="mission">Mission</option>
-            <option value="free">Free Page</option>
+            {pageTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
           </select>
           <button style={css.btn("primary")} onClick={add}>+</button>
         </div>
