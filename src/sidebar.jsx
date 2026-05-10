@@ -12,7 +12,7 @@ function reorder(pages, siblings) {
   return pages.map(p => ids.has(p.id) ? updated.find(u => u.id === p.id) : p);
 }
 
-export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width }) {
+export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, splitActive, splitTarget, onSplitTargetChange, splitPageId }) {
   const { T, css } = useThemeCSS();
   const [name, setName] = useState("");
   const [type, setType] = useState(campaign.defaultPageType || "mission");
@@ -94,6 +94,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width })
     const siblings = getSiblings(campaign.pages, parentId);
     return siblings.map((page, idx) => {
       const isSelected = selectedPageId === page.id;
+      const isRightPane = splitActive && splitPageId === page.id;
       const isDeleting = pendingDelete === page.id;
       const children = getSiblings(campaign.pages, page.id);
       const hasChildren = children.length > 0;
@@ -101,7 +102,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width })
       const isCollapsed = collapsed.has(page.id);
       return (
         <div key={page.id}>
-          <div style={{ paddingLeft: 4 + depth * 16, paddingRight: 4, paddingTop: 5, paddingBottom: 5, cursor: "pointer", background: isSelected ? T.surface2 : "transparent", borderLeft: `3px solid ${isSelected ? T.accent : "transparent"}`, borderBottom: isDeleting ? "none" : `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 3 }}
+          <div style={{ paddingLeft: 4 + depth * 16, paddingRight: 4, paddingTop: 5, paddingBottom: 5, cursor: "pointer", background: isSelected || isRightPane ? T.surface2 : "transparent", borderLeft: `3px solid ${isSelected ? T.accent : isRightPane ? T.accentBright : "transparent"}`, borderBottom: isDeleting ? "none" : `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 3 }}
             onClick={() => { setPendingDelete(null); onSelect(page.id); }}>
             {/* collapse toggle */}
             <button
@@ -111,6 +112,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width })
             >{hasChildren ? (isCollapsed ? "▶" : "▼") : "·"}</button>
             <span style={{ fontSize: 10, color: page.type === "mission" ? T.accent : T.textDim, flexShrink: 0 }}>{page.type === "mission" ? "⬟" : "◻"}</span>
             <span style={{ flex: 1, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{page.name}</span>
+            {isRightPane && <span style={{ fontSize: 9, color: T.accentBright, flexShrink: 0 }} title="Open in right pane">◨</span>}
             <div style={{ display: "flex", flexDirection: "column", gap: 1, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
               <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, lineHeight: 1.3, opacity: idx === 0 ? 0.2 : 0.7 }} disabled={idx === 0} title="Move up" onClick={() => movePage(page.id, -1)}>↑</button>
               <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, lineHeight: 1.3, opacity: idx === siblings.length - 1 ? 0.2 : 0.7 }} disabled={idx === siblings.length - 1} title="Move down" onClick={() => movePage(page.id, 1)}>↓</button>
@@ -176,6 +178,27 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width })
           <button style={css.btn("primary")} onClick={add}>+</button>
         </div>
       </div>
+      {splitActive && (
+        <div style={{ padding: "6px 10px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 10, color: T.textDim, flexShrink: 0 }}>Open in:</span>
+          <div style={{ display: "flex", borderRadius: T.radius, overflow: "hidden", border: `1px solid ${T.border}`, flexShrink: 0 }}>
+            {["left", "right"].map((side, i) => (
+              <button key={side}
+                onClick={() => onSplitTargetChange(side)}
+                style={{
+                  padding: "3px 10px", fontSize: 10, border: "none", cursor: "pointer",
+                  fontFamily: T.font,
+                  borderRight: i === 0 ? `1px solid ${T.border}` : "none",
+                  background: splitTarget === side ? T.accent : T.surface2,
+                  color: splitTarget === side ? T.surface : T.text,
+                  fontWeight: splitTarget === side ? "bold" : "normal",
+                }}>
+                {side === "left" ? "◧ Left" : "Right ◨"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={{ flex: 1, overflow: "auto" }}>
         {campaign.pages.length === 0 && <div style={{ padding: 12, color: T.textMuted, fontSize: 11 }}>No pages yet</div>}
         {renderTree(null, 0)}

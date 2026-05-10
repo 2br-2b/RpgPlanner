@@ -128,6 +128,75 @@ function CampaignSwitcher({ current, onClose, T, css }) {
   );
 }
 
+const SPLIT_MIN_WIDTH = 1100; // px — below this, split is hidden
+
+function SplitView({ campaign, leftPageId, rightPageId, onUpdate, onNavigate, splitRatio, onSplitRatioChange, T, css, mainPad }) {
+  const leftPage  = campaign.pages.find(p => p.id === leftPageId);
+  const rightPage = campaign.pages.find(p => p.id === rightPageId);
+  const containerRef = useRef(null);
+
+  const onDividerMouseDown = (e) => {
+    e.preventDefault();
+    const container = containerRef.current;
+    if (!container) return;
+    const onMove = (ev) => {
+      const rect = container.getBoundingClientRect();
+      const ratio = Math.max(0.2, Math.min(0.8, (ev.clientX - rect.left) / rect.width));
+      onSplitRatioChange(ratio);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  const paneStyle = { overflowY: "auto", height: "100%", ...css.main, padding: mainPad };
+
+  return (
+    <div ref={containerRef} style={{ display: "flex", flex: 1, minWidth: 0, height: "100%", overflow: "hidden" }}>
+      {/* Left pane */}
+      <div style={{ ...paneStyle, width: `${splitRatio * 100}%`, flexShrink: 0 }}>
+        {leftPage
+          ? <PageEditor key={leftPage.id} page={leftPage} schema={campaign.sectionSchema} allPages={campaign.pages}
+              onUpdate={(updater) => onUpdate((data) => ({ ...data, pages: data.pages.map(p => p.id === leftPageId ? updater(p) : p) }))}
+              onBack={() => onNavigate("outline")} shareEnabled={campaign.shareEnabled || false} />
+          : <div style={{ color: T.textDim, textAlign: "center", marginTop: 80, fontSize: 13 }}>
+              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.2 }}>◧</div>
+              <div>Select a page from the sidebar</div>
+            </div>
+        }
+      </div>
+
+      {/* Drag divider */}
+      <div
+        onMouseDown={onDividerMouseDown}
+        style={{ width: 5, flexShrink: 0, cursor: "col-resize", background: T.border, zIndex: 10, transition: "background 0.15s" }}
+        onMouseEnter={e => e.currentTarget.style.background = T.accent}
+        onMouseLeave={e => e.currentTarget.style.background = T.border}
+        title="Drag to resize"
+      />
+
+      {/* Right pane */}
+      <div style={{ ...paneStyle, flex: 1, minWidth: 0 }}>
+        {rightPage
+          ? <PageEditor key={rightPage.id} page={rightPage} schema={campaign.sectionSchema} allPages={campaign.pages}
+              onUpdate={(updater) => onUpdate((data) => ({ ...data, pages: data.pages.map(p => p.id === rightPageId ? updater(p) : p) }))}
+              onBack={() => {}} shareEnabled={campaign.shareEnabled || false} />
+          : <div style={{ color: T.textDim, textAlign: "center", marginTop: 80 }}>
+              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.2 }}>◨</div>
+              <div style={{ fontSize: 14, marginBottom: 8 }}>No page selected</div>
+              <div style={{ fontSize: 12, color: T.textMuted, maxWidth: 280, margin: "0 auto", lineHeight: 1.6 }}>
+                Set the sidebar target to <strong style={{ color: T.accent }}>Right</strong> and click any page to open it here.
+              </div>
+            </div>
+        }
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const [campaign, setCampaign] = useState(null);
   const [selectedPageId, setSelectedPageId] = useState(null);
@@ -142,8 +211,24 @@ export function App() {
     const stored = localStorage.getItem("campaign-manager-sidebar-width");
     return stored ? Number(stored) : 240;
   });
-  const sidebarDragRef = useRef(null);
+
   const isMobile = useIsMobile();
+
+  // Split-screen state
+  const [splitEnabled, setSplitEnabled] = useState(false);
+  const [splitPageId, setSplitPageId] = useState(null);       // page shown in right pane
+  const [splitTarget, setSplitTarget] = useState("right");    // "left" | "right" — which pane sidebar clicks go to
+  const [splitRatio, setSplitRatio] = useState(0.5);          // fraction of main area for left pane
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
+
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const splitAvailable = !isMobile && windowWidth >= SPLIT_MIN_WIDTH;
+  const splitActive = splitEnabled && splitAvailable;
   const saveTimer = useRef(null);
   const historyRef = useRef({ stack: [], idx: -1 });
 
@@ -220,11 +305,25 @@ export function App() {
   }, [undo, redo]);
 
   const navigateTo = useCallback((nextView, pageId) => {
+    // In split mode, page navigations from the flowchart "Open page" button always go to left pane
     setView(nextView);
     if (pageId !== undefined) setSelectedPageId(pageId);
     setSidebarOpen(false);
     window.history.pushState({ view: nextView, pageId: pageId ?? null }, "");
   }, []);
+
+  // Sidebar page selection — routes to left or right pane depending on splitTarget
+  const onSidebarSelect = useCallback((id) => {
+    if (splitActive && splitTarget === "right") {
+      setSplitPageId(id);
+      setSidebarOpen(false);
+      // ensure we're on the editor view so the split pane renders
+      setView("editor");
+      window.history.pushState({ view: "editor", pageId: selectedPageId ?? null }, "");
+    } else {
+      navigateTo("editor", id);
+    }
+  }, [splitActive, splitTarget, navigateTo, selectedPageId]);
 
   useEffect(() => {
     window.history.replaceState({ view: "outline", pageId: null }, "");
@@ -256,6 +355,7 @@ export function App() {
   const T = THEMES[campaign.theme] || THEMES.tactical;
   const css = makeCSS(T);
   const selectedPage = campaign.pages.find((page) => page.id === selectedPageId);
+  const splitPage = campaign.pages.find((page) => page.id === splitPageId);
   const showSidebar = view === "outline" || view === "editor";
   const mainPad = isMobile ? "12px" : "24px";
   const canUndo = historyRef.current.idx > 0;
@@ -286,6 +386,13 @@ export function App() {
             ))}
             <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key }))} />
             <ExportDropdown campaign={campaign} currentPage={selectedPage} />
+            {splitAvailable && showSidebar && (
+              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: T.textDim, cursor: "pointer", userSelect: "none", flexShrink: 0 }} title="Split screen — open two pages side by side">
+                <input type="checkbox" checked={splitEnabled} onChange={e => { setSplitEnabled(e.target.checked); if (!e.target.checked) setSplitPageId(null); }}
+                  style={{ accentColor: T.accent, width: 13, height: 13 }} />
+                Split
+              </label>
+            )}
             <span style={{ fontSize: 10, color: saveStatus === "local storage full" ? T.warn : T.textMuted, flexShrink: 0 }} title={saveStatus === "local storage full" ? "Local backup failed: browser storage is full. Data is saved to the server." : undefined}>{saveStatus}</span>
           </div>
         )}
@@ -313,7 +420,17 @@ export function App() {
 
           {!isMobile && showSidebar && (
             <div style={{ display: "flex", flexShrink: 0 }}>
-              <Sidebar campaign={campaign} selectedPageId={selectedPageId} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} width={sidebarWidth} />
+              <Sidebar
+                campaign={campaign}
+                selectedPageId={selectedPageId}
+                onSelect={onSidebarSelect}
+                onUpdate={update}
+                width={sidebarWidth}
+                splitActive={splitActive}
+                splitTarget={splitTarget}
+                onSplitTargetChange={setSplitTarget}
+                splitPageId={splitPageId}
+              />
               <div
                 style={{ width: 5, cursor: "col-resize", background: "transparent", flexShrink: 0, zIndex: 10 }}
                 onMouseDown={(e) => {
@@ -337,15 +454,29 @@ export function App() {
             </div>
           )}
 
-          <div className="sk-main" style={{ ...css.main, padding: mainPad, paddingBottom: isMobile ? "68px" : mainPad, overflowY: "auto" }}>
-            {view === "outline" && <OutlineView campaign={campaign} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} />}
-            {view === "editor" && selectedPage && <PageEditor key={selectedPage.id} page={selectedPage} schema={campaign.sectionSchema} allPages={campaign.pages} onUpdate={(updater) => update((data) => ({ ...data, pages: data.pages.map((item) => item.id === selectedPageId ? updater(item) : item) }))} onBack={() => navigateTo("outline")} shareEnabled={campaign.shareEnabled || false} />}
-            {view === "editor" && !selectedPage && <div style={{ color: T.textDim, textAlign: "center", marginTop: 80 }}>{isMobile ? "Open the menu to select a page" : "Select a page to edit"}</div>}
-            {view === "schema" && <SchemaEditor campaign={campaign} onUpdate={update} />}
-            {view === "flowchart" && <FlowchartView campaign={campaign} onUpdate={update} onNavigate={navigateTo} />}
-            {view === "simulate" && <SimulatorView campaign={campaign} onUpdate={update} />}
-            {view === "settings" && <SettingsView campaign={campaign} onUpdate={update} onRestore={(data) => { const m = migrateCampaign(data); setCampaign(m); persist(m); }} onImport={(data) => { setCampaign(data); persist(data); }} onClear={() => { const fresh = defaultCampaign(); setCampaign(fresh); persist(fresh); navigateTo("outline"); }} onNavigate={navigateTo} />}
-          </div>
+          {/* Main content — single or split pane */}
+          {splitActive && view === "editor" ? (
+            <SplitView
+              campaign={campaign}
+              leftPageId={selectedPageId}
+              rightPageId={splitPageId}
+              onUpdate={update}
+              onNavigate={navigateTo}
+              splitRatio={splitRatio}
+              onSplitRatioChange={setSplitRatio}
+              T={T} css={css} mainPad={mainPad}
+            />
+          ) : (
+            <div className="sk-main" style={{ ...css.main, padding: mainPad, paddingBottom: isMobile ? "68px" : mainPad, overflowY: "auto" }}>
+              {view === "outline" && <OutlineView campaign={campaign} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} />}
+              {view === "editor" && selectedPage && <PageEditor key={selectedPage.id} page={selectedPage} schema={campaign.sectionSchema} allPages={campaign.pages} onUpdate={(updater) => update((data) => ({ ...data, pages: data.pages.map((item) => item.id === selectedPageId ? updater(item) : item) }))} onBack={() => navigateTo("outline")} shareEnabled={campaign.shareEnabled || false} />}
+              {view === "editor" && !selectedPage && <div style={{ color: T.textDim, textAlign: "center", marginTop: 80 }}>{isMobile ? "Open the menu to select a page" : "Select a page to edit"}</div>}
+              {view === "schema" && <SchemaEditor campaign={campaign} onUpdate={update} />}
+              {view === "flowchart" && <FlowchartView campaign={campaign} onUpdate={update} onNavigate={navigateTo} />}
+              {view === "simulate" && <SimulatorView campaign={campaign} onUpdate={update} />}
+              {view === "settings" && <SettingsView campaign={campaign} onUpdate={update} onRestore={(data) => { const m = migrateCampaign(data); setCampaign(m); persist(m); }} onImport={(data) => { setCampaign(data); persist(data); }} onClear={() => { const fresh = defaultCampaign(); setCampaign(fresh); persist(fresh); navigateTo("outline"); }} onNavigate={navigateTo} />}
+            </div>
+          )}
         </div>
 
         {isMobile && (
