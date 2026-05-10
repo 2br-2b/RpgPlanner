@@ -1,25 +1,44 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import {
   ReactFlow, Background, Controls, MiniMap,
-  addEdge, useNodesState, useEdgesState,
   Handle, Position, MarkerType,
-  BaseEdge, EdgeLabelRenderer, getStraightPath, getBezierPath,
+  BaseEdge, EdgeLabelRenderer, getBezierPath,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useThemeCSS } from "./theme.js";
-import { uid } from "./storage.js";
-import { useState, useEffect } from "react";
+import { uid, pageCostTotal, pageAwardTotal } from "./storage.js";
+import { useState } from "react";
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+// ── Edge type definitions ─────────────────────────────────────────────────────
 
-function emptyEvent() {
-  return {
-    id: uid(), description: "", probability: 100,
-    requiresKeyword: "", grantsKeyword: "",
-    costMin: 0, costMax: 0, awardMin: 0, awardMax: 0,
-    statDeltas: [],
-  };
+const EDGE_TYPES_DEF = [
+  { value: "default",  label: "—",        color: null,      dash: null,    desc: "Neutral path" },
+  { value: "win",      label: "Win",       color: "#3a9a3a", dash: null,    desc: "Players succeed" },
+  { value: "lose",     label: "Lose",      color: "#c03030", dash: null,    desc: "Players fail" },
+  { value: "branch",   label: "Branch",    color: "#2090c0", dash: null,    desc: "Player choice" },
+  { value: "optional", label: "Optional",  color: "#c07020", dash: "5,3",   desc: "Side mission" },
+];
+
+function edgeTypeDef(type) {
+  return EDGE_TYPES_DEF.find(t => t.value === type) || EDGE_TYPES_DEF[0];
 }
+
+function edgeColor(fcEdge, T) {
+  const etd = edgeTypeDef(fcEdge.edgeType);
+  if (etd.color) return etd.color;
+  // Auto-derive from events if default type
+  const events = fcEdge.events || [];
+  let totalCost = 0, totalAward = 0;
+  events.forEach(ev => {
+    totalCost += ((ev.costMin || 0) + (ev.costMax || 0)) / 2;
+    totalAward += ((ev.awardMin || 0) + (ev.awardMax || 0)) / 2;
+  });
+  if (totalCost > 0 && totalAward === 0) return "#c03030";
+  if (totalAward > 0 && totalCost === 0) return "#3a9a3a";
+  return T.accent;
+}
+
+// ── Node color palette ────────────────────────────────────────────────────────
 
 const NODE_COLORS = [
   { label: "Default", value: null },
@@ -32,37 +51,96 @@ const NODE_COLORS = [
   { label: "Grey",    value: "#606060" },
 ];
 
-// Convert internal flowchart data → React Flow nodes/edges
-function toRFNodes(fcNodes, pages, T) {
-  return fcNodes.map(n => ({
-    id: n.id,
-    type: "missionNode",
-    position: { x: n.x, y: n.y },
-    data: {
-      pageId: n.pageId,
-      pageName: pages.find(p => p.id === n.pageId)?.name ?? "?",
-      pageType: pages.find(p => p.id === n.pageId)?.type ?? "mission",
-      isStart: n.isStart,
-      isEnd: n.isEnd,
-      color: n.color,
-    },
-  }));
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function emptyEvent() {
+  return {
+    id: uid(), description: "", probability: 100,
+    requiresKeyword: "", grantsKeyword: "",
+    costMin: 0, costMax: 0, awardMin: 0, awardMax: 0,
+    statDeltas: [],
+  };
 }
 
-function toRFEdges(fcEdges, T) {
-  return fcEdges.map(e => ({
-    id: `${e.from}-${e.to}`,
-    source: e.from,
-    target: e.to,
-    type: "missionEdge",
-    label: e.label || "",
-    data: { label: e.label || "", events: e.events || [] },
-    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: T.accent },
-    style: { stroke: T.accent, strokeWidth: 2 },
-  }));
+// Given a selected node id, compute the set of connected node+edge ids (within 1 hop)
+function getConnectedIds(selectedNodeId, fcNodes, fcEdges) {
+  if (!selectedNodeId) return null;
+  const connectedNodes = new Set([selectedNodeId]);
+  const connectedEdges = new Set();
+  fcEdges.forEach(e => {
+    if (e.from === selectedNodeId || e.to === selectedNodeId) {
+      connectedNodes.add(e.from);
+      connectedNodes.add(e.to);
+      connectedEdges.add(`${e.from}--${e.to}`);
+    }
+  });
+  return { nodes: connectedNodes, edges: connectedEdges };
 }
 
-// Convert React Flow positions back to internal format
+// ── Conversion helpers ────────────────────────────────────────────────────────
+
+function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId) {
+  const connected = selectedNodeId ? getConnectedIds(selectedNodeId, fcNodes, []) : null;
+  // For edge selection: find adjacent nodes
+  let edgeAdjacentNodes = null;
+  if (selectedEdgeId) {
+    const [from, to] = selectedEdgeId.split("--");
+    edgeAdjacentNodes = new Set([from, to]);
+  }
+
+  return fcNodes.map(n => {
+    const page = pages.find(p => p.id === n.pageId);
+    const dimmed = (selectedNodeId && !getConnectedIds(selectedNodeId, fcNodes, [/* no edges needed for node set */])?.nodes.has(n.id))
+      || (selectedEdgeId && edgeAdjacentNodes && !edgeAdjacentNodes.has(n.id));
+    const pageCosts = pageCostTotal(page);
+    const pageAwards = pageAwardTotal(page);
+    return {
+      id: n.id,
+      type: "missionNode",
+      position: { x: n.x, y: n.y },
+      data: {
+        pageId: n.pageId,
+        pageName: page?.name ?? "?",
+        pageType: page?.type ?? "mission",
+        isStart: n.isStart,
+        isEnd: n.isEnd,
+        color: n.color,
+        dimmed: !!(selectedNodeId || selectedEdgeId) && dimmed,
+        pageCosts,
+        pageAwards,
+      },
+    };
+  });
+}
+
+function toRFEdges(fcEdges, T, selectedNodeId, selectedEdgeId) {
+  return fcEdges.map(e => {
+    const internalId = `${e.from}--${e.to}`;
+    const color = edgeColor(e, T);
+    const etd = edgeTypeDef(e.edgeType);
+    const isAdjacentToSelectedNode = selectedNodeId && (e.from === selectedNodeId || e.to === selectedNodeId);
+    const dimmed = !!(selectedNodeId || selectedEdgeId)
+      && internalId !== selectedEdgeId
+      && !isAdjacentToSelectedNode;
+    return {
+      id: internalId,
+      source: e.from,
+      target: e.to,
+      type: "missionEdge",
+      data: {
+        label: e.label || "",
+        events: e.events || [],
+        edgeType: e.edgeType || "default",
+        color,
+        dash: etd.dash,
+        dimmed,
+      },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color },
+      style: { stroke: color, strokeWidth: 2, opacity: dimmed ? 0.2 : 1 },
+    };
+  });
+}
+
 function fromRFNodes(rfNodes, prevFcNodes) {
   return rfNodes.map(rn => {
     const prev = prevFcNodes.find(n => n.id === rn.id) || {};
@@ -71,21 +149,9 @@ function fromRFNodes(rfNodes, prevFcNodes) {
       pageId: rn.data.pageId,
       x: rn.position.x,
       y: rn.position.y,
-      isStart: rn.data.isStart ?? false,
-      isEnd: rn.data.isEnd ?? false,
-      color: rn.data.color ?? null,
-    };
-  });
-}
-
-function fromRFEdges(rfEdges) {
-  return rfEdges.map(re => {
-    const [from, ...rest] = re.id.split("-");
-    return {
-      from: re.source,
-      to: re.target,
-      label: re.data?.label ?? "",
-      events: re.data?.events ?? [],
+      isStart: prev.isStart ?? false,
+      isEnd: prev.isEnd ?? false,
+      color: prev.color ?? null,
     };
   });
 }
@@ -94,32 +160,70 @@ function fromRFEdges(rfEdges) {
 
 function MissionNode({ data, selected }) {
   const { T } = useThemeCSS();
+  const [hovered, setHovered] = useState(false);
   const accent = data.color || (data.isStart ? T.accentBright : data.isEnd ? T.danger : T.accent);
   const bg = data.color ? `${data.color}22` : data.isStart ? `${T.accentBright}22` : data.isEnd ? `${T.danger}22` : T.surface2;
+  const isMission = data.pageType === "mission";
+
+  const hasCosts = data.pageCosts > 0;
+  const hasAwards = data.pageAwards > 0;
 
   return (
-    <div style={{
-      background: bg,
-      border: `2px solid ${selected ? T.accentBright : accent}`,
-      borderRadius: 8,
-      minWidth: 160,
-      padding: "8px 12px",
-      fontFamily: T.font,
-      boxShadow: selected ? `0 0 0 2px ${T.accentBright}44` : "none",
-      position: "relative",
-    }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: bg,
+        border: `2px solid ${selected ? T.accentBright : accent}`,
+        borderRadius: isMission ? 8 : 4,
+        minWidth: 160,
+        padding: "8px 12px",
+        fontFamily: T.font,
+        boxShadow: selected ? `0 0 0 2px ${T.accentBright}44` : "none",
+        opacity: data.dimmed ? 0.25 : 1,
+        transition: "opacity 0.15s",
+        position: "relative",
+      }}>
       <Handle type="target" position={Position.Left} style={{ background: T.accent, border: `2px solid ${T.surface}`, width: 10, height: 10 }} />
       <Handle type="source" position={Position.Right} style={{ background: T.accentBright, border: `2px solid ${T.surface}`, width: 10, height: 10 }} />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+        {/* Page type icon */}
+        <span style={{ fontSize: 10, color: accent, flexShrink: 0 }} title={isMission ? "Mission" : "Free page"}>
+          {isMission ? "⬟" : "◻"}
+        </span>
         {data.isStart && <span style={{ fontSize: 9, background: T.accentBright, color: T.surface, borderRadius: 3, padding: "1px 5px", fontWeight: "bold" }}>START</span>}
         {data.isEnd && <span style={{ fontSize: 9, background: T.danger, color: "#fff", borderRadius: 3, padding: "1px 5px", fontWeight: "bold" }}>END</span>}
-        {!data.isStart && !data.isEnd && <span style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase" }}>{data.pageType}</span>}
-        {data.color && <span style={{ width: 8, height: 8, borderRadius: "50%", background: data.color, display: "inline-block", flexShrink: 0 }} />}
+        {!data.isStart && !data.isEnd && (
+          <span style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase" }}>{isMission ? "mission" : "note"}</span>
+        )}
+        {data.color && <span style={{ width: 7, height: 7, borderRadius: "50%", background: data.color, display: "inline-block", flexShrink: 0, marginLeft: "auto" }} />}
       </div>
       <div style={{ fontSize: 13, fontWeight: "bold", color: T.text, lineHeight: 1.3 }}>
         {data.pageName.length > 22 ? `${data.pageName.slice(0, 20)}…` : data.pageName}
       </div>
+
+      {/* Cost/award summary row */}
+      {(hasCosts || hasAwards) && (
+        <div style={{ display: "flex", gap: 8, marginTop: 5 }}>
+          {hasCosts && <span style={{ fontSize: 9, color: "#c03030" }}>-{data.pageCosts.toLocaleString()} C¢</span>}
+          {hasAwards && <span style={{ fontSize: 9, color: "#3a9a3a" }}>+{data.pageAwards.toLocaleString()} C¢</span>}
+        </div>
+      )}
+
+      {/* Hover tooltip */}
+      {hovered && (hasCosts || hasAwards) && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+          background: T.surface, border: `1px solid ${T.border}`, borderRadius: 6,
+          padding: "6px 10px", fontSize: 10, color: T.text, whiteSpace: "nowrap",
+          zIndex: 9999, pointerEvents: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+        }}>
+          {hasCosts && <div style={{ color: "#c03030" }}>Cost: {data.pageCosts.toLocaleString()} C-Bills</div>}
+          {hasAwards && <div style={{ color: "#3a9a3a" }}>Award: {data.pageAwards.toLocaleString()} C-Bills</div>}
+          {hasCosts && hasAwards && <div style={{ color: T.textDim, borderTop: `1px solid ${T.border}`, marginTop: 4, paddingTop: 4 }}>Net: {(data.pageAwards - data.pageCosts).toLocaleString()} C-Bills</div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -129,28 +233,51 @@ function MissionNode({ data, selected }) {
 function MissionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected, style, markerEnd }) {
   const { T } = useThemeCSS();
   const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+
+  const color = data?.color || T.accent;
+  const dimmed = data?.dimmed;
+  const dash = data?.dash;
+  const etd = edgeTypeDef(data?.edgeType);
+
   const hasEvents = (data?.events || []).length > 0;
-  const label = data?.label || (hasEvents ? `${data.events.length} event${data.events.length > 1 ? "s" : ""}` : "");
+  const conditionLabel = data?.label || "";
+  const typeLabel = etd.value !== "default" ? etd.label : "";
+  const eventBadge = hasEvents ? `${data.events.length}ev` : "";
+
+  // Build display label: type prefix + condition
+  const displayLabel = [typeLabel, conditionLabel].filter(Boolean).join(": ") || (eventBadge || "");
 
   return (
     <>
-      <BaseEdge path={edgePath} markerEnd={markerEnd} style={{ ...style, stroke: selected ? T.accentBright : T.accent, strokeWidth: selected ? 2.5 : 2 }} />
-      {label && (
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          ...style,
+          stroke: selected ? T.accentBright : color,
+          strokeWidth: selected ? 2.5 : 2,
+          strokeDasharray: dash || undefined,
+          opacity: dimmed ? 0.15 : 1,
+          transition: "opacity 0.15s",
+        }}
+      />
+      {displayLabel && !dimmed && (
         <EdgeLabelRenderer>
           <div style={{
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             background: T.surface,
-            border: `1px solid ${T.border}`,
+            border: `1px solid ${selected ? T.accentBright : color}`,
             borderRadius: 4,
-            padding: "2px 6px",
+            padding: "2px 7px",
             fontSize: 10,
-            color: selected ? T.accentBright : T.textDim,
+            color: selected ? T.accentBright : color,
             fontFamily: T.font,
             pointerEvents: "none",
             whiteSpace: "nowrap",
+            fontWeight: etd.value !== "default" ? "bold" : "normal",
           }}>
-            {label}
+            {displayLabel}
           </div>
         </EdgeLabelRenderer>
       )}
@@ -161,28 +288,37 @@ function MissionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, t
 const nodeTypes = { missionNode: MissionNode };
 const edgeTypes = { missionEdge: MissionEdge };
 
-// ── Side panel ────────────────────────────────────────────────────────────────
+// ── Side panels ───────────────────────────────────────────────────────────────
 
-function NodePanel({ node, pages, onUpdate, onDelete, T, css }) {
+function NodePanel({ node, pages, onUpdate, onDelete, onNavigate, T, css }) {
   const page = pages.find(p => p.id === node.data.pageId);
+  const isMission = page?.type === "mission";
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontSize: 13, fontWeight: "bold", color: T.accentBright }}>Node: {node.data.pageName}</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: "bold", color: T.accentBright }}>
+          {isMission ? "⬟" : "◻"} {node.data.pageName}
+        </span>
         <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 8px" }} onClick={onDelete}>Remove</button>
       </div>
-      <div style={{ fontSize: 11, color: T.textDim, marginBottom: 12 }}>
-        {page?.type === "mission" ? "Mission page" : "Free page"}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
+        <span style={{ fontSize: 11, color: T.textDim }}>{isMission ? "Mission page" : "Free page (note/lore)"}</span>
+        <button style={{ ...css.btn(), fontSize: 10, padding: "2px 10px", marginLeft: "auto" }}
+          onClick={() => onNavigate("editor", node.data.pageId)}>
+          Open page →
+        </button>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
-          <input type="checkbox" checked={node.data.isStart} onChange={e => onUpdate({ isStart: e.target.checked, isEnd: e.target.checked ? false : node.data.isEnd })} />
-          <span style={{ color: T.accentBright }}>Start node</span>
+          <input type="checkbox" checked={node.data.isStart}
+            onChange={e => onUpdate({ isStart: e.target.checked, isEnd: e.target.checked ? false : node.data.isEnd })} />
+          <span style={{ color: T.accentBright }}>Start</span>
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
-          <input type="checkbox" checked={node.data.isEnd} onChange={e => onUpdate({ isEnd: e.target.checked, isStart: e.target.checked ? false : node.data.isStart })} />
-          <span style={{ color: T.danger }}>End node</span>
+          <input type="checkbox" checked={node.data.isEnd}
+            onChange={e => onUpdate({ isEnd: e.target.checked, isStart: e.target.checked ? false : node.data.isStart })} />
+          <span style={{ color: T.danger }}>End</span>
         </label>
       </div>
 
@@ -210,9 +346,10 @@ function NodePanel({ node, pages, onUpdate, onDelete, T, css }) {
 
 function EdgePanel({ edge, statDefs, onUpdate, onDelete, T, css }) {
   const events = edge.data?.events || [];
-  const updateEvent = (id, patch) => {
+  const edgeType = edge.data?.edgeType || "default";
+
+  const updateEvent = (id, patch) =>
     onUpdate({ events: events.map(ev => ev.id === id ? { ...ev, ...patch } : ev) });
-  };
   const addEvent = () => onUpdate({ events: [...events, emptyEvent()] });
   const removeEvent = id => onUpdate({ events: events.filter(ev => ev.id !== id) });
 
@@ -224,32 +361,55 @@ function EdgePanel({ edge, statDefs, onUpdate, onDelete, T, css }) {
     updateEvent(evId, { statDeltas: next });
   };
 
+  const etd = edgeTypeDef(edgeType);
   const srcPage = edge._srcName || "";
   const tgtPage = edge._tgtName || "";
 
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontSize: 13, fontWeight: "bold", color: T.accentBright }}>
+        <span style={{ fontSize: 13, fontWeight: "bold", color: etd.color || T.accentBright }}>
           {srcPage && tgtPage ? `${srcPage} → ${tgtPage}` : "Edge"}
         </span>
         <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 8px" }} onClick={onDelete}>Remove</button>
       </div>
 
+      {/* Edge type */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: T.textDim, marginBottom: 4 }}>Path type</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {EDGE_TYPES_DEF.map(et => (
+            <button key={et.value} title={et.desc}
+              onClick={() => onUpdate({ edgeType: et.value })}
+              style={{
+                ...css.btn(), fontSize: 10, padding: "3px 10px",
+                background: edgeType === et.value ? (et.color || T.accent) : T.surface2,
+                color: edgeType === et.value ? "#fff" : T.text,
+                border: `1px solid ${edgeType === et.value ? (et.color || T.accent) : T.border}`,
+              }}>
+              {et.label}
+            </button>
+          ))}
+        </div>
+        {etd.dash && <div style={{ fontSize: 9, color: T.textDim, marginTop: 4 }}>Shown as dashed line</div>}
+      </div>
+
+      {/* Condition label */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 11, color: T.textDim, marginBottom: 4 }}>Condition / label</div>
         <input style={{ ...css.input, width: "100%", boxSizing: "border-box" }}
-          placeholder="e.g. If won, If player chose rescue…"
+          placeholder="e.g. If players rescued hostages…"
           value={edge.data?.label || ""}
           onChange={e => onUpdate({ label: e.target.value })}
         />
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+      {/* Events */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.08em" }}>EVENTS</span>
         <button style={{ ...css.btn(), fontSize: 10, padding: "2px 8px" }} onClick={addEvent}>+ Add</button>
       </div>
-      <div style={{ fontSize: 10, color: T.textDim, marginBottom: 8 }}>Events fire when the party takes this path.</div>
+      <div style={{ fontSize: 10, color: T.textDim, marginBottom: 8 }}>Fire when the party takes this path.</div>
 
       {events.map(ev => (
         <div key={ev.id} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 6, padding: 10, marginBottom: 8 }}>
@@ -267,19 +427,19 @@ function EdgePanel({ edge, statDefs, onUpdate, onDelete, T, css }) {
               <input style={{ ...css.input, fontSize: 11, display: "block", width: "100%", boxSizing: "border-box" }}
                 value={ev.requiresKeyword} onChange={e => updateEvent(ev.id, { requiresKeyword: e.target.value })} />
             </label>
-            <label style={{ fontSize: 9, color: T.danger }}>COST MIN
+            <label style={{ fontSize: 9, color: "#c03030" }}>COST MIN
               <input type="number" style={{ ...css.input, fontSize: 11, display: "block", width: "100%", boxSizing: "border-box" }}
                 value={ev.costMin} onChange={e => updateEvent(ev.id, { costMin: Number(e.target.value) })} />
             </label>
-            <label style={{ fontSize: 9, color: T.danger }}>COST MAX
+            <label style={{ fontSize: 9, color: "#c03030" }}>COST MAX
               <input type="number" style={{ ...css.input, fontSize: 11, display: "block", width: "100%", boxSizing: "border-box" }}
                 value={ev.costMax} onChange={e => updateEvent(ev.id, { costMax: Number(e.target.value) })} />
             </label>
-            <label style={{ fontSize: 9, color: T.accent }}>AWARD MIN
+            <label style={{ fontSize: 9, color: "#3a9a3a" }}>AWARD MIN
               <input type="number" style={{ ...css.input, fontSize: 11, display: "block", width: "100%", boxSizing: "border-box" }}
                 value={ev.awardMin} onChange={e => updateEvent(ev.id, { awardMin: Number(e.target.value) })} />
             </label>
-            <label style={{ fontSize: 9, color: T.accent }}>AWARD MAX
+            <label style={{ fontSize: 9, color: "#3a9a3a" }}>AWARD MAX
               <input type="number" style={{ ...css.input, fontSize: 11, display: "block", width: "100%", boxSizing: "border-box" }}
                 value={ev.awardMax} onChange={e => updateEvent(ev.id, { awardMax: Number(e.target.value) })} />
             </label>
@@ -299,7 +459,7 @@ function EdgePanel({ edge, statDefs, onUpdate, onDelete, T, css }) {
                     <label key={sd.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10 }}>
                       <span style={{ flex: 1, color: T.textDim }}>{sd.name}</span>
                       {sd.type === "boolean"
-                        ? <select style={{ ...css.input, fontSize: 10, width: 80 }}
+                        ? <select style={{ ...css.input, fontSize: 10, width: 90 }}
                             value={existing ? String(existing.delta) : ""}
                             onChange={e => updateStatDelta(ev.id, sd.id, e.target.value === "" ? "" : e.target.value)}>
                             <option value="">no change</option>
@@ -324,63 +484,25 @@ function EdgePanel({ edge, statDefs, onUpdate, onDelete, T, css }) {
 
 // ── Main view ─────────────────────────────────────────────────────────────────
 
-export function FlowchartView({ campaign, onUpdate }) {
+export function FlowchartView({ campaign, onUpdate, onNavigate }) {
   const { T, css } = useThemeCSS();
   const { nodes: fcNodes, edges: fcEdges } = campaign.flowchart;
   const statDefs = campaign.statDefs || [];
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
 
-  const rfNodes = toRFNodes(fcNodes, campaign.pages, T);
-  const rfEdges = toRFEdges(fcEdges, T);
-
-  const saveFC = (newRFNodes, newRFEdges) => {
-    onUpdate(data => ({
-      ...data,
-      flowchart: {
-        nodes: fromRFNodes(newRFNodes, data.flowchart.nodes),
-        edges: fromRFEdges(newRFEdges),
-      },
-    }));
-  };
-
-  const onNodesChange = useCallback((changes) => {
-    // Apply position/selection changes directly
-    const updated = changes.reduce((acc, change) => {
-      if (change.type === "position" && change.position) {
-        return acc.map(n => n.id === change.id ? { ...n, x: change.position.x, y: change.position.y } : n);
-      }
-      if (change.type === "remove") {
-        setSelectedNodeId(null);
-        return acc.filter(n => n.id !== change.id);
-      }
-      return acc;
-    }, fcNodes);
-
-    const removedIds = changes.filter(c => c.type === "remove").map(c => c.id);
-    const newEdges = removedIds.length
-      ? fcEdges.filter(e => !removedIds.includes(e.from) && !removedIds.includes(e.to))
-      : fcEdges;
-
-    if (updated !== fcNodes || newEdges !== fcEdges) {
-      onUpdate(data => ({ ...data, flowchart: { nodes: updated, edges: newEdges } }));
-    }
-  }, [fcNodes, fcEdges, onUpdate]);
-
-  const onEdgesChange = useCallback((changes) => {
-    const updated = changes.reduce((acc, change) => {
-      if (change.type === "remove") {
-        setSelectedEdgeId(null);
-        return acc.filter(e => `${e.from}-${e.to}` !== change.id);
-      }
-      return acc;
-    }, fcEdges);
-    if (updated !== fcEdges) onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, edges: updated } }));
-  }, [fcEdges, onUpdate]);
+  const rfNodes = useMemo(
+    () => toRFNodes(fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId),
+    [fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId]
+  );
+  const rfEdges = useMemo(
+    () => toRFEdges(fcEdges, T, selectedNodeId, selectedEdgeId),
+    [fcEdges, T, selectedNodeId, selectedEdgeId]
+  );
 
   const onConnect = useCallback((conn) => {
     if (fcEdges.some(e => e.from === conn.source && e.to === conn.target)) return;
-    const newEdge = { from: conn.source, to: conn.target, label: "", events: [] };
+    const newEdge = { from: conn.source, to: conn.target, label: "", edgeType: "default", events: [] };
     onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, edges: [...data.flowchart.edges, newEdge] } }));
   }, [fcEdges, onUpdate]);
 
@@ -399,7 +521,7 @@ export function FlowchartView({ campaign, onUpdate }) {
     const newNode = {
       id: uid(), pageId,
       x: 60 + (existing % 4) * 220,
-      y: 80 + Math.floor(existing / 4) * 140,
+      y: 80 + Math.floor(existing / 4) * 150,
       isStart: false, isEnd: false, color: null,
     };
     onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, nodes: [...data.flowchart.nodes, newNode] } }));
@@ -412,7 +534,6 @@ export function FlowchartView({ campaign, onUpdate }) {
         ...data.flowchart,
         nodes: data.flowchart.nodes.map(n => {
           if (n.id !== selectedNodeId) {
-            // Clear isStart from others if setting this node as start
             if (patch.isStart) return { ...n, isStart: false };
             return n;
           }
@@ -436,7 +557,6 @@ export function FlowchartView({ campaign, onUpdate }) {
 
   const updateSelectedEdge = (patch) => {
     if (!selectedEdgeId) return;
-    const [from, to] = selectedEdgeId.split("--");
     onUpdate(data => ({
       ...data,
       flowchart: {
@@ -478,38 +598,25 @@ export function FlowchartView({ campaign, onUpdate }) {
     }
     const unreached = fcNodes.filter(n => !visited.has(n.id)).map(n => n.id);
     if (unreached.length) layers.push(unreached);
-
-    const PAD_X = 240, PAD_Y = 140, START_X = 60, START_Y = 60;
+    const PAD_X = 240, PAD_Y = 150, START_X = 60, START_Y = 60;
     const positions = {};
     layers.forEach((layer, li) => layer.forEach((id, ci) => { positions[id] = { x: START_X + li * PAD_X, y: START_Y + ci * PAD_Y }; }));
     onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, nodes: data.flowchart.nodes.map(n => positions[n.id] ? { ...n, ...positions[n.id] } : n) } }));
   };
 
+  // Separate unused missions from unused free pages for clearer toolbar
   const unusedPages = campaign.pages.filter(p => !fcNodes.some(n => n.pageId === p.id));
+  const unusedMissions = unusedPages.filter(p => p.type === "mission");
+  const unusedFree = unusedPages.filter(p => p.type !== "mission");
 
-  const selectedNode = selectedNodeId ? fcNodes.find(n => n.id === selectedNodeId) : null;
   const selectedNodeRF = selectedNodeId ? rfNodes.find(n => n.id === selectedNodeId) : null;
-
-  // Build the edge object for the panel
-  const selectedEdgeFC = selectedEdgeId
-    ? fcEdges.find(e => `${e.from}--${e.to}` === selectedEdgeId)
-    : null;
-  const selectedEdgeRF = selectedEdgeFC
-    ? {
-        id: selectedEdgeId,
-        data: { label: selectedEdgeFC.label, events: selectedEdgeFC.events || [] },
-        _srcName: campaign.pages.find(p => p.id === fcNodes.find(n => n.id === selectedEdgeFC.from)?.pageId)?.name || "",
-        _tgtName: campaign.pages.find(p => p.id === fcNodes.find(n => n.id === selectedEdgeFC.to)?.pageId)?.name || "",
-      }
-    : null;
-
-  // Map RF node ids to styled RF nodes (with selection state)
-  const styledRFNodes = rfNodes.map(n => ({ ...n, selected: n.id === selectedNodeId }));
-  const styledRFEdges = rfEdges.map(e => {
-    // Re-map edge id to use -- separator for our internal tracking
-    const internalId = `${e.source}--${e.target}`;
-    return { ...e, id: internalId, selected: internalId === selectedEdgeId };
-  });
+  const selectedEdgeFC = selectedEdgeId ? fcEdges.find(e => `${e.from}--${e.to}` === selectedEdgeId) : null;
+  const selectedEdgeRF = selectedEdgeFC ? {
+    id: selectedEdgeId,
+    data: { label: selectedEdgeFC.label, events: selectedEdgeFC.events || [], edgeType: selectedEdgeFC.edgeType || "default" },
+    _srcName: campaign.pages.find(p => p.id === fcNodes.find(n => n.id === selectedEdgeFC.from)?.pageId)?.name || "",
+    _tgtName: campaign.pages.find(p => p.id === fcNodes.find(n => n.id === selectedEdgeFC.to)?.pageId)?.name || "",
+  } : null;
 
   const panelOpen = !!(selectedNodeRF || selectedEdgeRF);
 
@@ -518,25 +625,41 @@ export function FlowchartView({ campaign, onUpdate }) {
       {/* Main flow area */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         {/* Toolbar */}
-        <div style={{ padding: "8px 12px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", borderBottom: `1px solid ${T.border}`, background: T.surface }}>
+        <div style={{ padding: "8px 12px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", borderBottom: `1px solid ${T.border}`, background: T.surface, minHeight: 42 }}>
           <span style={{ fontSize: 13, fontWeight: "bold", color: T.accentBright, letterSpacing: "0.08em", marginRight: 4 }}>FLOWCHART</span>
           {fcNodes.length > 1 && (
             <button style={{ ...css.btn(), fontSize: 11, padding: "3px 10px" }} onClick={autoLayout}>⬡ Auto-layout</button>
           )}
-          {unusedPages.length > 0 && (
+
+          {unusedMissions.length > 0 && (
             <>
-              <span style={{ fontSize: 11, color: T.textDim }}>Add:</span>
-              {unusedPages.map(p => (
-                <button key={p.id} style={{ ...css.btn(), fontSize: 11, padding: "3px 10px" }} onClick={() => addNode(p.id)}>
-                  + {p.name}
+              <span style={{ fontSize: 10, color: T.textDim, marginLeft: 4 }}>Missions:</span>
+              {unusedMissions.map(p => (
+                <button key={p.id} style={{ ...css.btn(), fontSize: 11, padding: "3px 10px", borderLeft: `3px solid ${T.accent}` }} onClick={() => addNode(p.id)}>
+                  ⬟ {p.name}
                 </button>
               ))}
             </>
           )}
-          {unusedPages.length === 0 && fcNodes.length > 0 && (
-            <span style={{ fontSize: 11, color: T.textDim }}>All pages are on the chart. Connect them by dragging from the right handle of a node to the left handle of another.</span>
+
+          {unusedFree.length > 0 && (
+            <>
+              <span style={{ fontSize: 10, color: T.textDim, marginLeft: unusedMissions.length ? 0 : 4 }}>Notes:</span>
+              {unusedFree.map(p => (
+                <button key={p.id} style={{ ...css.btn(), fontSize: 11, padding: "3px 10px", borderLeft: `3px solid ${T.textDim}` }} onClick={() => addNode(p.id)}>
+                  ◻ {p.name}
+                </button>
+              ))}
+            </>
           )}
-          {fcNodes.length === 0 && (
+
+          {unusedPages.length === 0 && fcNodes.length > 0 && (
+            <span style={{ fontSize: 11, color: T.textDim }}>All pages on chart — drag right handle → left handle to connect.</span>
+          )}
+          {fcNodes.length === 0 && unusedPages.length === 0 && (
+            <span style={{ fontSize: 11, color: T.textDim }}>No pages yet. Create pages in the Outline tab first.</span>
+          )}
+          {fcNodes.length === 0 && unusedPages.length > 0 && (
             <span style={{ fontSize: 11, color: T.textDim }}>Add pages above to get started.</span>
           )}
         </div>
@@ -544,11 +667,11 @@ export function FlowchartView({ campaign, onUpdate }) {
         {/* React Flow canvas */}
         <div style={{ flex: 1, minHeight: 0 }}>
           <ReactFlow
-            nodes={styledRFNodes}
-            edges={styledRFEdges}
+            nodes={rfNodes}
+            edges={rfEdges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            onNodesChange={() => {}} // we manage state externally
+            onNodesChange={() => {}}
             onEdgesChange={() => {}}
             onConnect={onConnect}
             onNodeDragStop={onNodeDragStop}
@@ -580,31 +703,15 @@ export function FlowchartView({ campaign, onUpdate }) {
 
       {/* Side panel */}
       {panelOpen && (
-        <div style={{
-          width: 300, flexShrink: 0,
-          background: T.surface, borderLeft: `1px solid ${T.border}`,
-          overflowY: "auto",
-        }}>
+        <div style={{ width: 300, flexShrink: 0, background: T.surface, borderLeft: `1px solid ${T.border}`, overflowY: "auto" }}>
           <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 12px 0" }}>
             <button style={{ ...css.btn(), fontSize: 11, padding: "2px 8px" }} onClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}>✕</button>
           </div>
           {selectedNodeRF && (
-            <NodePanel
-              node={selectedNodeRF}
-              pages={campaign.pages}
-              onUpdate={updateSelectedNode}
-              onDelete={deleteSelectedNode}
-              T={T} css={css}
-            />
+            <NodePanel node={selectedNodeRF} pages={campaign.pages} onUpdate={updateSelectedNode} onDelete={deleteSelectedNode} onNavigate={onNavigate} T={T} css={css} />
           )}
           {selectedEdgeRF && (
-            <EdgePanel
-              edge={selectedEdgeRF}
-              statDefs={statDefs}
-              onUpdate={updateSelectedEdge}
-              onDelete={deleteSelectedEdge}
-              T={T} css={css}
-            />
+            <EdgePanel edge={selectedEdgeRF} statDefs={statDefs} onUpdate={updateSelectedEdge} onDelete={deleteSelectedEdge} T={T} css={css} />
           )}
         </div>
       )}

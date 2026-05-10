@@ -1,5 +1,8 @@
 export const uid = () => crypto.randomUUID();
 
+export const pageCostTotal  = (page) => (page?.costs  || []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
+export const pageAwardTotal = (page) => (page?.awards || []).reduce((s, a) => s + (Number(a.amount) || 0), 0);
+
 // v1: original (no version field)
 // v2: edges gain .events[], nodes gain .isStart/.isEnd
 // v3: pages gain .parentId (null) and .order (integer)
@@ -11,7 +14,8 @@ export const uid = () => crypto.randomUUID();
 //     playerVisible/playerEditable/playerVisibleSubheaders/playerVisibleColumns on schema sections;
 //     playerVisible/sectionVisibilityOverrides on pages
 // v9: statDefs [] on campaign; statDeltas [] on all edge events
-export const SCHEMA_VERSION = 9;
+// v10: edgeType "default" on all edges
+export const SCHEMA_VERSION = 10;
 
 export function migrateCampaign(data) {
   const v = data.schemaVersion || 1;
@@ -110,6 +114,16 @@ export function migrateCampaign(data) {
           ...e,
           events: (e.events || []).map(ev => ({ statDeltas: [], ...ev })),
         })),
+      },
+    };
+  }
+
+  if (v < 10) {
+    d = {
+      ...d,
+      flowchart: {
+        ...d.flowchart,
+        edges: (d.flowchart?.edges || []).map(e => ({ edgeType: "default", ...e })),
       },
     };
   }

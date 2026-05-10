@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useThemeCSS } from "./theme.js";
+import { pageCostTotal, pageAwardTotal } from "./storage.js";
 
 // ── Simulation engine ─────────────────────────────────────────────────────────
 
@@ -29,8 +30,8 @@ function simulateOne(campaign, startingStats) {
 
     // Apply page base costs/awards to cbills
     if (page) {
-      const baseCost = (page.costs || []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
-      const baseAward = (page.awards || []).reduce((s, a) => s + (Number(a.amount) || 0), 0);
+      const baseCost = pageCostTotal(page);
+      const baseAward = pageAwardTotal(page);
       stats.cbills = (stats.cbills || 0) + baseAward - baseCost;
     }
     if (node.isEnd) break;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useIsMobile, useThemeCSS } from "./theme.js";
 import { ThemeChipRow } from "./theme-picker.jsx";
-import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign, setSharing } from "./storage.js";
+import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign, setSharing, pageCostTotal, pageAwardTotal } from "./storage.js";
 import { ConfirmModal } from "./ui.jsx";
 import { ExportDropdown, ImportButton } from "./io.jsx";
 
@@ -266,8 +266,8 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
   const missions = campaign.pages.filter((page) => page.type === "mission");
   const freePages = campaign.pages.filter((page) => page.type === "free");
   const allTags = [...new Set(campaign.pages.flatMap((page) => page.tags || []))];
-  const totalCost = missions.reduce((sum, page) => sum + (page.costs || []).reduce((inner, cost) => inner + (Number(cost.amount) || 0), 0), 0);
-  const totalAward = missions.reduce((sum, page) => sum + (page.awards || []).reduce((inner, award) => inner + (Number(award.amount) || 0), 0), 0);
+  const totalCost = missions.reduce((sum, page) => sum + pageCostTotal(page), 0);
+  const totalAward = missions.reduce((sum, page) => sum + pageAwardTotal(page), 0);
 
   return (
     <div style={{ maxWidth: 680 }}>

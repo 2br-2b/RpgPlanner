@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useThemeCSS, useIsMobile } from "./theme.js";
-import { uid } from "./storage.js";
-import { ConfirmModal } from "./ui.jsx";
+import { uid, pageCostTotal, pageAwardTotal } from "./storage.js";
+import { ConfirmModal, VisibilityBadge } from "./ui.jsx";
 import { TableSection } from "./table-section.jsx";
 import { WaypointsSection } from "./waypoints-section.jsx";
 import { MilkdownEditor } from "./milkdown-editor.jsx";
@@ -48,8 +48,8 @@ export function OutlineView({ campaign, onSelect, onUpdate }) {
 function OutlineCard({ page, schema, showCosts, onSelect, onUpdate, onFilterByTag }) {
   const { T, css } = useThemeCSS();
   const [editTag, setEditTag] = useState("");
-  const tc = (page.costs || []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
-  const ta = (page.awards || []).reduce((s, a) => s + (Number(a.amount) || 0), 0);
+  const tc = pageCostTotal(page);
+  const ta = pageAwardTotal(page);
 
   const addTag = () => {
     const t = editTag.trim().toLowerCase();
@@ -328,11 +328,7 @@ function SubBox({ label, value, onChange, expanded, shareEnabled, sec, subheader
     };
 
     subheaderVisible = (
-      <span style={{ fontSize: 9, color: subheaderVisibleEffective ? T.accent : T.textMuted, cursor: "pointer", userSelect: "none" }}
-        title={subheaderVisibleEffective ? "Visible to players — click to hide" : "Hidden from players — click to show"}
-        onClick={() => trySetVis(!subheaderVisibleEffective)}>
-        {subheaderVisibleEffective ? "👁" : "🚫"}
-      </span>
+      <VisibilityBadge visible={subheaderVisibleEffective} fontSize={9} onClick={() => trySetVis(!subheaderVisibleEffective)} />
     );
   }
 

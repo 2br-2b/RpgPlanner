@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useThemeCSS, THEMES } from "./theme.js";
-import { SCHEMA_VERSION, migrateCampaign } from "./storage.js";
+import { SCHEMA_VERSION, migrateCampaign, pageCostTotal, pageAwardTotal } from "./storage.js";
 import { renderMarkdown } from "./markdown.js";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -103,7 +103,7 @@ function buildMarkdownLines(campaign, hideEmpty, hidePlayerHidden) {
         lines.push("### Costs & Awards");
         costs.forEach(c => lines.push(`- Cost: ${c.label} — ${Number(c.amount).toLocaleString()} C-Bills`));
         awards.forEach(a => lines.push(`- Award: ${a.label} — ${Number(a.amount).toLocaleString()} C-Bills`));
-        const net = awards.reduce((s, a) => s + Number(a.amount), 0) - costs.reduce((s, c) => s + Number(c.amount), 0);
+        const net = pageAwardTotal(page) - pageCostTotal(page);
         lines.push(`- **Net:** ${net.toLocaleString()} C-Bills\n`);
       }
     } else {
@@ -196,7 +196,7 @@ function buildPrintHTML(campaign, hideEmpty, themeKey = "plain", hidePlayerHidde
         parts.push("<h3>Costs &amp; Awards</h3><ul>");
         costs.forEach(c => parts.push(`<li>Cost: ${escapeHtml(c.label)} — ${Number(c.amount).toLocaleString()} C-Bills</li>`));
         awards.forEach(a => parts.push(`<li>Award: ${escapeHtml(a.label)} — ${Number(a.amount).toLocaleString()} C-Bills</li>`));
-        const net = awards.reduce((s, a) => s + Number(a.amount), 0) - costs.reduce((s, c) => s + Number(c.amount), 0);
+        const net = pageAwardTotal(page) - pageCostTotal(page);
         parts.push(`<li><strong>Net: ${net.toLocaleString()} C-Bills</strong></li></ul>`);
       }
     } else {
@@ -383,7 +383,7 @@ async function exportWord(campaign, hideEmpty, hidePlayerHidden = false) {
         children.push(new Paragraph({ text: "Costs & Awards", heading: HeadingLevel.HEADING_2 }));
         costs.forEach(c => children.push(new Paragraph({ children: [new TextRun(`Cost: ${c.label} — ${Number(c.amount).toLocaleString()} C-Bills`)], bullet: { level: 0 } })));
         awards.forEach(a => children.push(new Paragraph({ children: [new TextRun(`Award: ${a.label} — ${Number(a.amount).toLocaleString()} C-Bills`)], bullet: { level: 0 } })));
-        const net = awards.reduce((s, a) => s + Number(a.amount), 0) - costs.reduce((s, c) => s + Number(c.amount), 0);
+        const net = pageAwardTotal(page) - pageCostTotal(page);
         children.push(new Paragraph({ children: [new TextRun({ text: `Net: ${net.toLocaleString()} C-Bills`, bold: true })], bullet: { level: 0 } }));
       }
     } else {

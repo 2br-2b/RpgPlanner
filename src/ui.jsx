@@ -1,5 +1,22 @@
 import { useEffect, useState } from "react";
 
+// Reusable eye/ban badge for player-visibility toggles.
+// onClick is optional — omit for read-only display.
+export function VisibilityBadge({ visible, onClick, fontSize = 10 }) {
+  return (
+    <span
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+      title={visible ? "Visible to players — click to hide" : "Hidden from players — click to show"}
+      onClick={onClick}
+      style={{ fontSize, cursor: onClick ? "pointer" : "default", userSelect: "none", lineHeight: 1 }}
+    >
+      {visible ? "👁" : "🚫"}
+    </span>
+  );
+}
+
 export function useEscapeKey(onClose) {
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") onClose(); };

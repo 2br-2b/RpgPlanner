@@ -1,4 +1,5 @@
 import { useThemeCSS } from "./theme.js";
+import { VisibilityBadge } from "./ui.jsx";
 
 function waypointLabel(i) {
   const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -59,11 +60,7 @@ export function WaypointsSection({ sec, sectionData, onChange, showVisibility })
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ ...css.tag, alignSelf: "flex-start" }}>{label}</span>
                 {showVisibility && (
-                  <span style={{ fontSize: 11, cursor: "pointer", marginLeft: "auto", color: isVisible ? T.accent : T.textMuted, userSelect: "none" }}
-                    title={isVisible ? "Visible to players — click to hide" : "Hidden from players — click to show"}
-                    onClick={() => toggleVisibility(label)}>
-                    {isVisible ? "👁" : "🚫"}
-                  </span>
+                  <VisibilityBadge visible={isVisible} fontSize={11} onClick={() => toggleVisibility(label)} />
                 )}
               </div>
               <textarea style={{ ...css.textarea, minHeight: 80, resize: "vertical" }}
