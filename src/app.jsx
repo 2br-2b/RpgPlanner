@@ -56,18 +56,21 @@ function SearchModal({ campaign, onNavigate, onClose, T, css }) {
           {results.length === 0 && (
             <div style={{ padding: "24px 16px", textAlign: "center", color: T.textDim, fontSize: 12 }}>No pages match "{query}"</div>
           )}
-          {results.map((page, i) => (
+          {results.map((page, i) => {
+            const pt = (campaign.pageTypes || []).find(t => t.id === page.type) || (campaign.pageTypes || [])[0];
+            return (
             <div key={page.id} style={{ padding: "10px 16px", cursor: "pointer", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 10 }}
               onMouseEnter={e => e.currentTarget.style.background = T.surface2}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
               onClick={() => { onNavigate(page.id); onClose(); }}>
-              <span style={{ fontSize: 10, color: T.accent, flexShrink: 0 }}>⬟</span>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>{pt?.icon || "📄"}</span>
               <span style={{ flex: 1, fontSize: 13 }}>{page.name}</span>
               {(page.tags || []).length > 0 && (
                 <span style={{ fontSize: 10, color: T.textMuted }}>{page.tags.join(", ")}</span>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
         {!q && campaign.pages.length > 12 && (
           <div style={{ padding: "6px 16px", fontSize: 10, color: T.textMuted, borderTop: `1px solid ${T.border}` }}>Type to search all {campaign.pages.length} pages</div>

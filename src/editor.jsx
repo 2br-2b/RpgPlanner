@@ -68,7 +68,7 @@ function OutlineCard({ page, pageType, showCosts, onSelect, onUpdate, onFilterBy
       onMouseEnter={e => e.currentTarget.style.borderColor = T.accent}
       onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }} onClick={() => onSelect(page.id)}>
-        <span style={{ fontSize: 10, color: T.accent }}>⬟ {(pageType?.name || "").toUpperCase()}</span>
+        <span style={{ fontSize: 10, color: T.accent }}>{pageType?.icon || "📄"} {(pageType?.name || "").toUpperCase()}</span>
         <span style={{ flex: 1, fontWeight: "bold", fontSize: 14, color: T.accentBright }}>{page.name}</span>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>

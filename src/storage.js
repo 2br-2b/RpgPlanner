@@ -17,7 +17,8 @@ export const pageAwardTotal = (page) => (page?.awards || []).reduce((s, a) => s 
 // v10: edgeType "default" on all edges
 // v11: sectionSchema replaced by pageTypes[]; page.type becomes a pageTypeId;
 //      old "free" pages become mission-style with 1 section (content migrated)
-export const SCHEMA_VERSION = 11;
+// v12: pageTypes gain .icon field
+export const SCHEMA_VERSION = 12;
 
 export function migrateCampaign(data) {
   const v = data.schemaVersion || 1;
@@ -136,6 +137,7 @@ export function migrateCampaign(data) {
     const missionType = {
       id: missionTypeId,
       name: "Mission",
+      icon: "⚔",
       sectionSchema: (d.sectionSchema || []),
     };
     // Create a "Free Page" type with one content section (no subheaders)
@@ -144,6 +146,7 @@ export function migrateCampaign(data) {
     const freeType = {
       id: freeTypeId,
       name: "Free Page",
+      icon: "📝",
       sectionSchema: [
         {
           id: freeContentSectionId,
@@ -180,6 +183,14 @@ export function migrateCampaign(data) {
     };
   }
 
+  if (v < 12) {
+    const DEFAULT_ICONS = ["⚔", "📝", "🗺", "🏰", "📖", "🔮", "🎲"];
+    d = {
+      ...d,
+      pageTypes: (d.pageTypes || []).map((pt, i) => pt.icon ? pt : { ...pt, icon: DEFAULT_ICONS[i] || "📄" }),
+    };
+  }
+
   return { ...d, schemaVersion: SCHEMA_VERSION };
 }
 
@@ -199,6 +210,7 @@ export function defaultPageTypes() {
       {
         id: missionTypeId,
         name: "Mission",
+        icon: "⚔",
         sectionSchema: [
           { id: uid(), name: "Overview", type: "text", subheaders: ["Background", "Objectives"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
           { id: uid(), name: "Setup", type: "text", subheaders: ["Deployment", "Special Rules"], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
@@ -208,6 +220,7 @@ export function defaultPageTypes() {
       {
         id: freeTypeId,
         name: "Free Page",
+        icon: "📝",
         sectionSchema: [
           { id: freeContentSectionId, name: "Content", type: "text", subheaders: [], playerVisible: false, playerEditable: false, playerVisibleSubheaders: [], playerVisibleColumns: [] },
         ],

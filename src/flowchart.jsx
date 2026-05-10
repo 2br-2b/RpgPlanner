@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   ReactFlow, Background, Controls, MiniMap,
   Handle, Position, MarkerType,
@@ -79,7 +79,7 @@ function getConnectedIds(selectedNodeId, fcNodes, fcEdges) {
 
 // ── Conversion helpers ────────────────────────────────────────────────────────
 
-function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId) {
+function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, pageTypes) {
   const connected = selectedNodeId ? getConnectedIds(selectedNodeId, fcNodes, []) : null;
   // For edge selection: find adjacent nodes
   let edgeAdjacentNodes = null;
@@ -90,6 +90,7 @@ function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId, firstPageT
 
   return fcNodes.map(n => {
     const page = pages.find(p => p.id === n.pageId);
+    const pt = (pageTypes || []).find(t => t.id === (page?.type ?? firstPageTypeId)) || (pageTypes || [])[0];
     const dimmed = (selectedNodeId && !getConnectedIds(selectedNodeId, fcNodes, [/* no edges needed for node set */])?.nodes.has(n.id))
       || (selectedEdgeId && edgeAdjacentNodes && !edgeAdjacentNodes.has(n.id));
     const pageCosts = pageCostTotal(page);
@@ -102,6 +103,8 @@ function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId, firstPageT
         pageId: n.pageId,
         pageName: page?.name ?? "?",
         pageType: page?.type ?? firstPageTypeId,
+        pageTypeName: pt?.name || "",
+        pageTypeIcon: pt?.icon || "📄",
         isMissionType: (page?.type ?? firstPageTypeId) === firstPageTypeId,
         isStart: n.isStart,
         isEnd: n.isEnd,
@@ -189,14 +192,11 @@ function MissionNode({ data, selected }) {
       <Handle type="source" position={Position.Right} style={{ background: T.accentBright, border: `2px solid ${T.surface}`, width: 10, height: 10 }} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
-        {/* Page type icon */}
-        <span style={{ fontSize: 10, color: accent, flexShrink: 0 }} title={isMission ? "Mission" : "Free page"}>
-          {isMission ? "⬟" : "◻"}
-        </span>
+        <span style={{ fontSize: 12, flexShrink: 0 }} title={data.pageTypeName}>{data.pageTypeIcon || "📄"}</span>
         {data.isStart && <span style={{ fontSize: 9, background: T.accentBright, color: T.surface, borderRadius: 3, padding: "1px 5px", fontWeight: "bold" }}>START</span>}
         {data.isEnd && <span style={{ fontSize: 9, background: T.danger, color: "#fff", borderRadius: 3, padding: "1px 5px", fontWeight: "bold" }}>END</span>}
         {!data.isStart && !data.isEnd && (
-          <span style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase" }}>{isMission ? "mission" : "note"}</span>
+          <span style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase" }}>{data.pageTypeName}</span>
         )}
         {data.color && <span style={{ width: 7, height: 7, borderRadius: "50%", background: data.color, display: "inline-block", flexShrink: 0, marginLeft: "auto" }} />}
       </div>
@@ -293,17 +293,16 @@ const edgeTypes = { missionEdge: MissionEdge };
 
 function NodePanel({ node, pages, onUpdate, onDelete, onNavigate, T, css }) {
   const page = pages.find(p => p.id === node.data.pageId);
-  const isMission = node.data.isMissionType !== false;
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <span style={{ fontSize: 13, fontWeight: "bold", color: T.accentBright }}>
-          {isMission ? "⬟" : "◻"} {node.data.pageName}
+          {node.data.pageTypeIcon || "📄"} {node.data.pageName}
         </span>
         <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 8px" }} onClick={onDelete}>Remove</button>
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
-        <span style={{ fontSize: 11, color: T.textDim }}>{isMission ? "Mission page" : "Free page (note/lore)"}</span>
+        <span style={{ fontSize: 11, color: T.textDim }}>{node.data.pageTypeName || ""}</span>
         <button style={{ ...css.btn(), fontSize: 10, padding: "2px 10px", marginLeft: "auto" }}
           onClick={() => onNavigate("editor", node.data.pageId)}>
           Open page →
@@ -494,8 +493,8 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
 
   const firstPageTypeId = (campaign.pageTypes || [])[0]?.id;
   const rfNodes = useMemo(
-    () => toRFNodes(fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId),
-    [fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId]
+    () => toRFNodes(fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, campaign.pageTypes),
+    [fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, campaign.pageTypes]
   );
   const rfEdges = useMemo(
     () => toRFEdges(fcEdges, T, selectedNodeId, selectedEdgeId),
@@ -608,8 +607,10 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
 
   // Separate unused pages by type for clearer toolbar
   const unusedPages = campaign.pages.filter(p => !fcNodes.some(n => n.pageId === p.id));
-  const unusedMissions = unusedPages.filter(p => p.type === firstPageTypeId);
-  const unusedFree = unusedPages.filter(p => p.type !== firstPageTypeId);
+  const unusedByType = (campaign.pageTypes || []).map(pt => ({
+    pt,
+    pages: unusedPages.filter(p => p.type === pt.id),
+  })).filter(g => g.pages.length > 0);
 
   const selectedNodeRF = selectedNodeId ? rfNodes.find(n => n.id === selectedNodeId) : null;
   const selectedEdgeFC = selectedEdgeId ? fcEdges.find(e => `${e.from}--${e.to}` === selectedEdgeId) : null;
@@ -633,27 +634,16 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
             <button style={{ ...css.btn(), fontSize: 11, padding: "3px 10px" }} onClick={autoLayout}>⬡ Auto-layout</button>
           )}
 
-          {unusedMissions.length > 0 && (
-            <>
-              <span style={{ fontSize: 10, color: T.textDim, marginLeft: 4 }}>Missions:</span>
-              {unusedMissions.map(p => (
+          {unusedByType.map(({ pt, pages }) => (
+            <React.Fragment key={pt.id}>
+              <span style={{ fontSize: 10, color: T.textDim, marginLeft: 4 }}>{pt.icon} {pt.name}:</span>
+              {pages.map(p => (
                 <button key={p.id} style={{ ...css.btn(), fontSize: 11, padding: "3px 10px", borderLeft: `3px solid ${T.accent}` }} onClick={() => addNode(p.id)}>
-                  ⬟ {p.name}
+                  {pt.icon} {p.name}
                 </button>
               ))}
-            </>
-          )}
-
-          {unusedFree.length > 0 && (
-            <>
-              <span style={{ fontSize: 10, color: T.textDim, marginLeft: unusedMissions.length ? 0 : 4 }}>Notes:</span>
-              {unusedFree.map(p => (
-                <button key={p.id} style={{ ...css.btn(), fontSize: 11, padding: "3px 10px", borderLeft: `3px solid ${T.textDim}` }} onClick={() => addNode(p.id)}>
-                  ◻ {p.name}
-                </button>
-              ))}
-            </>
-          )}
+            </React.Fragment>
+          ))}
 
           {unusedPages.length === 0 && fcNodes.length > 0 && (
             <span style={{ fontSize: 11, color: T.textDim }}>All pages on chart — drag right handle → left handle to connect.</span>

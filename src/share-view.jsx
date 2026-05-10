@@ -231,13 +231,14 @@ function SharePageView({ page, schema, shareGuid, T, css }) {
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
-function ShareSidebar({ pages, selectedId, onSelect, T, css }) {
+function ShareSidebar({ pages, pageTypes, selectedId, onSelect, T, css }) {
   const sorted = [...pages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const renderTree = (parentId, depth) => {
     const children = sorted.filter(p => (p.parentId ?? null) === parentId);
     return children.map(page => {
       const isPlaceholder = page.type === "placeholder";
+      const pt = (pageTypes || []).find(t => t.id === page.type) || (pageTypes || [])[0];
       return (
         <div key={page.id}>
           <div
@@ -254,8 +255,8 @@ function ShareSidebar({ pages, selectedId, onSelect, T, css }) {
               opacity: isPlaceholder ? 0.5 : 1,
             }}
           >
-            <span style={{ fontSize: 9, color: isPlaceholder ? T.textDim : T.accent }}>
-              {isPlaceholder ? "▢" : "⬟"}
+            <span style={{ fontSize: 12 }}>
+              {isPlaceholder ? "▢" : (pt?.icon || "📄")}
             </span>
             <span style={{ fontStyle: isPlaceholder ? "italic" : "normal" }}>{page.name}</span>
             {isPlaceholder && <span style={{ fontSize: 9, color: T.textDim }}>[hidden]</span>}
@@ -305,7 +306,7 @@ function ShareInner({ data, shareGuid }) {
         <span style={{ fontSize: 10, color: T.textMuted, marginLeft: 8 }}>Player View</span>
       </div>
       <div style={{ ...css.body }}>
-        {hasVisiblePages && <ShareSidebar pages={pages} selectedId={selectedId} onSelect={setSelectedId} T={T} css={css} />}
+        {hasVisiblePages && <ShareSidebar pages={pages} pageTypes={pageTypes} selectedId={selectedId} onSelect={setSelectedId} T={T} css={css} />}
         <div style={{ ...css.main }}>
           {!hasVisiblePages
             ? (

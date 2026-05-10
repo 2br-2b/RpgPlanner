@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useThemeCSS } from "./theme.js";
 import { uid } from "./storage.js";
 import { ConfirmModal } from "./ui.jsx";
 import { FORMULA_HELP } from "./formula.js";
+import { IconPicker } from "./icon-picker.jsx";
 
 // Returns true if any page of the given typeId has non-empty section data
 function typeHasData(pages, typeId) {
@@ -134,6 +135,10 @@ export function SchemaEditor({ campaign, onUpdate }) {
     onUpdate(c => ({ ...c, pageTypes: (c.pageTypes || []).map(t => t.id === id ? { ...t, name } : t) }));
   };
 
+  const changeIcon = (id, icon) => {
+    onUpdate(c => ({ ...c, pageTypes: (c.pageTypes || []).map(t => t.id === id ? { ...t, icon } : t) }));
+  };
+
   const deleteType = (id) => {
     onUpdate(c => ({
       ...c,
@@ -225,7 +230,7 @@ export function SchemaEditor({ campaign, onUpdate }) {
           <button key={pt.id}
             style={{ ...css.btn(selectedTypeId === pt.id ? "primary" : "default"), fontSize: 11, padding: "4px 12px" }}
             onClick={() => setSelectedTypeId(pt.id)}>
-            {pt.name}
+            {pt.icon || "📄"} {pt.name}
           </button>
         ))}
         <div style={{ display: "flex", gap: 4 }}>
@@ -241,6 +246,7 @@ export function SchemaEditor({ campaign, onUpdate }) {
           pageType={selectedType}
           campaign={campaign}
           onRename={(name) => renameType(selectedType.id, name)}
+          onChangeIcon={(icon) => changeIcon(selectedType.id, icon)}
           onDelete={() => tryDeleteType(selectedType)}
           onAddSection={() => addSection(selectedType.id)}
           onMoveSection={(secId, dir) => moveSection(selectedType.id, secId, dir)}
@@ -256,7 +262,7 @@ export function SchemaEditor({ campaign, onUpdate }) {
   );
 }
 
-function PageTypePanel({ pageType, campaign, onRename, onDelete, onAddSection, onMoveSection, onChangeSection, onRenameSubheader, onUpdate }) {
+function PageTypePanel({ pageType, campaign, onRename, onChangeIcon, onDelete, onAddSection, onMoveSection, onChangeSection, onRenameSubheader, onUpdate }) {
   const { T, css } = useThemeCSS();
   const [editName, setEditName] = useState(pageType.name);
   const schema = pageType.sectionSchema || [];
@@ -272,6 +278,7 @@ function PageTypePanel({ pageType, campaign, onRename, onDelete, onAddSection, o
     <div>
       {/* Type header */}
       <div className="sk-section" style={{ ...css.section, marginBottom: 16, display: "flex", gap: 10, alignItems: "center" }}>
+        <IconPicker value={pageType.icon || "📄"} onChange={onChangeIcon} />
         <input style={{ ...css.input, fontWeight: "bold", color: T.accentBright, flex: 1 }}
           value={editName}
           onChange={e => setEditName(e.target.value)}

@@ -106,6 +106,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
       const hasChildren = children.length > 0;
       const hasParent = (page.parentId ?? null) !== null;
       const isCollapsed = collapsed.has(page.id);
+      const pt = pageTypes.find(t => t.id === page.type) || pageTypes[0];
       return (
         <div key={page.id}>
           <div style={{ paddingLeft: 4 + depth * 16, paddingRight: 4, paddingTop: 5, paddingBottom: 5, cursor: "pointer", background: isSelected || isRightPane ? T.surface2 : "transparent", borderLeft: `3px solid ${isSelected ? T.accent : isRightPane ? T.accentBright : "transparent"}`, borderBottom: isDeleting ? "none" : `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 3 }}
@@ -116,7 +117,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
               onClick={e => { e.stopPropagation(); if (hasChildren) toggleCollapse(page.id); }}
               title={hasChildren ? (isCollapsed ? "Expand" : "Collapse") : undefined}
             >{hasChildren ? (isCollapsed ? "▶" : "▼") : "·"}</button>
-            <span style={{ fontSize: 10, color: T.accent, flexShrink: 0 }}>⬟</span>
+            <span style={{ fontSize: 12, color: T.accent, flexShrink: 0 }}>{pt?.icon || "📄"}</span>
             <span style={{ flex: 1, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{page.name}</span>
             {isRightPane && <span style={{ fontSize: 9, color: T.accentBright, flexShrink: 0 }} title="Open in right pane">◨</span>}
             <div style={{ display: "flex", flexDirection: "column", gap: 1, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
