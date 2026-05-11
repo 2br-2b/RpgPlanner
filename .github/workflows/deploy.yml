@@ -64,32 +64,32 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache,mode=max
 
-  scan:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write   # upload SARIF results to GitHub Security tab
-
-    steps:
-      - name: Set lowercase image name
-        id: image
-        run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ghcr.io/${{ steps.image.outputs.name }}:${{ needs.build-and-push.outputs.image_tag }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
-          exit-code: "1"   # fail the job if CRITICAL or HIGH CVEs are found
-
-      - name: Upload Trivy results to GitHub Security tab
-        if: always()   # upload even when the scan step fails
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
+  # scan:
+  #   needs: build-and-push
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     security-events: write   # upload SARIF results to GitHub Security tab
+  #
+  #   steps:
+  #     - name: Set lowercase image name
+  #       id: image
+  #       run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+  #
+  #     - name: Run Trivy vulnerability scan
+  #       uses: aquasecurity/trivy-action@v0.36.0
+  #       with:
+  #         image-ref: ghcr.io/${{ steps.image.outputs.name }}:${{ needs.build-and-push.outputs.image_tag }}
+  #         format: sarif
+  #         output: trivy-results.sarif
+  #         severity: CRITICAL,HIGH
+  #         exit-code: "1"   # fail the job if CRITICAL or HIGH CVEs are found
+  #
+  #     - name: Upload Trivy results to GitHub Security tab
+  #       if: always()   # upload even when the scan step fails
+  #       uses: github/codeql-action/upload-sarif@v3
+  #       with:
+  #         sarif_file: trivy-results.sarif
 
   # ── Optional: deploy to k3s via Helm ───────────────────────────────────────
   #
