@@ -273,37 +273,57 @@ function SplitView({ campaign, leftPageId, rightPageId, onUpdate, onNavigate, sp
   );
 }
 
-function ActivityBar({ items, view, onNavigate, T }) {
+// Shared nav item button — used by both the desktop activity bar and mobile bottom bar.
+// variant="sidebar": vertical left column, left-border active indicator, hover effects.
+// variant="bottom": horizontal bottom bar, bottom-underline active indicator, no hover.
+function NavBar({ items, view, onNavigate, T, variant = "sidebar" }) {
+  const sidebar = variant === "sidebar";
+
+  const containerStyle = {
+    background: T.surface,
+    display: "flex",
+    alignItems: "center",
+    gap: 2,
+    zIndex: sidebar ? 10 : 200,
+    ...(sidebar
+      ? { flexDirection: "column", width: 56, flexShrink: 0, paddingTop: 6, paddingBottom: 6, borderRight: `1px solid ${T.border}` }
+      : { flexDirection: "row", position: "fixed", bottom: 0, left: 0, right: 0, height: 56, borderTop: `1px solid ${T.border}` }
+    ),
+  };
+
   return (
-    <div className="sk-activitybar" style={{
-      width: 48, flexShrink: 0, display: "flex", flexDirection: "column",
-      alignItems: "center", paddingTop: 6, paddingBottom: 6, gap: 2,
-      background: T.surface, borderRight: `1px solid ${T.border}`, zIndex: 10,
-    }}>
+    <div className={sidebar ? "sk-activitybar" : undefined} style={containerStyle}>
       {items.map(({ key, Icon, label }) => {
-        const isActive = key === "outline" ? (view === "outline" || view === "editor") : view === key;
+        const isActive = (key === "outline" && sidebar)
+          ? (view === "outline" || view === "editor")
+          : view === key;
+        const btnStyle = {
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          gap: sidebar ? 3 : 2, border: "none", cursor: "pointer", fontFamily: T.font,
+          position: "relative",
+          color: isActive ? (sidebar ? T.accentBright : T.accent) : T.textDim,
+          ...(sidebar
+            ? { width: 48, padding: "8px 0", background: isActive ? T.surface2 : "transparent", borderRadius: T.radius, transition: "background 0.12s, color 0.12s", flexShrink: 0 }
+            : { flex: 1, padding: "4px 0", background: "transparent", borderRadius: 0 }
+          ),
+        };
         return (
           <button
             key={key}
             onClick={() => onNavigate(key)}
             title={label}
-            style={{
-              width: 40, height: 40, display: "flex", alignItems: "center",
-              justifyContent: "center", background: isActive ? T.surface2 : "transparent",
-              border: "none", borderRadius: T.radius, cursor: "pointer",
-              color: isActive ? T.accentBright : T.textDim,
-              position: "relative", transition: "background 0.12s, color 0.12s", flexShrink: 0,
-            }}
-            onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = T.surface2; e.currentTarget.style.color = T.text; } }}
-            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textDim; } }}
+            style={btnStyle}
+            onMouseEnter={sidebar ? (e => { if (!isActive) { e.currentTarget.style.background = T.surface2; e.currentTarget.style.color = T.text; } }) : undefined}
+            onMouseLeave={sidebar ? (e => { if (!isActive) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textDim; } }) : undefined}
           >
-            {isActive && (
-              <span style={{
-                position: "absolute", left: 0, top: "20%", height: "60%",
-                width: 3, background: T.accent, borderRadius: "0 2px 2px 0",
-              }} />
+            {sidebar && isActive && (
+              <span style={{ position: "absolute", left: 0, top: "20%", height: "60%", width: 3, background: T.accent, borderRadius: "0 2px 2px 0" }} />
             )}
-            <Icon size={18} strokeWidth={isActive ? 2 : 1.6} />
+            <Icon size={sidebar ? 18 : 17} strokeWidth={isActive ? 2 : 1.6} />
+            <span style={{ fontSize: sidebar ? 8 : 9, letterSpacing: "0.05em" }}>{label.toUpperCase()}</span>
+            {!sidebar && isActive && (
+              <span style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: 28, height: 2, background: T.accent, borderRadius: "2px 2px 0 0" }} />
+            )}
           </button>
         );
       })}
@@ -556,7 +576,7 @@ export function App() {
         )}
 
         <div style={{ ...css.body, position: "relative", overflow: isMobile ? "visible" : "hidden", minHeight: 0 }}>
-          {!isMobile && <ActivityBar items={NAV_ITEMS} view={view} onNavigate={navigateTo} T={T} />}
+          {!isMobile && <NavBar items={NAV_ITEMS} view={view} onNavigate={navigateTo} T={T} variant="sidebar" />}
 
           {isMobile && sidebarOpen && showSidebar && (
             <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex" }}>
@@ -628,17 +648,7 @@ export function App() {
           )}
         </div>
 
-        {isMobile && (
-          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 56, background: T.surface, borderTop: `1px solid ${T.border}`, display: "flex", zIndex: 200 }}>
-            {NAV_ITEMS.map(({ key, Icon, label }) => (
-              <button key={key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, background: "transparent", border: "none", color: view === key ? T.accent : T.textDim, cursor: "pointer", fontFamily: T.font, padding: "4px 0", position: "relative" }} onClick={() => navigateTo(key)}>
-                <Icon size={17} strokeWidth={1.8} />
-                <span style={{ fontSize: 9, letterSpacing: "0.05em" }}>{label.toUpperCase()}</span>
-                {view === key && <span style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: 28, height: 2, background: T.accent, borderRadius: "2px 2px 0 0" }} />}
-              </button>
-            ))}
-          </div>
-        )}
+        {isMobile && <NavBar items={NAV_ITEMS} view={view} onNavigate={navigateTo} T={T} variant="bottom" />}
 
 
         {showSearch && <SearchModal campaign={campaign} onNavigate={(id) => navigateTo("editor", id)} onClose={() => setShowSearch(false)} T={T} css={css} />}
