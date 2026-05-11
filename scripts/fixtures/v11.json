@@ -1,0 +1,55 @@
+{
+  "id": "test-v11",
+  "name": "Test Campaign v11",
+  "schemaVersion": 11,
+  "theme": "tactical",
+  "shareEnabled": false,
+  "shareGuid": null,
+  "shareTheme": "plain",
+  "shareCustomCss": "",
+  "statDefs": [],
+  "pageTypes": [
+    {
+      "id": "pt-mission",
+      "name": "Mission",
+      "sectionSchema": [
+        {
+          "id": "sec1", "name": "Overview", "type": "text",
+          "subheaders": ["Background", "Objectives"],
+          "playerVisible": false, "playerEditable": false,
+          "playerVisibleSubheaders": [], "playerVisibleColumns": []
+        }
+      ]
+    },
+    {
+      "id": "pt-free",
+      "name": "Free Page",
+      "sectionSchema": [
+        {
+          "id": "sec-content", "name": "Content", "type": "text",
+          "subheaders": [],
+          "playerVisible": false, "playerEditable": false,
+          "playerVisibleSubheaders": [], "playerVisibleColumns": []
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "page1", "name": "Raid on Dusk", "type": "pt-mission",
+      "parentId": null, "order": 0, "tags": ["raid"],
+      "playerVisible": false, "sectionVisibilityOverrides": {},
+      "sections": {
+        "sec1": { "Background": "Strike at dawn.", "Objectives": "Capture the bridge." }
+      },
+      "costs": [], "awards": []
+    },
+    {
+      "id": "page2", "name": "World Notes", "type": "pt-free",
+      "parentId": null, "order": 1, "tags": [],
+      "playerVisible": false, "sectionVisibilityOverrides": {},
+      "sections": { "sec-content": "The world is on fire." }
+    }
+  ],
+  "flowchart": { "nodes": [], "edges": [] }
+}

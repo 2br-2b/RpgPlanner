@@ -1,0 +1,51 @@
+{
+  "id": "test-v8",
+  "name": "Test Campaign v8",
+  "schemaVersion": 8,
+  "theme": "tactical",
+  "shareEnabled": false,
+  "shareGuid": null,
+  "shareTheme": "plain",
+  "shareCustomCss": "",
+  "statDefs": [],
+  "sectionSchema": [
+    {
+      "id": "sec1", "name": "Overview", "type": "text",
+      "subheaders": ["Background", "Objectives"],
+      "playerVisible": false, "playerEditable": false,
+      "playerVisibleSubheaders": [], "playerVisibleColumns": []
+    },
+    {
+      "id": "sec2", "name": "Intel Table", "type": "table",
+      "columns": [
+        { "id": "c1", "label": "Target", "type": "text", "defaultValue": "", "summary": "none", "formula": "" },
+        { "id": "c2", "label": "Priority", "type": "number", "defaultValue": "0", "summary": "sum", "formula": "" }
+      ],
+      "playerVisible": true, "playerEditable": false,
+      "playerVisibleSubheaders": [], "playerVisibleColumns": ["c1"]
+    }
+  ],
+  "pages": [
+    {
+      "id": "page1", "name": "Main Op", "type": "mission",
+      "parentId": null, "order": 0, "tags": ["primary"],
+      "playerVisible": false, "sectionVisibilityOverrides": {},
+      "sections": {
+        "sec1": { "Background": "Strike the base.", "Objectives": "Destroy the reactor." },
+        "sec2": { "rows": [{ "c1": "Gen. Kovacs", "c2": 1 }] }
+      },
+      "costs": [{ "label": "Fuel", "amount": "300" }],
+      "awards": []
+    },
+    {
+      "id": "page2", "name": "Briefing Notes", "type": "free",
+      "parentId": null, "order": 1, "tags": [],
+      "playerVisible": false, "sectionVisibilityOverrides": {},
+      "content": "All pilots report at 0600."
+    }
+  ],
+  "flowchart": {
+    "nodes": [{ "id": "n1", "pageId": "page1", "x": 50, "y": 50, "isStart": true, "isEnd": false }],
+    "edges": []
+  }
+}

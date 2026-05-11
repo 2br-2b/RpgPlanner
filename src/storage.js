@@ -1,4 +1,16 @@
+import { runMigrationTests } from "./migration-tests.js";
+
 export const uid = () => crypto.randomUUID();
+
+export class MigrationError extends Error {
+  constructor(message, failures, before, after) {
+    super(message);
+    this.name = "MigrationError";
+    this.failures = failures;   // string[]
+    this.before = before;       // raw pre-migration data
+    this.after = after;         // post-migration data (may be partially valid)
+  }
+}
 
 export const pageCostTotal  = (page) => (page?.costs  || []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
 export const pageAwardTotal = (page) => (page?.awards || []).reduce((s, a) => s + (Number(a.amount) || 0), 0);
@@ -20,7 +32,7 @@ export const pageAwardTotal = (page) => (page?.awards || []).reduce((s, a) => s 
 // v12: pageTypes gain .icon field
 export const SCHEMA_VERSION = 12;
 
-export function migrateCampaign(data) {
+function _applyMigrations(data) {
   const v = data.schemaVersion || 1;
   if (v === SCHEMA_VERSION) return data;
   let d = { ...data };
@@ -192,6 +204,38 @@ export function migrateCampaign(data) {
   }
 
   return { ...d, schemaVersion: SCHEMA_VERSION };
+}
+
+// Public wrapper: runs migration then validates invariants.
+// Throws MigrationError if tests fail — callers must catch and show the error UI.
+// Pass skipTests=true only from the "snapshot and continue (unsafe)" path.
+export function migrateCampaign(data, { skipTests = false } = {}) {
+  const v = data.schemaVersion || 1;
+  if (v === SCHEMA_VERSION) return data;           // nothing to migrate, no tests needed
+  const after = _applyMigrations(data);
+  if (!skipTests) {
+    const { ok, failures } = runMigrationTests(data, after);
+    if (!ok) throw new MigrationError(
+      `Migration from v${v} to v${SCHEMA_VERSION} failed ${failures.length} invariant check(s)`,
+      failures, data, after
+    );
+  }
+  return after;
+}
+
+export async function logMigrationError(err) {
+  try {
+    await fetch(`${API_BASE}/campaign/${SESSION_GUID}/migration-errors`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fromVersion: err.before?.schemaVersion || null,
+        toVersion: SCHEMA_VERSION,
+        failures: err.failures,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+  } catch { /* best-effort — don't mask the original error */ }
 }
 
 function preferredTheme() {

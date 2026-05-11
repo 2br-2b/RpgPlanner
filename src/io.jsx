@@ -449,7 +449,7 @@ function isSectionVisible(sec, page, hidePlayerHidden) {
   return overrides[sec.id] !== undefined ? overrides[sec.id] : (sec.playerVisible || false);
 }
 
-function ExportModal({ campaign, currentPage, onClose, T, css }) {
+export function ExportModal({ campaign, currentPage, onClose, T, css }) {
   const prefs = loadExportPrefs();
   const [format, setFormat] = useState(prefs.format || "pdf");
   const [themeKey, setThemeKey] = useState(prefs.theme || "plain");

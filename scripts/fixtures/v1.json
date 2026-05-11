@@ -1,0 +1,39 @@
+{
+  "id": "test-v1",
+  "name": "Test Campaign v1",
+  "theme": "materialLight",
+  "sectionSchema": [
+    { "id": "sec1", "name": "Overview", "subheaders": ["Background", "Objectives"] },
+    { "id": "sec2", "name": "Setup", "subheaders": [] }
+  ],
+  "pages": [
+    {
+      "id": "page1",
+      "name": "Mission Alpha",
+      "type": "mission",
+      "tags": ["hard"],
+      "sections": {
+        "sec1": { "Background": "The enemy advances.", "Objectives": "Hold the line." },
+        "sec2": "Deploy at grid 4-4."
+      },
+      "costs": [{ "label": "Ammo", "amount": "500" }],
+      "awards": [{ "label": "XP", "amount": "200" }]
+    },
+    {
+      "id": "page2",
+      "name": "Lore Note",
+      "type": "free",
+      "content": "This is some rich lore text.",
+      "tags": []
+    }
+  ],
+  "flowchart": {
+    "nodes": [
+      { "id": "n1", "pageId": "page1", "x": 100, "y": 100 },
+      { "id": "n2", "pageId": "page2", "x": 300, "y": 100 }
+    ],
+    "edges": [
+      { "from": "n1", "to": "n2", "label": "" }
+    ]
+  }
+}

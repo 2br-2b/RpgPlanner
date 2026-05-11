@@ -44,6 +44,13 @@ const snapshotBodySchema = z.object({
   name: z.string().min(1).max(200),
 });
 
+const migrationErrorBodySchema = z.object({
+  fromVersion: z.number().int().nullable(),
+  toVersion: z.number().int(),
+  failures: z.array(z.string()).max(100),
+  timestamp: z.string(),
+});
+
 type CampaignRecord = {
   data: Record<string, unknown>;
   updated_at: number;
@@ -81,6 +88,14 @@ db.exec(`
     created_at    REAL NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_snapshots_guid ON snapshots(campaign_guid);
+  CREATE TABLE IF NOT EXISTS migration_errors (
+    id            TEXT PRIMARY KEY,
+    campaign_guid TEXT NOT NULL,
+    from_version  INTEGER,
+    to_version    INTEGER NOT NULL,
+    failures      TEXT NOT NULL,
+    created_at    REAL NOT NULL
+  );
 `);
 try { db.exec(`ALTER TABLE campaigns ADD COLUMN share_guid TEXT`); } catch { /* already exists */ }
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_campaigns_share_guid ON campaigns(share_guid)`);
@@ -108,6 +123,10 @@ const getSnapshotStmt = db.prepare(
 );
 const countSnapshotsStmt = db.prepare(
   "SELECT COUNT(*) as cnt FROM snapshots WHERE campaign_guid = ?"
+);
+
+const insertMigrationError = db.prepare(
+  "INSERT INTO migration_errors (id, campaign_guid, from_version, to_version, failures, created_at) VALUES (?, ?, ?, ?, ?, ?)"
 );
 
 function assertGuid(guid: string): void {
@@ -465,6 +484,17 @@ app.get("/api/campaign/:guid/snapshots/:snapId", asyncRoute(async (req, res) => 
   const row = getSnapshotStmt.get(snapId, guid) as { data: string } | undefined;
   if (!row) throw new HttpError(404, "Snapshot not found");
   res.json({ data: JSON.parse(row.data) });
+}));
+
+// ── Migration error logging ───────────────────────────────────────────────────
+
+app.post("/api/campaign/:guid/migration-errors", asyncRoute(async (req, res) => {
+  const guid = getGuidParam(req.params.guid);
+  const parsed = migrationErrorBodySchema.safeParse(req.body);
+  if (!parsed.success) throw new HttpError(400, "Invalid migration error body");
+  const { fromVersion, toVersion, failures } = parsed.data;
+  insertMigrationError.run(crypto.randomUUID(), guid, fromVersion, toVersion, JSON.stringify(failures), Date.now() / 1000);
+  res.json({ ok: true });
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────

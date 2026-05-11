@@ -47,6 +47,17 @@ This git-pushes, triggers Flux reconciliation, restarts the deployment, and wait
 
 **Data shape**: each campaign lives in a `data` TEXT column in SQLite. The frontend has its own schema versioning (`SCHEMA_VERSION` in `storage.js`) and migration logic (`migrateCampaign`). **Schema migrations are required** whenever the data shape changes — bump `SCHEMA_VERSION` and add a migration branch in `migrateCampaign` that transforms old data to the new shape. Never assume fields exist; always use safe defaults (`|| []`, `|| {}`, `?? value`) in both migration and render code so old saves load cleanly.
 
+**Migration safety rules — mandatory for every schema change:**
+
+1. **Each version gets its own `if (v < N)` block.** Never fold a new change into an existing block.
+2. **Write invariant tests** in `src/migration-tests.js` for any new fields or structural changes introduced. The existing checks (no pages lost, no section content lost, valid type refs, JSON round-trip) run automatically on every migration.
+3. **Run the migration test tool before committing:**
+   ```bash
+   node scripts/test-migration.js path/to/fixture.json
+   ```
+   This loads the JSON file, runs `migrateCampaign` on it, and prints PASS or a list of failures. You can use any real or hand-crafted campaign JSON as input — one per old schema version is ideal. **Do not commit or push a new schema version without running this tool and seeing PASS.**
+4. The test runner also executes in the browser on every page load. If tests fail at runtime, a blocking error modal is shown with Export and "Snapshot and continue (unsafe)" options. Migration failures are also logged server-side to the `migration_errors` table.
+
 **Persistence flow**: the frontend writes to `localStorage` immediately as a local backup, then async-syncs to `PUT /api/campaign/{guid}` with a debounced 800ms save (see `saveData` in `storage.js`).
 
 **Sections vs subheaders**: Mission pages have a `sectionSchema` (array of sections, each with `type: "text" | "waypoints" | "table"` and optional `subheaders`). Section content is stored in `page.sections[sectionId]` — either a flat string (no subheaders), an object keyed by subheader name, or for waypoints: `{ count: N, waypoints: { A: "...", B: "..." } }`, or for tables: `{ rows: [...] }`.
@@ -73,7 +84,8 @@ src/
   simulator.jsx     — Monte Carlo campaign simulator
   settings.jsx      — Settings UI and campaign stats
   io.jsx            — Import/Export modal (JSON and Markdown)
-  storage.js        — GUID persistence, loadData/saveData, migrateCampaign
+  storage.js        — GUID persistence, loadData/saveData, migrateCampaign, MigrationError, logMigrationError
+  migration-tests.js — runMigrationTests(before, after): invariant checks run on every migration
   theme.js          — 14 theme definitions, makeCSS(), useTheme(), useThemeCSS()
   theme-picker.jsx  — ThemeChip, ThemeChipRow, ThemePicker (shared across topbar and settings)
   theme-picker.css  — CSS isolation for the picker dropdown (.theme-chip-isolate)

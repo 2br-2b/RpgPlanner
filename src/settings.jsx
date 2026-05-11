@@ -3,7 +3,7 @@ import { useIsMobile, useThemeCSS } from "./theme.js";
 import { ThemeChipRow } from "./theme-picker.jsx";
 import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign, setSharing, pageCostTotal, pageAwardTotal } from "./storage.js";
 import { ConfirmModal } from "./ui.jsx";
-import { ExportDropdown, ImportButton } from "./io.jsx";
+import { ExportDropdown, ExportModal, ImportButton } from "./io.jsx";
 
 function Row({ label, hint, children, T, isMobile }) {
   return (
@@ -25,6 +25,7 @@ function SnapshotsPanel({ campaign, onRestore, T, css, isMobile }) {
   const [saveError, setSaveError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [restoring, setRestoring] = useState(null);
+  const [exportingSnap, setExportingSnap] = useState(null); // { snapId, data }
 
   const reload = useCallback(() => {
     setLoading(true);
@@ -60,8 +61,24 @@ function SnapshotsPanel({ campaign, onRestore, T, css, isMobile }) {
     setRestoring(null);
   };
 
+  const handleExportSnap = async (id) => {
+    try {
+      const data = await restoreSnapshot(id);
+      if (data) setExportingSnap({ snapId: id, data: { name: campaign.name, pages: [], flowchart: { nodes: [], edges: [] }, pageTypes: [], ...data } });
+    } catch { }
+  };
+
   return (
     <div>
+      {exportingSnap && (
+        <ExportModal
+          campaign={exportingSnap.data}
+          currentPage={null}
+          onClose={() => setExportingSnap(null)}
+          T={T}
+          css={css}
+        />
+      )}
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
         <input style={{ ...css.input, flex: 1, fontSize: 11, minWidth: 160 }} placeholder={`Name (default: timestamp)`}
           value={saveName} onChange={e => setSaveName(e.target.value)}
@@ -88,6 +105,9 @@ function SnapshotsPanel({ campaign, onRestore, T, css, isMobile }) {
             </>
           ) : (
             <>
+              <button style={{ ...css.btn(), fontSize: 10, padding: "2px 8px" }} onClick={() => handleExportSnap(snap.id)} title="Export this snapshot">
+                ⬇
+              </button>
               <button style={{ ...css.btn(), fontSize: 10, padding: "2px 8px" }} onClick={() => handleRestore(snap.id, snap.name)} disabled={restoring === snap.id}>
                 {restoring === snap.id ? "…" : "Restore"}
               </button>

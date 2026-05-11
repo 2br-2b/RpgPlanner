@@ -1,0 +1,31 @@
+{
+  "id": "test-v9-wp",
+  "name": "Waypoints Campaign",
+  "schemaVersion": 9,
+  "theme": "tactical",
+  "shareEnabled": false, "shareGuid": null, "shareTheme": "plain", "shareCustomCss": "",
+  "statDefs": [{ "id": "s1", "name": "Score", "startValue": 0 }],
+  "sectionSchema": [
+    {
+      "id": "sec-wp", "name": "Deployment Zones", "type": "waypoints",
+      "subheaders": [],
+      "playerVisible": false, "playerEditable": false,
+      "playerVisibleSubheaders": [], "playerVisibleColumns": []
+    }
+  ],
+  "pages": [
+    {
+      "id": "page1", "name": "Drop Zone", "type": "mission",
+      "parentId": null, "order": 0, "tags": [],
+      "playerVisible": false, "sectionVisibilityOverrides": {},
+      "sections": {
+        "sec-wp": { "count": 3, "waypoints": { "A": "North bridge", "B": "South gate", "C": "Command post" } }
+      },
+      "costs": [], "awards": []
+    }
+  ],
+  "flowchart": {
+    "nodes": [{ "id": "n1", "pageId": "page1", "x": 0, "y": 0, "isStart": true, "isEnd": false }],
+    "edges": []
+  }
+}

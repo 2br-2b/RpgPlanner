@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlowchartView } from "./flowchart.jsx";
-import { ExportDropdown } from "./io.jsx";
+import { ExportDropdown, ExportModal } from "./io.jsx";
 import { OutlineView, PageEditor } from "./editor.jsx";
 import { SchemaEditor } from "./schema-editor.jsx";
 import { SettingsView } from "./settings.jsx";
@@ -15,11 +15,14 @@ import {
   loadData,
   migrateCampaign,
   saveData,
+  saveSnapshot,
   getKnownCampaigns,
   switchCampaign,
   createNewCampaign,
   forgetCampaign,
   registerSaveFlush,
+  MigrationError,
+  logMigrationError,
 } from "./storage.js";
 
 const NAV_ITEMS = [
@@ -131,6 +134,75 @@ function CampaignSwitcher({ current, onClose, T, css }) {
   );
 }
 
+// ── Migration error modal ─────────────────────────────────────────────────────
+
+function MigrationErrorModal({ error, onContinueUnsafe, T, css }) {
+  const [showExport, setShowExport] = useState(false);
+  const [snapshotting, setSnapshotting] = useState(false);
+  const [snapshotDone, setSnapshotDone] = useState(false);
+
+  const handleSnapshotAndContinue = async () => {
+    setSnapshotting(true);
+    try {
+      await saveSnapshot(`Pre-migration backup (v${error.before?.schemaVersion ?? "?"}) — ${new Date().toLocaleString()}`);
+      setSnapshotDone(true);
+    } catch { /* best-effort */ }
+    setSnapshotting(false);
+    onContinueUnsafe();
+  };
+
+  // Wrap the raw pre-migration blob as a minimal campaign for export
+  const exportCampaign = { name: error.before?.name || "Campaign", pages: [], flowchart: { nodes: [], edges: [] }, pageTypes: [], ...error.before };
+
+  return (
+    <ModalOverlay onClose={null} zIndex={9000}>
+      <div style={{ background: "#1e1e2e", border: "2px solid #ef4444", borderRadius: 10, padding: 28, maxWidth: 540, width: "100%", color: "#eee", fontFamily: "system-ui, sans-serif", boxShadow: "0 8px 40px rgba(0,0,0,0.7)" }}>
+        <div style={{ fontSize: 16, fontWeight: "bold", color: "#ef4444", marginBottom: 8 }}>⚠ Migration Integrity Check Failed</div>
+        <div style={{ fontSize: 12, color: "#bbb", lineHeight: 1.6, marginBottom: 16 }}>
+          Your campaign data was being upgraded to a new schema version, but the migration did not pass all safety checks. No data has been saved yet.
+        </div>
+
+        <div style={{ background: "#12121e", border: "1px solid #555", borderRadius: 6, padding: 12, marginBottom: 16, maxHeight: 180, overflowY: "auto" }}>
+          <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.1em", marginBottom: 8 }}>FAILED CHECKS</div>
+          {(error.failures || []).map((f, i) => (
+            <div key={i} style={{ fontSize: 11, color: "#f87171", marginBottom: 4 }}>• {f}</div>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 11, color: "#aaa", marginBottom: 20, lineHeight: 1.6 }}>
+          <strong style={{ color: "#fbbf24" }}>Recommended:</strong> Export your data first to keep a safe backup, then report this issue. The "Snapshot and continue (unsafe)" option will attempt to save the migration output anyway — data loss is possible.
+        </div>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <button
+            style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid #3b82f6", background: "#3b82f6", color: "#fff", cursor: "pointer", fontSize: 12, fontFamily: "system-ui", fontWeight: "bold" }}
+            onClick={() => setShowExport(true)}
+          >
+            ⬇ Export / Print data…
+          </button>
+          <button
+            style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid #f59e0b", background: "transparent", color: "#f59e0b", cursor: "pointer", fontSize: 12, fontFamily: "system-ui" }}
+            onClick={handleSnapshotAndContinue}
+            disabled={snapshotting}
+          >
+            {snapshotting ? "Saving snapshot…" : snapshotDone ? "Continuing…" : "📸 Snapshot and continue (unsafe)"}
+          </button>
+        </div>
+
+        {showExport && (
+          <ExportModal
+            campaign={exportCampaign}
+            currentPage={null}
+            onClose={() => setShowExport(false)}
+            T={T}
+            css={css}
+          />
+        )}
+      </div>
+    </ModalOverlay>
+  );
+}
+
 const SPLIT_MIN_WIDTH = 1100; // px — below this, split is hidden
 
 function SplitView({ campaign, leftPageId, rightPageId, onUpdate, onNavigate, splitRatio, onSplitRatioChange, T, css, mainPad }) {
@@ -206,6 +278,7 @@ export function App() {
   const [view, setView] = useState("outline");
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState("saved");
+  const [migrationError, setMigrationError] = useState(null); // { error: MigrationError }
 
   const [showSearch, setShowSearch] = useState(false);
   const [showCampaigns, setShowCampaigns] = useState(false);
@@ -237,10 +310,27 @@ export function App() {
 
   useEffect(() => {
     loadData().then((data) => {
-      const migrated = data ? migrateCampaign(data) : defaultCampaign();
-      setCampaign(migrated);
-      historyRef.current = { stack: [migrated], idx: 0 };
-      setLoading(false);
+      if (!data) {
+        const fresh = defaultCampaign();
+        setCampaign(fresh);
+        historyRef.current = { stack: [fresh], idx: 0 };
+        setLoading(false);
+        return;
+      }
+      try {
+        const migrated = migrateCampaign(data);
+        setCampaign(migrated);
+        historyRef.current = { stack: [migrated], idx: 0 };
+        setLoading(false);
+      } catch (err) {
+        if (err instanceof MigrationError) {
+          logMigrationError(err);
+          setMigrationError(err);
+          setLoading(false);
+        } else {
+          throw err;
+        }
+      }
     });
   }, []);
 
@@ -346,11 +436,29 @@ export function App() {
     return () => window.removeEventListener("popstate", handler);
   }, [showSearch, showCampaigns, sidebarOpen]);
 
+  const isDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+  const loadingStyle = { background: isDark ? "#121212" : "#fafafa", color: isDark ? "#9e9e9e" : "#757575", minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "system-ui, sans-serif", letterSpacing: "0.1em", fontSize: 13 };
+
   if (loading) {
-    const isDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    return <div style={loadingStyle}>Loading...</div>;
+  }
+
+  if (migrationError) {
+    const fallbackT = THEMES.materialDark;
+    const fallbackCss = makeCSS(fallbackT);
     return (
-      <div style={{ background: isDark ? "#121212" : "#fafafa", color: isDark ? "#9e9e9e" : "#757575", minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "system-ui, sans-serif", letterSpacing: "0.1em", fontSize: 13 }}>
-        Loading...
+      <div style={loadingStyle}>
+        <MigrationErrorModal
+          error={migrationError}
+          T={fallbackT}
+          css={fallbackCss}
+          onContinueUnsafe={() => {
+            const after = migrationError.after || defaultCampaign();
+            setCampaign(after);
+            historyRef.current = { stack: [after], idx: 0 };
+            setMigrationError(null);
+          }}
+        />
       </div>
     );
   }

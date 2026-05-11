@@ -1,0 +1,36 @@
+{
+  "id": "test-v5",
+  "name": "Test Campaign v5",
+  "schemaVersion": 5,
+  "theme": "materialDark",
+  "sectionSchema": [
+    { "id": "sec1", "name": "Overview", "type": "text", "subheaders": ["Background"] },
+    {
+      "id": "sec2",
+      "name": "Gear Table",
+      "type": "table",
+      "columns": [
+        { "id": "col1", "label": "Item" },
+        { "id": "col2", "label": "Weight" }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "page1",
+      "name": "Supply Run",
+      "type": "mission",
+      "parentId": null,
+      "order": 0,
+      "tags": [],
+      "sections": {
+        "sec1": { "Background": "We need supplies." },
+        "sec2": { "rows": [{ "col1": "Rations", "col2": "2kg" }] }
+      },
+      "costs": [],
+      "awards": []
+    }
+  ],
+  "flowchart": { "nodes": [], "edges": [] },
+  "statDefs": []
+}

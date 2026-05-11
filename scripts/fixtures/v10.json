@@ -1,0 +1,42 @@
+{
+  "id": "test-v10",
+  "name": "Test Campaign v10",
+  "schemaVersion": 10,
+  "theme": "materialDark",
+  "shareEnabled": false,
+  "shareGuid": null,
+  "shareTheme": "plain",
+  "shareCustomCss": "",
+  "statDefs": [
+    { "id": "stat1", "name": "Kills", "startValue": 0 }
+  ],
+  "sectionSchema": [
+    {
+      "id": "sec1", "name": "Overview", "type": "text",
+      "subheaders": ["Background"],
+      "playerVisible": false, "playerEditable": false,
+      "playerVisibleSubheaders": [], "playerVisibleColumns": []
+    }
+  ],
+  "pages": [
+    {
+      "id": "page1", "name": "Final Push", "type": "mission",
+      "parentId": null, "order": 0, "tags": [],
+      "playerVisible": false, "sectionVisibilityOverrides": {},
+      "sections": { "sec1": { "Background": "The final assault begins." } },
+      "costs": [], "awards": [{ "label": "Bonus", "amount": "1000" }]
+    },
+    {
+      "id": "page2", "name": "Campaign History", "type": "free",
+      "parentId": null, "order": 1, "tags": [],
+      "playerVisible": false, "sectionVisibilityOverrides": {},
+      "content": "Three years of conflict."
+    }
+  ],
+  "flowchart": {
+    "nodes": [
+      { "id": "n1", "pageId": "page1", "x": 100, "y": 100, "isStart": true, "isEnd": false }
+    ],
+    "edges": []
+  }
+}

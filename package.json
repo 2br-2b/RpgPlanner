@@ -9,7 +9,8 @@
     "build": "vite build && tsc -p tsconfig.server.json",
     "typecheck": "tsc -p tsconfig.server.json --noEmit",
     "start": "node build/server/index.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:migration": "node scripts/test-migration.js"
   },
   "dependencies": {
     "@milkdown/core": "^7.20.0",
