@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LayoutList, Shapes, Workflow, Dices, Settings } from "lucide-react";
 import { FlowchartView } from "./flowchart.jsx";
 import { ExportDropdown, ExportModal } from "./io.jsx";
 import { OutlineView, PageEditor } from "./editor.jsx";
@@ -26,11 +27,11 @@ import {
 } from "./storage.js";
 
 const NAV_ITEMS = [
-  { key: "outline", icon: "=", label: "Outline" },
-  { key: "schema", icon: "*", label: "Types" },
-  { key: "flowchart", icon: "o", label: "Flow" },
-  { key: "simulate", icon: ">", label: "Simulate" },
-  { key: "settings", icon: "#", label: "Settings" },
+  { key: "outline",   Icon: LayoutList, label: "Outline"  },
+  { key: "schema",    Icon: Shapes,     label: "Types"    },
+  { key: "flowchart", Icon: Workflow,   label: "Flow"     },
+  { key: "simulate",  Icon: Dices,      label: "Simulate" },
+  { key: "settings",  Icon: Settings,   label: "Settings" },
 ];
 
 
@@ -272,6 +273,44 @@ function SplitView({ campaign, leftPageId, rightPageId, onUpdate, onNavigate, sp
   );
 }
 
+function ActivityBar({ items, view, onNavigate, T }) {
+  return (
+    <div className="sk-activitybar" style={{
+      width: 48, flexShrink: 0, display: "flex", flexDirection: "column",
+      alignItems: "center", paddingTop: 6, paddingBottom: 6, gap: 2,
+      background: T.surface, borderRight: `1px solid ${T.border}`, zIndex: 10,
+    }}>
+      {items.map(({ key, Icon, label }) => {
+        const isActive = key === "outline" ? (view === "outline" || view === "editor") : view === key;
+        return (
+          <button
+            key={key}
+            onClick={() => onNavigate(key)}
+            title={label}
+            style={{
+              width: 40, height: 40, display: "flex", alignItems: "center",
+              justifyContent: "center", background: isActive ? T.surface2 : "transparent",
+              border: "none", borderRadius: T.radius, cursor: "pointer",
+              color: isActive ? T.accentBright : T.textDim,
+              position: "relative", transition: "background 0.12s, color 0.12s", flexShrink: 0,
+            }}
+            onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = T.surface2; e.currentTarget.style.color = T.text; } }}
+            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textDim; } }}
+          >
+            {isActive && (
+              <span style={{
+                position: "absolute", left: 0, top: "20%", height: "60%",
+                width: 3, background: T.accent, borderRadius: "0 2px 2px 0",
+              }} />
+            )}
+            <Icon size={18} strokeWidth={isActive ? 2 : 1.6} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function App() {
   const [campaign, setCampaign] = useState(null);
   const [selectedPageId, setSelectedPageId] = useState(null);
@@ -492,9 +531,6 @@ export function App() {
             </button>
             <button style={{ ...css.btn(), fontSize: 11, padding: "4px 8px", opacity: canUndo ? 1 : 0.3 }} onClick={undo} title="Undo (Ctrl+Z)" disabled={!canUndo}>↩</button>
             <button style={{ ...css.btn(), fontSize: 11, padding: "4px 8px", opacity: canRedo ? 1 : 0.3 }} onClick={redo} title="Redo (Ctrl+Y)" disabled={!canRedo}>↪</button>
-            {NAV_ITEMS.map(({ key, label }) => (
-              <button key={key} style={{ ...css.btn(view === key ? "primary" : "default"), letterSpacing: "0.06em", fontSize: 11 }} onClick={() => navigateTo(key)}>{label.toUpperCase()}</button>
-            ))}
             <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key }))} />
             <ExportDropdown campaign={campaign} currentPage={selectedPage} />
             {splitAvailable && showSidebar && (
@@ -520,6 +556,8 @@ export function App() {
         )}
 
         <div style={{ ...css.body, position: "relative", overflow: isMobile ? "visible" : "hidden", minHeight: 0 }}>
+          {!isMobile && <ActivityBar items={NAV_ITEMS} view={view} onNavigate={navigateTo} T={T} />}
+
           {isMobile && sidebarOpen && showSidebar && (
             <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex" }}>
               <div style={{ background: "rgba(0,0,0,0.55)", position: "absolute", inset: 0 }} onClick={() => setSidebarOpen(false)} />
@@ -592,9 +630,9 @@ export function App() {
 
         {isMobile && (
           <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 56, background: T.surface, borderTop: `1px solid ${T.border}`, display: "flex", zIndex: 200 }}>
-            {NAV_ITEMS.map(({ key, icon, label }) => (
+            {NAV_ITEMS.map(({ key, Icon, label }) => (
               <button key={key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, background: "transparent", border: "none", color: view === key ? T.accent : T.textDim, cursor: "pointer", fontFamily: T.font, padding: "4px 0", position: "relative" }} onClick={() => navigateTo(key)}>
-                <span style={{ fontSize: 17, lineHeight: 1 }}>{icon}</span>
+                <Icon size={17} strokeWidth={1.8} />
                 <span style={{ fontSize: 9, letterSpacing: "0.05em" }}>{label.toUpperCase()}</span>
                 {view === key && <span style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: 28, height: 2, background: T.accent, borderRadius: "2px 2px 0 0" }} />}
               </button>
