@@ -8,4 +8,9 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
   },
+  server: {
+    proxy: {
+      "/api": `http://localhost:${process.env.PORT || 8000}`,
+    },
+  },
 });
