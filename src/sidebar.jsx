@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useThemeCSS } from "./theme.js";
 import { uid } from "./storage.js";
 
@@ -12,6 +12,15 @@ function reorder(pages, siblings) {
   return pages.map(p => ids.has(p.id) ? updated.find(u => u.id === p.id) : p);
 }
 
+function isAncestor(pages, ancestorId, pageId) {
+  let current = pages.find(p => p.id === pageId);
+  while (current && current.parentId != null) {
+    if (current.parentId === ancestorId) return true;
+    current = pages.find(p => p.id === current.parentId);
+  }
+  return false;
+}
+
 export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, splitActive, splitTarget, onSplitTargetChange, splitPageId }) {
   const { T, css } = useThemeCSS();
   const [name, setName] = useState("");
@@ -20,6 +29,18 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
   const [pendingDelete, setPendingDelete] = useState(null);
   const [nameError, setNameError] = useState(false);
   const [collapsed, setCollapsed] = useState(new Set());
+
+  const [dragId, setDragId] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
+  // dropLineY: pixel Y relative to scroll container top for the indicator line (null = hidden)
+  const [dropLineY, setDropLineY] = useState(null);
+  const [dropLineIndent, setDropLineIndent] = useState(0);
+
+  const expandTimerRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  // Map of pageId -> row DOM element
+  const rowRefs = useRef({});
+
   useEffect(() => {
     setType(prev => {
       const ids = (campaign.pageTypes || []).map(t => t.id);
@@ -96,6 +117,158 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
     });
   };
 
+  const clearDropLine = useCallback(() => {
+    setDropLineY(null);
+    setDropLineIndent(0);
+  }, []);
+
+  const updateDropLine = useCallback((rowEl, position, depth) => {
+    if (!scrollContainerRef.current || !rowEl) { clearDropLine(); return; }
+    const containerRect = scrollContainerRef.current.getBoundingClientRect();
+    const rowRect = rowEl.getBoundingClientRect();
+    const scrollTop = scrollContainerRef.current.scrollTop;
+    let y;
+    if (position === "before") {
+      y = rowRect.top - containerRect.top + scrollTop;
+    } else {
+      // after: bottom of the row
+      y = rowRect.bottom - containerRect.top + scrollTop;
+    }
+    setDropLineY(y);
+    setDropLineIndent(4 + depth * 16);
+  }, [clearDropLine]);
+
+  const handleDragStart = useCallback((e, pageId) => {
+    setDragId(pageId);
+    setDropTarget(null);
+    clearDropLine();
+    e.dataTransfer.effectAllowed = "move";
+    const ghost = document.createElement("div");
+    ghost.style.position = "fixed";
+    ghost.style.top = "-9999px";
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
+    setTimeout(() => document.body.removeChild(ghost), 0);
+  }, [clearDropLine]);
+
+  const handleDragOver = useCallback((e, pageId, depth, pages) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+
+    if (!dragId || dragId === pageId) return;
+    if (isAncestor(pages, dragId, pageId)) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relY = e.clientY - rect.top;
+    const third = rect.height / 3;
+
+    let position;
+    if (relY < third) {
+      position = "before";
+    } else if (relY > third * 2) {
+      position = "after";
+    } else {
+      position = "inside";
+    }
+
+    setDropTarget(prev => {
+      if (prev && prev.pageId === pageId && prev.position === position) return prev;
+      return { pageId, position };
+    });
+
+    if (position === "before" || position === "after") {
+      updateDropLine(rowRefs.current[pageId], position, depth);
+    } else {
+      clearDropLine();
+    }
+
+    if (position === "inside") {
+      const hasChildren = getSiblings(pages, pageId).length > 0;
+      if (hasChildren) {
+        if (!expandTimerRef.current) {
+          expandTimerRef.current = setTimeout(() => {
+            setCollapsed(prev => {
+              if (!prev.has(pageId)) return prev;
+              const next = new Set(prev);
+              next.delete(pageId);
+              return next;
+            });
+            expandTimerRef.current = null;
+          }, 600);
+        }
+      }
+    } else {
+      if (expandTimerRef.current) {
+        clearTimeout(expandTimerRef.current);
+        expandTimerRef.current = null;
+      }
+    }
+  }, [dragId, updateDropLine, clearDropLine]);
+
+  const handleDragLeave = useCallback((e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDropTarget(null);
+      clearDropLine();
+      if (expandTimerRef.current) {
+        clearTimeout(expandTimerRef.current);
+        expandTimerRef.current = null;
+      }
+    }
+  }, [clearDropLine]);
+
+  const handleDrop = useCallback((e, targetPageId) => {
+    e.preventDefault();
+    if (!dragId || !dropTarget) return;
+    const { position } = dropTarget;
+
+    onUpdate(c => {
+      const dragged = c.pages.find(p => p.id === dragId);
+      const target = c.pages.find(p => p.id === targetPageId);
+      if (!dragged || !target) return c;
+      if (dragged.id === target.id) return c;
+      if (isAncestor(c.pages, dragged.id, target.id)) return c;
+
+      let pages = c.pages;
+
+      if (position === "inside") {
+        const oldSiblings = getSiblings(pages, dragged.parentId ?? null).filter(p => p.id !== dragged.id);
+        pages = reorder(pages, oldSiblings);
+        const newSiblings = getSiblings(pages, target.id);
+        pages = pages.map(p => p.id === dragged.id ? { ...p, parentId: target.id, order: newSiblings.length } : p);
+        setCollapsed(prev => {
+          const next = new Set(prev);
+          next.delete(target.id);
+          return next;
+        });
+      } else {
+        const newParentId = target.parentId ?? null;
+        const oldSiblings = getSiblings(pages, dragged.parentId ?? null).filter(p => p.id !== dragged.id);
+        pages = reorder(pages, oldSiblings);
+        let newSiblings = getSiblings(pages, newParentId).filter(p => p.id !== dragged.id);
+        const targetIdx = newSiblings.findIndex(p => p.id === target.id);
+        const insertAt = position === "before" ? targetIdx : targetIdx + 1;
+        newSiblings.splice(insertAt, 0, { ...dragged, parentId: newParentId });
+        pages = reorder(pages, newSiblings);
+      }
+
+      return { ...c, pages };
+    });
+
+    setDragId(null);
+    setDropTarget(null);
+    clearDropLine();
+  }, [dragId, dropTarget, onUpdate, clearDropLine]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragId(null);
+    setDropTarget(null);
+    clearDropLine();
+    if (expandTimerRef.current) {
+      clearTimeout(expandTimerRef.current);
+      expandTimerRef.current = null;
+    }
+  }, [clearDropLine]);
+
   const renderTree = (parentId, depth) => {
     const siblings = getSiblings(campaign.pages, parentId);
     return siblings.map((page, idx) => {
@@ -107,11 +280,40 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
       const hasParent = (page.parentId ?? null) !== null;
       const isCollapsed = collapsed.has(page.id);
       const pt = pageTypes.find(t => t.id === page.type) || pageTypes[0];
+      const isDragging = dragId === page.id;
+      const isDropInside = dropTarget?.pageId === page.id && dropTarget.position === "inside";
+
       return (
         <div key={page.id}>
-          <div style={{ paddingLeft: 4 + depth * 16, paddingRight: 4, paddingTop: 5, paddingBottom: 5, cursor: "pointer", background: isSelected || isRightPane ? T.surface2 : "transparent", borderLeft: `3px solid ${isSelected ? T.accent : isRightPane ? T.accentBright : "transparent"}`, borderBottom: isDeleting ? "none" : `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 3 }}
-            onClick={() => { setPendingDelete(null); onSelect(page.id); }}>
-            {/* collapse toggle */}
+          <div
+            ref={el => { if (el) rowRefs.current[page.id] = el; else delete rowRefs.current[page.id]; }}
+            draggable
+            onDragStart={e => handleDragStart(e, page.id)}
+            onDragOver={e => handleDragOver(e, page.id, depth, campaign.pages)}
+            onDragLeave={handleDragLeave}
+            onDrop={e => handleDrop(e, page.id)}
+            onDragEnd={handleDragEnd}
+            style={{
+              paddingLeft: 4 + depth * 16,
+              paddingRight: 4,
+              paddingTop: 5,
+              paddingBottom: 5,
+              cursor: isDragging ? "grabbing" : "grab",
+              background: isDropInside
+                ? T.accent + "33"
+                : isSelected || isRightPane
+                  ? T.surface2
+                  : "transparent",
+              borderLeft: `3px solid ${isSelected ? T.accent : isRightPane ? T.accentBright : isDropInside ? T.accent : "transparent"}`,
+              borderBottom: isDeleting ? "none" : `1px solid ${T.border}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              opacity: isDragging ? 0.4 : 1,
+              transition: "background 0.1s, opacity 0.1s",
+            }}
+            onClick={() => { setPendingDelete(null); onSelect(page.id); }}
+          >
             <button
               style={{ background: "transparent", border: "none", cursor: hasChildren ? "pointer" : "default", color: hasChildren ? T.textDim : "transparent", fontSize: 9, padding: "0 2px", lineHeight: 1, flexShrink: 0, fontFamily: T.font }}
               onClick={e => { e.stopPropagation(); if (hasChildren) toggleCollapse(page.id); }}
@@ -205,9 +407,23 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
           </div>
         </div>
       )}
-      <div style={{ flex: 1, overflow: "auto" }}>
+      <div ref={scrollContainerRef} style={{ flex: 1, overflow: "auto", position: "relative" }}>
         {campaign.pages.length === 0 && <div style={{ padding: 12, color: T.textMuted, fontSize: 11 }}>No pages yet</div>}
         {renderTree(null, 0)}
+        {/* Absolutely-positioned drop line — never affects layout */}
+        {dropLineY !== null && (
+          <div style={{
+            position: "absolute",
+            top: dropLineY - 1,
+            left: dropLineIndent,
+            right: 4,
+            height: 3,
+            background: T.accent,
+            borderRadius: 1,
+            pointerEvents: "none",
+            zIndex: 10,
+          }} />
+        )}
       </div>
     </div>
   );
