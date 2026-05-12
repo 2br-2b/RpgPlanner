@@ -401,8 +401,8 @@ export async function loadData() {
   try {
     const r = await fetch(`${API_BASE}/campaign/${SESSION_GUID}`);
     if (r.status === 404) {
-      const data = _safeMigrate(localRaw);
-      return { data, serverUpdatedAt: null, localData: localRaw, lastSyncedAt, conflict: null };
+      // Return raw — _finishLoad in app.jsx calls migrateCampaign() and can show MigrationErrorModal
+      return { data: localRaw, serverUpdatedAt: null, localData: localRaw, lastSyncedAt, conflict: null };
     }
     if (!r.ok) throw new Error(r.status);
     const json = await r.json();
@@ -410,32 +410,27 @@ export async function loadData() {
     serverUpdatedAt = json.updated_at ?? null;
   } catch (e) {
     console.warn("Load failed, falling back to localStorage:", e);
-    const data = _safeMigrate(localRaw);
-    return { data, serverUpdatedAt: null, localData: localRaw, lastSyncedAt, conflict: null };
+    return { data: localRaw, serverUpdatedAt: null, localData: localRaw, lastSyncedAt, conflict: null };
   }
 
   // No sync history → first-ever load; server wins silently
   if (lastSyncedAt === null) {
-    const data = serverRaw ? _safeMigrate(serverRaw) : _safeMigrate(localRaw);
-    return { data, serverUpdatedAt, localData: localRaw, lastSyncedAt, conflict: null };
+    return { data: serverRaw ?? localRaw, serverUpdatedAt, localData: localRaw, lastSyncedAt, conflict: null };
   }
 
   // Server unchanged since last sync → local may be ahead; use local
   if (serverUpdatedAt !== null && serverUpdatedAt <= lastSyncedAt + 0.5) {
-    const data = localRaw ? _safeMigrate(localRaw) : _safeMigrate(serverRaw);
-    return { data, serverUpdatedAt, localData: localRaw, lastSyncedAt, conflict: null };
+    return { data: localRaw ?? serverRaw, serverUpdatedAt, localData: localRaw, lastSyncedAt, conflict: null };
   }
 
   // No local data → server wins silently
   if (!localRaw) {
-    const data = _safeMigrate(serverRaw);
-    return { data, serverUpdatedAt, localData: null, lastSyncedAt, conflict: null };
+    return { data: serverRaw, serverUpdatedAt, localData: null, lastSyncedAt, conflict: null };
   }
 
   // Content identical (ignoring schemaVersion) → server wins silently
   if (serverRaw && _dataEqual(localRaw, serverRaw)) {
-    const data = _safeMigrate(serverRaw);
-    return { data, serverUpdatedAt, localData: localRaw, lastSyncedAt, conflict: null };
+    return { data: serverRaw, serverUpdatedAt, localData: localRaw, lastSyncedAt, conflict: null };
   }
 
   // Conflict: both sides changed since last sync. Migrate both to SCHEMA_VERSION.

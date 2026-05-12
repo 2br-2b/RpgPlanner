@@ -15,6 +15,7 @@ import { WhatsNewPopup, ChangelogModal } from "./changelog.jsx";
 import { hasUnseenChanges, markChangelogSeen } from "./changelog.js";
 import {
   SESSION_GUID,
+  SCHEMA_VERSION,
   defaultCampaign,
   loadData,
   migrateCampaign,
@@ -506,6 +507,11 @@ export function App() {
       setLoading(false);
       if (hasUnseenChanges()) setShowWhatsNew(true);
       return;
+    }
+    // Auto-snapshot before any schema migration so the user can recover the pre-migration state
+    const dataVersion = data.schemaVersion || 1;
+    if (dataVersion !== SCHEMA_VERSION) {
+      saveSnapshot(`Auto-backup before schema v${SCHEMA_VERSION} migration — ${new Date().toLocaleString()}`).catch(() => {});
     }
     try {
       const migrated = migrateCampaign(data);
