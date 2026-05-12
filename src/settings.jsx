@@ -249,6 +249,9 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
     const stored = localStorage.getItem("campaign-manager-changelog-startup");
     return stored === null ? true : stored === "true";
   });
+  const [idleWarningEnabled, setIdleWarningEnabled] = useState(() =>
+    localStorage.getItem("campaign-manager-idle-warning-enabled") !== "false"
+  );
 
   const handleShareAll = async () => {
     setSharingAll(true); setShareAllError(""); setConfirmShareAll(false);
@@ -355,6 +358,20 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
         <Row label="Show projected costs in outline" hint="Show cost/award totals on mission cards in the outline view." T={T} isMobile={isMobile}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
             <input type="checkbox" checked={campaign.showCostsInOutline !== false} onChange={(e) => onUpdate((data) => ({ ...data, showCostsInOutline: e.target.checked }))} style={{ accentColor: T.accent, width: 14, height: 14 }} />
+            <span style={{ fontSize: 12, color: T.textDim }}>Enabled</span>
+          </label>
+        </Row>
+        <Row label="Warn after 1 hour of inactivity" hint="Shows a notice when this tab has been idle for over an hour and your next edit will trigger an automatic re-sync. Useful to disable if you keep a tab open as a read-only reference." T={T} isMobile={isMobile}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={idleWarningEnabled}
+              onChange={(e) => {
+                setIdleWarningEnabled(e.target.checked);
+                localStorage.setItem("campaign-manager-idle-warning-enabled", String(e.target.checked));
+              }}
+              style={{ accentColor: T.accent, width: 14, height: 14 }}
+            />
             <span style={{ fontSize: 12, color: T.textDim }}>Enabled</span>
           </label>
         </Row>

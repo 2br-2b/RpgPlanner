@@ -1,5 +1,19 @@
 [
   {
+    "id": "offline-pwa",
+    "date": "2026-05-12",
+    "title": "Installable offline PWA",
+    "description": "The app can now be installed on your device like a native app and works offline. Edits are saved locally and synced to the server when you reconnect — which automatically triggers conflict detection if another device edited in the meantime.",
+    "priority": 8
+  },
+  {
+    "id": "sync-conflict-resolution",
+    "date": "2026-05-12",
+    "title": "Sync conflict detection and resolution",
+    "description": "When the same campaign is edited on two devices, the app now detects the conflict on load (or when you resume editing after an hour of inactivity) and lets you choose between the server version, your local version, or an auto-merged result that combines non-overlapping edits from both.",
+    "priority": 9
+  },
+  {
     "id": "straighten-corkboard-boxes",
     "date": "2026-05-12",
     "title": "Straighten corkboard section boxes",

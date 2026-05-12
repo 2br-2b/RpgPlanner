@@ -504,7 +504,9 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
   const onConnect = useCallback((conn) => {
     if (fcEdges.some(e => e.from === conn.source && e.to === conn.target)) return;
     const newEdge = { from: conn.source, to: conn.target, label: "", edgeType: "default", events: [] };
-    onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, edges: [...data.flowchart.edges, newEdge] } }));
+    const edgeId = `${conn.source}--${conn.target}`;
+    const ts = new Date().toISOString();
+    onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, edges: [...data.flowchart.edges, newEdge], edgeTimestamps: { ...(data.flowchart.edgeTimestamps || {}), [edgeId]: ts } } }));
   }, [fcEdges, onUpdate]);
 
   const onNodeDragStop = useCallback((_, node) => {
@@ -525,10 +527,12 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
       y: 80 + Math.floor(existing / 4) * 150,
       isStart: false, isEnd: false, color: null,
     };
-    onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, nodes: [...data.flowchart.nodes, newNode] } }));
+    const ts = new Date().toISOString();
+    onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, nodes: [...data.flowchart.nodes, newNode], nodeTimestamps: { ...(data.flowchart.nodeTimestamps || {}), [newNode.id]: ts } } }));
   };
 
   const updateSelectedNode = (patch) => {
+    const ts = new Date().toISOString();
     onUpdate(data => ({
       ...data,
       flowchart: {
@@ -540,6 +544,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
           }
           return { ...n, ...patch };
         }),
+        nodeTimestamps: { ...(data.flowchart.nodeTimestamps || {}), [selectedNodeId]: ts },
       },
     }));
   };
@@ -560,6 +565,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
 
   const updateSelectedEdge = (patch) => {
     if (!selectedEdgeId) return;
+    const ts = new Date().toISOString();
     onUpdate(data => ({
       ...data,
       flowchart: {
@@ -568,6 +574,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
           if (`${e.from}--${e.to}` !== selectedEdgeId) return e;
           return { ...e, ...patch };
         }),
+        edgeTimestamps: { ...(data.flowchart.edgeTimestamps || {}), [selectedEdgeId]: ts },
       },
     }));
   };

@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { lazy, Suspense, useState, useRef } from "react";
 import { useThemeCSS, useIsMobile } from "./theme.js";
 import { uid, pageCostTotal, pageAwardTotal } from "./storage.js";
 import { ConfirmModal, VisibilityBadge } from "./ui.jsx";
 import { TableSection } from "./table-section.jsx";
 import { WaypointsSection } from "./waypoints-section.jsx";
-import { MilkdownEditor } from "./milkdown-editor.jsx";
+
+const MilkdownEditor = lazy(() => import("./milkdown-editor.jsx").then(m => ({ default: m.MilkdownEditor })));
 
 export function OutlineView({ campaign, onSelect, onUpdate }) {
   const { T, css } = useThemeCSS();
@@ -150,14 +151,18 @@ export function PageEditor({ page, pageTypes = [], allPages = [], onUpdate, onBa
   const pageType = pageTypes.find(t => t.id === page.type) || pageTypes[0] || { sectionSchema: [] };
   const schema = pageType.sectionSchema || [];
 
-  const set = (k, v) => onUpdate(p => ({ ...p, [k]: v }));
+  const set = (k, v) => onUpdate(p => ({
+    ...p, [k]: v,
+    sectionTimestamps: { ...(p.sectionTimestamps || {}), __meta__: new Date().toISOString() },
+  }));
   const setSection = (sid, subKey, v) => {
+    const ts = new Date().toISOString();
     if (subKey === undefined) {
-      onUpdate(p => ({ ...p, sections: { ...p.sections, [sid]: v } }));
+      onUpdate(p => ({ ...p, sections: { ...p.sections, [sid]: v }, sectionTimestamps: { ...(p.sectionTimestamps || {}), [sid]: ts } }));
     } else {
       onUpdate(p => {
         const prev = (typeof p.sections[sid] === "object" && p.sections[sid] !== null) ? p.sections[sid] : {};
-        return { ...p, sections: { ...p.sections, [sid]: { ...prev, [subKey]: v } } };
+        return { ...p, sections: { ...p.sections, [sid]: { ...prev, [subKey]: v } }, sectionTimestamps: { ...(p.sectionTimestamps || {}), [sid]: ts } };
       });
     }
   };
@@ -265,12 +270,12 @@ export function PageEditor({ page, pageTypes = [], allPages = [], onUpdate, onBa
       {!isSingleSimple && activeSection === "__costs" && (
         <CostsAwards
           costs={page.costs || []} awards={page.awards || []}
-          onAddCost={() => onUpdate(p => ({ ...p, costs: [...(p.costs || []), { id: uid(), label: "", amount: 0 }] }))}
-          onAddAward={() => onUpdate(p => ({ ...p, awards: [...(p.awards || []), { id: uid(), label: "", amount: 0 }] }))}
-          onUpdateCost={(id, f, v) => onUpdate(p => ({ ...p, costs: (p.costs || []).map(c => c.id === id ? { ...c, [f]: v } : c) }))}
-          onUpdateAward={(id, f, v) => onUpdate(p => ({ ...p, awards: (p.awards || []).map(a => a.id === id ? { ...a, [f]: v } : a) }))}
-          onRemoveCost={id => onUpdate(p => ({ ...p, costs: (p.costs || []).filter(c => c.id !== id) }))}
-          onRemoveAward={id => onUpdate(p => ({ ...p, awards: (p.awards || []).filter(a => a.id !== id) }))}
+          onAddCost={() => onUpdate(p => ({ ...p, costs: [...(p.costs || []), { id: uid(), label: "", amount: 0 }], sectionTimestamps: { ...(p.sectionTimestamps || {}), __costs__: new Date().toISOString() } }))}
+          onAddAward={() => onUpdate(p => ({ ...p, awards: [...(p.awards || []), { id: uid(), label: "", amount: 0 }], sectionTimestamps: { ...(p.sectionTimestamps || {}), __awards__: new Date().toISOString() } }))}
+          onUpdateCost={(id, f, v) => onUpdate(p => ({ ...p, costs: (p.costs || []).map(c => c.id === id ? { ...c, [f]: v } : c), sectionTimestamps: { ...(p.sectionTimestamps || {}), __costs__: new Date().toISOString() } }))}
+          onUpdateAward={(id, f, v) => onUpdate(p => ({ ...p, awards: (p.awards || []).map(a => a.id === id ? { ...a, [f]: v } : a), sectionTimestamps: { ...(p.sectionTimestamps || {}), __awards__: new Date().toISOString() } }))}
+          onRemoveCost={id => onUpdate(p => ({ ...p, costs: (p.costs || []).filter(c => c.id !== id), sectionTimestamps: { ...(p.sectionTimestamps || {}), __costs__: new Date().toISOString() } }))}
+          onRemoveAward={id => onUpdate(p => ({ ...p, awards: (p.awards || []).filter(a => a.id !== id), sectionTimestamps: { ...(p.sectionTimestamps || {}), __awards__: new Date().toISOString() } }))}
         />
       )}
     </div>
@@ -347,7 +352,9 @@ function SubBox({ label, value, onChange, expanded, shareEnabled, sec, subheader
           {subheaderVisible}
           <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={() => imgRef.current?.click()}>🖼</button>
         </div>
-        <MilkdownEditor ref={editorRef} value={value} onChange={onChange} minHeight={expanded ? 400 : 200} />
+        <Suspense fallback={<div style={{ minHeight: expanded ? 400 : 200 }} />}>
+          <MilkdownEditor ref={editorRef} value={value} onChange={onChange} minHeight={expanded ? 400 : 200} />
+        </Suspense>
       </div>
     </>
   );

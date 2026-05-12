@@ -95,6 +95,48 @@ export function runMigrationTests(before, after) {
     check(afterNodeIds.has(edge.to), `Flowchart edge references missing node "${edge.to}"`);
   }
 
+  // ── v13 timestamp objects ────────────────────────────────────────────────────
+
+  if ((after.schemaVersion || 0) >= 13) {
+    check(
+      after.fieldTimestamps !== null && typeof after.fieldTimestamps === "object" && !Array.isArray(after.fieldTimestamps),
+      "campaign.fieldTimestamps must be a plain object"
+    );
+    for (const p of afterPages) {
+      check(
+        p.sectionTimestamps !== null && typeof p.sectionTimestamps === "object" && !Array.isArray(p.sectionTimestamps),
+        `Page "${p.name}" must have sectionTimestamps as a plain object`
+      );
+    }
+    if (after.flowchart) {
+      check(
+        typeof after.flowchart.nodeTimestamps === "object" && !Array.isArray(after.flowchart.nodeTimestamps),
+        "flowchart.nodeTimestamps must be a plain object"
+      );
+      check(
+        typeof after.flowchart.edgeTimestamps === "object" && !Array.isArray(after.flowchart.edgeTimestamps),
+        "flowchart.edgeTimestamps must be a plain object"
+      );
+    }
+    // Migration must not fabricate timestamps — all objects must be empty after migration
+    const beforeVersion = before.schemaVersion || 1;
+    if (beforeVersion < 13) {
+      check(
+        Object.keys(after.fieldTimestamps || {}).length === 0,
+        "fieldTimestamps must be empty after v13 migration (no fabricated timestamps)"
+      );
+      for (const p of afterPages) {
+        const beforePage = (before.pages || []).find(bp => bp.id === p.id);
+        if (!beforePage || !beforePage.sectionTimestamps) {
+          check(
+            Object.keys(p.sectionTimestamps || {}).length === 0,
+            `Page "${p.name}" sectionTimestamps must be empty after v13 migration`
+          );
+        }
+      }
+    }
+  }
+
   return { ok: failures.length === 0, failures };
 }
 

@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { LayoutList, Shapes, Workflow, Dices, Settings } from "lucide-react";
-import { FlowchartView } from "./flowchart.jsx";
 import { ExportDropdown, ExportModal } from "./io.jsx";
 import { OutlineView, PageEditor } from "./editor.jsx";
-import { SchemaEditor } from "./schema-editor.jsx";
-import { SettingsView } from "./settings.jsx";
 import { Sidebar } from "./sidebar.jsx";
-import { SimulatorView } from "./simulator.jsx";
+import { SettingsView } from "./settings.jsx";
+
+const FlowchartView = lazy(() => import("./flowchart.jsx").then(m => ({ default: m.FlowchartView })));
+const SchemaEditor  = lazy(() => import("./schema-editor.jsx").then(m => ({ default: m.SchemaEditor })));
+const SimulatorView = lazy(() => import("./simulator.jsx").then(m => ({ default: m.SimulatorView })));
 import { ThemeCtx, THEMES, makeCSS, useIsMobile, useThemeCSS } from "./theme.js";
 import { ThemePicker } from "./theme-picker.jsx";
 import { useEscapeKey, ModalOverlay } from "./ui.jsx";
@@ -27,6 +28,8 @@ import {
   MigrationError,
   logMigrationError,
 } from "./storage.js";
+import { diffCampaigns, mergeCampaigns } from "./conflict.js";
+import { useRegisterSW } from "virtual:pwa-register/react";
 
 const NAV_ITEMS = [
   { key: "outline",   Icon: LayoutList, label: "Outline"  },
@@ -206,6 +209,124 @@ function MigrationErrorModal({ error, onContinueUnsafe, T, css }) {
   );
 }
 
+// ── Sync conflict modal ───────────────────────────────────────────────────────
+
+function SyncConflictModal({ conflict, diffs, mergeResult, onUseServer, onUseLocal, onUseMerge }) {
+  const fmtTime = (ts) => {
+    if (!ts) return "unknown";
+    try { return new Date(typeof ts === "number" ? ts * 1000 : ts).toLocaleString(undefined, { timeZoneName: "short" }); }
+    catch { return String(ts); }
+  };
+
+  const kindIcon = (kind) => {
+    if (kind.includes("added"))   return "＋";
+    if (kind.includes("removed")) return "−";
+    if (kind.includes("edited"))  return "✎";
+    if (kind.includes("merged"))  return "⤳";
+    return "·";
+  };
+
+  const canMerge = mergeResult.conflicts.length === 0;
+
+  return (
+    <ModalOverlay onClose={null} zIndex={9000}>
+      <div style={{ background: "#1e1e2e", border: "2px solid #f59e0b", borderRadius: 10, padding: 28, maxWidth: 560, width: "100%", color: "#eee", fontFamily: "system-ui, sans-serif", boxShadow: "0 8px 40px rgba(0,0,0,0.7)" }}>
+        <div style={{ fontSize: 16, fontWeight: "bold", color: "#f59e0b", marginBottom: 8 }}>⚠ Sync Conflict Detected</div>
+        <div style={{ fontSize: 11, color: "#888", marginBottom: 16 }}>
+          Server modified: {fmtTime(conflict.serverUpdatedAt)} · Last synced: {fmtTime(conflict.lastSyncedAt)}
+        </div>
+
+        {conflict.localRaw?.schemaVersion !== conflict.serverRaw?.schemaVersion && (
+          <div style={{ fontSize: 11, color: "#60a5fa", background: "#1e3a5f", border: "1px solid #3b82f6", borderRadius: 6, padding: "6px 10px", marginBottom: 12 }}>
+            Both versions were automatically upgraded to schema v{conflict.local?.schemaVersion} before comparison.
+          </div>
+        )}
+
+        {diffs.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.1em", marginBottom: 6 }}>CONFLICTS ({mergeResult.conflicts.length}) & CHANGES ({diffs.length})</div>
+            <div style={{ background: "#12121e", border: "1px solid #555", borderRadius: 6, padding: 10, marginBottom: 12, maxHeight: 180, overflowY: "auto" }}>
+              {mergeResult.conflicts.map((c, i) => (
+                <div key={i} style={{ fontSize: 11, color: "#fca5a5", marginBottom: 3 }}>
+                  ✗ {c.label || c.id} <span style={{ color: "#666", fontSize: 10 }}>({c.kind})</span>
+                </div>
+              ))}
+              {diffs.filter(d => !mergeResult.conflicts.some(c => c.id === d.id && c.kind === d.kind)).map((d, i) => (
+                <div key={i} style={{ fontSize: 11, color: "#bbb", marginBottom: 3 }}>
+                  {kindIcon(d.kind)} {d.label || d.id} <span style={{ color: "#666", fontSize: 10 }}>({d.kind})</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {mergeResult.autoResolved.length > 0 && (
+          <details style={{ marginBottom: 16 }}>
+            <summary style={{ fontSize: 11, color: "#888", cursor: "pointer" }}>Auto-merged {mergeResult.autoResolved.length} item(s)</summary>
+            <div style={{ paddingTop: 6, paddingLeft: 8 }}>
+              {mergeResult.autoResolved.map((r, i) => (
+                <div key={i} style={{ fontSize: 10, color: "#6b7280", marginBottom: 2 }}>{kindIcon(r.kind)} {r.label || r.id}</div>
+              ))}
+            </div>
+          </details>
+        )}
+
+        <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 20, lineHeight: 1.6 }}>
+          Choose how to resolve this conflict. The server version was edited on another device since your last sync.
+        </div>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <button style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid #555", background: "transparent", color: "#ccc", cursor: "pointer", fontSize: 12, fontFamily: "system-ui" }} onClick={onUseLocal}>
+            Keep my local version
+          </button>
+          <button style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid #555", background: "transparent", color: "#ccc", cursor: "pointer", fontSize: 12, fontFamily: "system-ui" }} onClick={onUseServer}>
+            Use server version
+          </button>
+          <button
+            style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${canMerge ? "#3b82f6" : "#555"}`, background: canMerge ? "#3b82f6" : "transparent", color: canMerge ? "#fff" : "#666", cursor: canMerge ? "pointer" : "not-allowed", fontSize: 12, fontFamily: "system-ui", fontWeight: "bold" }}
+            onClick={canMerge ? onUseMerge : undefined}
+            disabled={!canMerge}
+            title={canMerge ? undefined : "Some items were edited on both sides — choose server or local version"}
+          >
+            Merge ✓
+          </button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+// ── Idle warning modal ────────────────────────────────────────────────────────
+
+function IdleWarningModal({ onDismiss }) {
+  const [suppressSession, setSuppressSession] = useState(false);
+
+  const dismiss = () => {
+    if (suppressSession) sessionStorage.setItem("campaign-manager-idle-warned-session", "1");
+    onDismiss();
+  };
+
+  return (
+    <ModalOverlay onClose={dismiss} zIndex={8000}>
+      <div style={{ background: "#1e1e2e", border: "2px solid #f59e0b", borderRadius: 10, padding: 24, maxWidth: 420, width: "100%", color: "#eee", fontFamily: "system-ui, sans-serif", boxShadow: "0 8px 40px rgba(0,0,0,0.7)" }}>
+        <div style={{ fontSize: 14, fontWeight: "bold", color: "#f59e0b", marginBottom: 10 }}>⏱ Tab Idle</div>
+        <div style={{ fontSize: 12, color: "#bbb", lineHeight: 1.6, marginBottom: 16 }}>
+          This tab has been open for over an hour without edits. If you've been editing on another device, your next change will re-sync automatically before saving.
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#888", marginBottom: 16, cursor: "pointer" }}>
+          <input type="checkbox" checked={suppressSession} onChange={e => setSuppressSession(e.target.checked)} style={{ accentColor: "#f59e0b" }} />
+          Don't show again this session
+        </label>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid #f59e0b", background: "transparent", color: "#f59e0b", cursor: "pointer", fontSize: 12, fontFamily: "system-ui" }} onClick={dismiss}>
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
 const SPLIT_MIN_WIDTH = 1100; // px — below this, split is hidden
 
 function SplitView({ campaign, leftPageId, rightPageId, onUpdate, onNavigate, splitRatio, onSplitRatioChange, T, css, mainPad }) {
@@ -339,7 +460,13 @@ export function App() {
   const [view, setView] = useState("outline");
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState("saved");
-  const [migrationError, setMigrationError] = useState(null); // { error: MigrationError }
+  const [migrationError, setMigrationError] = useState(null);
+  const [syncConflict, setSyncConflict] = useState(null); // { local, server, diffs, mergeResult, ... }
+  const [isOffline, setIsOffline] = useState(() => !navigator.onLine);
+  const [isIdleStale, setIsIdleStale] = useState(false);
+  const isIdleStaleRef = useRef(false);
+  const idleTimerRef = useRef(null);
+  const { needRefresh, updateServiceWorker } = useRegisterSW();
 
   const [showSearch, setShowSearch] = useState(false);
   const [showCampaigns, setShowCampaigns] = useState(false);
@@ -371,42 +498,96 @@ export function App() {
   const saveTimer = useRef(null);
   const historyRef = useRef({ stack: [], idx: -1 });
 
-  useEffect(() => {
-    loadData().then((data) => {
-      if (!data) {
-        const fresh = defaultCampaign();
-        setCampaign(fresh);
-        historyRef.current = { stack: [fresh], idx: 0 };
+  const _finishLoad = useCallback((data) => {
+    if (!data) {
+      const fresh = defaultCampaign();
+      setCampaign(fresh);
+      historyRef.current = { stack: [fresh], idx: 0 };
+      setLoading(false);
+      if (hasUnseenChanges()) setShowWhatsNew(true);
+      return;
+    }
+    try {
+      const migrated = migrateCampaign(data);
+      setCampaign(migrated);
+      historyRef.current = { stack: [migrated], idx: 0 };
+      setLoading(false);
+      const pref = localStorage.getItem("campaign-manager-changelog-startup");
+      const showOnStartup = pref === null ? true : pref === "true";
+      if (showOnStartup && hasUnseenChanges()) setShowWhatsNew(true);
+    } catch (err) {
+      if (err instanceof MigrationError) {
+        logMigrationError(err);
+        setMigrationError(err);
         setLoading(false);
-        // Show What's New on first visit (showChangelogAtStartup defaults to true)
-        if (hasUnseenChanges()) setShowWhatsNew(true);
+      } else {
+        throw err;
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    loadData().then(({ data, conflict }) => {
+      if (conflict) {
+        const diffs = diffCampaigns(conflict.local, conflict.server);
+        if (diffs.length === 0) { _finishLoad(conflict.server); return; }
+        const mergeResult = mergeCampaigns(conflict.local, conflict.server, conflict.lastSyncedAt);
+        setSyncConflict({ ...conflict, diffs, mergeResult });
+        setLoading(false);
         return;
       }
-      try {
-        const migrated = migrateCampaign(data);
-        setCampaign(migrated);
-        historyRef.current = { stack: [migrated], idx: 0 };
-        setLoading(false);
-        // Respect the user's startup preference (true by default)
-        const pref = localStorage.getItem("campaign-manager-changelog-startup");
-        const showOnStartup = pref === null ? true : pref === "true";
-        if (showOnStartup && hasUnseenChanges()) setShowWhatsNew(true);
-      } catch (err) {
-        if (err instanceof MigrationError) {
-          logMigrationError(err);
-          setMigrationError(err);
-          setLoading(false);
-        } else {
-          throw err;
-        }
-      }
+      _finishLoad(data);
     });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep isIdleStaleRef in sync so persist() (a stable callback) can read it
+  useEffect(() => { isIdleStaleRef.current = isIdleStale; }, [isIdleStale]);
+
+  // Idle timer — reset whenever update() is called; fires after 1 hour
+  const _resetIdleTimer = useCallback(() => {
+    const enabled = localStorage.getItem("campaign-manager-idle-warning-enabled") !== "false";
+    if (!enabled) return;
+    setIsIdleStale(false);
+    isIdleStaleRef.current = false;
+    clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      const suppressedThisSession = sessionStorage.getItem("campaign-manager-idle-warned-session");
+      if (!suppressedThisSession) setIsIdleStale(true);
+    }, 60 * 60 * 1000);
   }, []);
+
+  // Start idle timer on mount; also react to coming back online
+  useEffect(() => {
+    _resetIdleTimer();
+    const onOnline  = () => { setIsOffline(false); isIdleStaleRef.current = true; setIsIdleStale(true); };
+    const onOffline = () => setIsOffline(true);
+    window.addEventListener("online",  onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online",  onOnline);
+      window.removeEventListener("offline", onOffline);
+      clearTimeout(idleTimerRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const persist = useCallback((nextCampaign) => {
     setSaveStatus("saving");
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
+    saveTimer.current = setTimeout(async () => {
+      if (isIdleStaleRef.current) {
+        isIdleStaleRef.current = false;
+        setIsIdleStale(false);
+        const result = await loadData();
+        if (result.conflict) {
+          const diffs = diffCampaigns(nextCampaign, result.conflict.server);
+          if (diffs.length > 0) {
+            const mergeResult = mergeCampaigns(nextCampaign, result.conflict.server, result.conflict.lastSyncedAt);
+            setSyncConflict({ ...result.conflict, local: nextCampaign, diffs, mergeResult });
+            setSaveStatus("conflict");
+            return;
+          }
+        }
+      }
       saveData(nextCampaign).then(({ localQuotaExceeded } = {}) => {
         setSaveStatus(localQuotaExceeded ? "local storage full" : "saved");
       });
@@ -423,16 +604,26 @@ export function App() {
     });
   }, []);
 
+  const resolveConflict = useCallback((chosenCampaign) => {
+    setCampaign(chosenCampaign);
+    historyRef.current = { stack: [chosenCampaign], idx: 0 };
+    setSyncConflict(null);
+    saveData(chosenCampaign).then(({ localQuotaExceeded } = {}) => {
+      setSaveStatus(localQuotaExceeded ? "local storage full" : "saved");
+    });
+  }, []);
+
   const update = useCallback((fn) => {
     setCampaign((previous) => {
       const next = fn(previous);
       persist(next);
+      _resetIdleTimer();
       const h = historyRef.current;
       const stack = h.stack.slice(0, h.idx + 1).concat(next);
       historyRef.current = { stack: stack.length > 50 ? stack.slice(-50) : stack, idx: Math.min(h.idx + 1, 49) };
       return next;
     });
-  }, [persist]);
+  }, [persist, _resetIdleTimer]);
 
   const undo = useCallback(() => {
     const h = historyRef.current;
@@ -512,6 +703,21 @@ export function App() {
     return <div style={loadingStyle}>Loading...</div>;
   }
 
+  if (syncConflict) {
+    return (
+      <div style={loadingStyle}>
+        <SyncConflictModal
+          conflict={syncConflict}
+          diffs={syncConflict.diffs}
+          mergeResult={syncConflict.mergeResult}
+          onUseServer={() => resolveConflict(syncConflict.server)}
+          onUseLocal={() => resolveConflict(syncConflict.local)}
+          onUseMerge={() => resolveConflict(syncConflict.mergeResult.merged)}
+        />
+      </div>
+    );
+  }
+
   if (migrationError) {
     const fallbackT = THEMES.materialDark;
     const fallbackCss = makeCSS(fallbackT);
@@ -554,7 +760,7 @@ export function App() {
               <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{campaign.name}</span>
               <span style={{ color: T.textDim }}>▾</span>
             </button>
-            <input style={{ ...css.input, width: 180, fontSize: 13 }} value={campaign.name} onChange={(event) => update((data) => ({ ...data, name: event.target.value }))} />
+            <input style={{ ...css.input, width: 180, fontSize: 13 }} value={campaign.name} onChange={(event) => update((data) => ({ ...data, name: event.target.value, fieldTimestamps: { ...(data.fieldTimestamps || {}), name: new Date().toISOString() } }))} />
             <div style={{ flex: 1 }} />
             <button style={{ ...css.btn(), fontSize: 11, padding: "4px 10px", display: "flex", alignItems: "center", gap: 4 }} onClick={() => setShowSearch(true)} title="Search pages (Ctrl+K)">
               ⌕ <span style={{ opacity: 0.5, fontSize: 9 }}>⌃K</span>
@@ -570,7 +776,8 @@ export function App() {
                 Split
               </label>
             )}
-            <span style={{ fontSize: 10, color: saveStatus === "local storage full" ? T.warn : T.textMuted, flexShrink: 0 }} title={saveStatus === "local storage full" ? "Local backup failed: browser storage is full. Data is saved to the server." : undefined}>{saveStatus}</span>
+            {isOffline && <span style={{ fontSize: 10, color: "#f59e0b", flexShrink: 0, fontWeight: "bold" }}>Offline</span>}
+            <span style={{ fontSize: 10, color: saveStatus === "local storage full" ? T.warn : T.textMuted, flexShrink: 0 }} title={saveStatus === "local storage full" ? "Local backup failed: browser storage is full. Data is saved to the server." : undefined}>{isOffline ? "" : saveStatus}</span>
           </div>
         )}
 
@@ -579,7 +786,7 @@ export function App() {
             {showSidebar && <button style={{ ...css.btn(), padding: "6px 10px", fontSize: 18, lineHeight: 1, flexShrink: 0 }} onClick={() => setSidebarOpen((open) => !open)}>=</button>}
             <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{view === "editor" && selectedPage ? selectedPage.name : (NAV_ITEMS.find((item) => item.key === view)?.label || view)}</span>
             <button style={{ ...css.btn(), fontSize: 14, padding: "4px 8px", flexShrink: 0 }} onClick={() => setShowSearch(true)} title="Search">⌕</button>
-            <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key }))} />
+            <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key, fieldTimestamps: { ...(data.fieldTimestamps || {}), theme: new Date().toISOString() } }))} />
             <ExportDropdown campaign={campaign} currentPage={selectedPage} />
             <span style={{ fontSize: 9, color: T.textMuted, flexShrink: 0 }}>{saveStatus === "saving" ? "*" : "o"}</span>
           </div>
@@ -650,9 +857,9 @@ export function App() {
               {view === "outline" && <OutlineView campaign={campaign} onSelect={(id) => navigateTo("editor", id)} onUpdate={update} />}
               {view === "editor" && selectedPage && <PageEditor key={selectedPage.id} page={selectedPage} pageTypes={campaign.pageTypes || []} allPages={campaign.pages} onUpdate={(updater) => update((data) => ({ ...data, pages: data.pages.map((item) => item.id === selectedPageId ? updater(item) : item) }))} onBack={() => navigateTo("outline")} shareEnabled={campaign.shareEnabled || false} />}
               {view === "editor" && !selectedPage && <div style={{ color: T.textDim, textAlign: "center", marginTop: 80 }}>{isMobile ? "Open the menu to select a page" : "Select a page to edit"}</div>}
-              {view === "schema" && <SchemaEditor campaign={campaign} onUpdate={update} />}
-              {view === "flowchart" && <FlowchartView campaign={campaign} onUpdate={update} onNavigate={navigateTo} />}
-              {view === "simulate" && <SimulatorView campaign={campaign} onUpdate={update} />}
+              {view === "schema" && <Suspense fallback={null}><SchemaEditor campaign={campaign} onUpdate={update} /></Suspense>}
+              {view === "flowchart" && <Suspense fallback={null}><FlowchartView campaign={campaign} onUpdate={update} onNavigate={navigateTo} /></Suspense>}
+              {view === "simulate" && <Suspense fallback={null}><SimulatorView campaign={campaign} onUpdate={update} /></Suspense>}
               {view === "settings" && <SettingsView campaign={campaign} onUpdate={update} onRestore={(data) => { const m = migrateCampaign(data); setCampaign(m); persist(m); }} onImport={(data) => { setCampaign(data); persist(data); }} onClear={() => { const fresh = defaultCampaign(); setCampaign(fresh); persist(fresh); navigateTo("outline"); }} onNavigate={navigateTo} />}
             </div>
           )}
@@ -679,6 +886,17 @@ export function App() {
         )}
         {showChangelogModal && (
           <ChangelogModal T={T} css={css} onClose={() => setShowChangelogModal(false)} />
+        )}
+        {isIdleStale && (
+          <IdleWarningModal onDismiss={() => { setIsIdleStale(false); isIdleStaleRef.current = false; }} />
+        )}
+        {needRefresh && (
+          <div style={{ position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", zIndex: 7000, background: "#1e1e2e", border: "1px solid #f59e0b", borderRadius: 8, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.6)", fontFamily: "system-ui, sans-serif", fontSize: 12, color: "#eee", whiteSpace: "nowrap" }}>
+            App update available
+            <button style={{ padding: "4px 12px", borderRadius: 5, border: "none", background: "#3b82f6", color: "#fff", cursor: "pointer", fontSize: 11, fontFamily: "system-ui" }} onClick={() => updateServiceWorker(true)}>
+              Reload
+            </button>
+          </div>
         )}
       </div>
     </ThemeCtx.Provider>
