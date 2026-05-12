@@ -30,7 +30,9 @@ export const pageAwardTotal = (page) => (page?.awards || []).reduce((s, a) => s 
 // v11: sectionSchema replaced by pageTypes[]; page.type becomes a pageTypeId;
 //      old "free" pages become mission-style with 1 section (content migrated)
 // v12: pageTypes gain .icon field
-export const SCHEMA_VERSION = 12;
+// v13: fieldTimestamps on campaign root, sectionTimestamps on pages,
+//      nodeTimestamps/edgeTimestamps on flowchart — all empty on migration (no fabricated times)
+export const SCHEMA_VERSION = 13;
 
 function _applyMigrations(data) {
   const v = data.schemaVersion || 1;
@@ -203,6 +205,22 @@ function _applyMigrations(data) {
     };
   }
 
+  if (v < 13) {
+    d = {
+      fieldTimestamps: {},
+      ...d,
+      pages: (d.pages || []).map(p => ({
+        sectionTimestamps: {},
+        ...p,
+      })),
+      flowchart: d.flowchart ? {
+        nodeTimestamps: {},
+        edgeTimestamps: {},
+        ...d.flowchart,
+      } : d.flowchart,
+    };
+  }
+
   return { ...d, schemaVersion: SCHEMA_VERSION };
 }
 
@@ -281,7 +299,9 @@ export function defaultCampaign() {
     pageTypes,
     schemaVersion: SCHEMA_VERSION,
     statDefs: [],
-    pages: [], flowchart: { nodes: [], edges: [] },
+    fieldTimestamps: {},
+    pages: [],
+    flowchart: { nodes: [], edges: [], nodeTimestamps: {}, edgeTimestamps: {} },
   };
 }
 
@@ -342,16 +362,87 @@ function getOrCreateGuid() {
 export const SESSION_GUID = getOrCreateGuid();
 const API_BASE = window.CAMPAIGN_API_BASE || "/api";
 
+// ── Private sync helpers ──────────────────────────────────────────────────────
+
+function _readLocal() {
+  try { return JSON.parse(localStorage.getItem("campaign-manager-local")); } catch { return null; }
+}
+
+function _readLastSyncedAt() {
+  const raw = localStorage.getItem("campaign-manager-synced-at");
+  if (raw === null) return null;
+  const v = parseFloat(raw);
+  return isNaN(v) ? null : v;
+}
+
+function _dataEqual(a, b) {
+  const strip = (x) => { const c = { ...x }; delete c.schemaVersion; return JSON.stringify(c); };
+  return strip(a) === strip(b);
+}
+
+// Always migrates to SCHEMA_VERSION regardless of current version.
+// Falls back to skipTests=true on MigrationError to never block the conflict UI.
+function _safeMigrate(data) {
+  if (!data) return null;
+  try { return migrateCampaign(data); }
+  catch (e) {
+    if (e instanceof MigrationError) return migrateCampaign(data, { skipTests: true });
+    throw e;
+  }
+}
+
 export async function loadData() {
+  const localRaw = _readLocal();
+  const lastSyncedAt = _readLastSyncedAt();
+
+  let serverRaw = null;
+  let serverUpdatedAt = null;
+
   try {
     const r = await fetch(`${API_BASE}/campaign/${SESSION_GUID}`);
-    if (r.status === 404) return null;
+    if (r.status === 404) {
+      // Return raw — _finishLoad in app.jsx calls migrateCampaign() and can show MigrationErrorModal
+      return { data: localRaw, serverUpdatedAt: null, localData: localRaw, lastSyncedAt, conflict: null };
+    }
     if (!r.ok) throw new Error(r.status);
-    return (await r.json()).data || null;
+    const json = await r.json();
+    serverRaw = json.data || null;
+    serverUpdatedAt = json.updated_at ?? null;
   } catch (e) {
     console.warn("Load failed, falling back to localStorage:", e);
-    try { return JSON.parse(localStorage.getItem("campaign-manager-local")); } catch { return null; }
+    return { data: localRaw, serverUpdatedAt: null, localData: localRaw, lastSyncedAt, conflict: null };
   }
+
+  // No sync history → first-ever load; server wins silently
+  if (lastSyncedAt === null) {
+    return { data: serverRaw ?? localRaw, serverUpdatedAt, localData: localRaw, lastSyncedAt, conflict: null };
+  }
+
+  // Server unchanged since last sync → local may be ahead; use local
+  if (serverUpdatedAt !== null && serverUpdatedAt <= lastSyncedAt + 0.5) {
+    return { data: localRaw ?? serverRaw, serverUpdatedAt, localData: localRaw, lastSyncedAt, conflict: null };
+  }
+
+  // No local data → server wins silently
+  if (!localRaw) {
+    return { data: serverRaw, serverUpdatedAt, localData: null, lastSyncedAt, conflict: null };
+  }
+
+  // Content identical (ignoring schemaVersion) → server wins silently
+  if (serverRaw && _dataEqual(localRaw, serverRaw)) {
+    return { data: serverRaw, serverUpdatedAt, localData: localRaw, lastSyncedAt, conflict: null };
+  }
+
+  // Conflict: both sides changed since last sync. Migrate both to SCHEMA_VERSION.
+  const localMigrated = _safeMigrate(localRaw);
+  const serverMigrated = _safeMigrate(serverRaw);
+  return {
+    data: serverMigrated,
+    serverUpdatedAt,
+    localData: localRaw,
+    lastSyncedAt,
+    conflict: { local: localMigrated, server: serverMigrated, localRaw, serverRaw, serverUpdatedAt, lastSyncedAt },
+  };
 }
 
 export async function saveData(data) {
@@ -365,11 +456,14 @@ export async function saveData(data) {
     }
   }
   try {
-    await fetch(`${API_BASE}/campaign/${SESSION_GUID}`, {
+    const r = await fetch(`${API_BASE}/campaign/${SESSION_GUID}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data }),
     });
+    if (r.ok) {
+      localStorage.setItem("campaign-manager-synced-at", String(Date.now() / 1000));
+    }
   } catch (e) { console.warn("Remote save failed (offline?):", e); }
   return { localQuotaExceeded };
 }
