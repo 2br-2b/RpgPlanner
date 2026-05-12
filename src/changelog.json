@@ -1,5 +1,19 @@
 [
   {
+    "id": "flowchart-delete-sync",
+    "date": "2026-05-12",
+    "title": "Flowchart and page tree stay in sync on delete",
+    "description": "Deleting a node in the flowchart now also removes its linked page. Deleting a page (or page tree) from the sidebar now also removes any associated flowchart nodes and edges.",
+    "priority": 6
+  },
+  {
+    "id": "flowchart-node-double-click",
+    "date": "2026-05-12",
+    "title": "Double-click flowchart node to open page",
+    "description": "Double-clicking a node in the flowchart view now opens that node's page directly in the editor.",
+    "priority": 7
+  },
+  {
     "id": "whats-new-popup",
     "date": "2026-05-11",
     "title": "What's New popup & changelog",

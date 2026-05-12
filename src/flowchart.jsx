@@ -546,8 +546,10 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
 
   const deleteSelectedNode = () => {
     if (!selectedNodeId) return;
+    const node = fcNodes.find(n => n.id === selectedNodeId);
     onUpdate(data => ({
       ...data,
+      pages: node ? data.pages.filter(p => p.id !== node.pageId) : data.pages,
       flowchart: {
         nodes: data.flowchart.nodes.filter(n => n.id !== selectedNodeId),
         edges: data.flowchart.edges.filter(e => e.from !== selectedNodeId && e.to !== selectedNodeId),
@@ -671,6 +673,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
               setSelectedNodeId(prev => prev === node.id ? null : node.id);
               setSelectedEdgeId(null);
             }}
+            onNodeDoubleClick={(_, node) => { onNavigate("editor", node.data.pageId); }}
             onEdgeClick={(_, edge) => {
               setSelectedEdgeId(prev => prev === edge.id ? null : edge.id);
               setSelectedNodeId(null);

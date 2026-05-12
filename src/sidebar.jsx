@@ -356,7 +356,19 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
                     const toDelete = new Set();
                     const collect = (id) => { toDelete.add(id); getSiblings(campaign.pages, id).forEach(c => collect(c.id)); };
                     collect(page.id);
-                    onUpdate(c => ({ ...c, pages: c.pages.filter(p => !toDelete.has(p.id)) }));
+                    onUpdate(c => {
+                      const fc = c.flowchart;
+                      const deletedNodes = fc ? fc.nodes.filter(n => toDelete.has(n.pageId)).map(n => n.id) : [];
+                      const deletedNodeSet = new Set(deletedNodes);
+                      return {
+                        ...c,
+                        pages: c.pages.filter(p => !toDelete.has(p.id)),
+                        flowchart: fc ? {
+                          nodes: fc.nodes.filter(n => !deletedNodeSet.has(n.id)),
+                          edges: fc.edges.filter(e => !deletedNodeSet.has(e.from) && !deletedNodeSet.has(e.to)),
+                        } : fc,
+                      };
+                    });
                     setPendingDelete(null);
                   }}>Yes, delete</button>
                   <button style={{ ...css.btn(), padding: "2px 8px", fontSize: 10 }} onClick={() => setPendingDelete(null)}>Cancel</button>
