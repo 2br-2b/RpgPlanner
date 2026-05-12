@@ -10,6 +10,8 @@ import { SimulatorView } from "./simulator.jsx";
 import { ThemeCtx, THEMES, makeCSS, useIsMobile, useThemeCSS } from "./theme.js";
 import { ThemePicker } from "./theme-picker.jsx";
 import { useEscapeKey, ModalOverlay } from "./ui.jsx";
+import { WhatsNewPopup, ChangelogModal } from "./changelog.jsx";
+import { hasUnseenChanges, markChangelogSeen } from "./changelog.js";
 import {
   SESSION_GUID,
   defaultCampaign,
@@ -342,6 +344,8 @@ export function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [showCampaigns, setShowCampaigns] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showChangelogModal, setShowChangelogModal] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const stored = localStorage.getItem("campaign-manager-sidebar-width");
     return stored ? Number(stored) : 240;
@@ -374,6 +378,8 @@ export function App() {
         setCampaign(fresh);
         historyRef.current = { stack: [fresh], idx: 0 };
         setLoading(false);
+        // Show What's New on first visit (showChangelogAtStartup defaults to true)
+        if (hasUnseenChanges()) setShowWhatsNew(true);
         return;
       }
       try {
@@ -381,6 +387,10 @@ export function App() {
         setCampaign(migrated);
         historyRef.current = { stack: [migrated], idx: 0 };
         setLoading(false);
+        // Respect the user's startup preference (true by default)
+        const pref = localStorage.getItem("campaign-manager-changelog-startup");
+        const showOnStartup = pref === null ? true : pref === "true";
+        if (showOnStartup && hasUnseenChanges()) setShowWhatsNew(true);
       } catch (err) {
         if (err instanceof MigrationError) {
           logMigrationError(err);
@@ -653,6 +663,23 @@ export function App() {
 
         {showSearch && <SearchModal campaign={campaign} onNavigate={(id) => navigateTo("editor", id)} onClose={() => setShowSearch(false)} T={T} css={css} />}
         {showCampaigns && <CampaignSwitcher current={SESSION_GUID} onClose={() => setShowCampaigns(false)} T={T} css={css} />}
+
+        {showWhatsNew && (
+          <WhatsNewPopup
+            T={T}
+            css={css}
+            isMobile={isMobile}
+            onClose={() => { setShowWhatsNew(false); markChangelogSeen(); }}
+            onNeverShow={() => {
+              localStorage.setItem("campaign-manager-changelog-startup", "false");
+              setShowWhatsNew(false);
+              markChangelogSeen();
+            }}
+          />
+        )}
+        {showChangelogModal && (
+          <ChangelogModal T={T} css={css} onClose={() => setShowChangelogModal(false)} />
+        )}
       </div>
     </ThemeCtx.Provider>
   );

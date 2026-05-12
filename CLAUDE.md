@@ -68,6 +68,36 @@ This git-pushes, triggers Flux reconciliation, restarts the deployment, and wait
 
 **Snapshots**: The backend stores up to 50 named point-in-time snapshots per campaign (`POST /api/campaign/:guid/snapshots`). Restoring a snapshot replaces the current campaign data in the frontend.
 
+## Changelog — mandatory rule
+
+**Every user-facing change must have a changelog entry.** Run the script below before committing — do NOT edit `src/changelog.json` directly.
+
+```bash
+node scripts/add-changelog.js --id <slug> --title <title> --description <desc> --priority <1-10>
+```
+
+- `--id` — unique kebab-case slug (the script will error if it's already taken)
+- `--title` — short title, ≤ 60 chars
+- `--description` — one to a few sentences describing the change, written for end users (not developers)
+- `--priority` — integer 1–10 (see scale below)
+- `--date` — optional, defaults to today
+
+**Only add entries for changes users will notice.** Skip purely internal changes (refactors, build tooling, dependency bumps, code style). If a technical change has a user-visible effect (e.g. faster load, fixed crash), include it and describe the effect — not the implementation.
+
+Priority scale:
+- **10** — core new workflow (e.g. page types system)
+- **9** — major feature (e.g. drag-and-drop reordering)
+- **8** — significant UX or data improvement
+- **7** — notable feature addition
+- **6** — useful enhancement to an existing feature
+- **5** — visible quality-of-life improvement
+- **4** — minor UI polish or convenience
+- **3** — small fix that most users will notice
+- **2** — minor fix, most users won't notice
+- **1** — skip it; don't add an entry at this priority
+
+The What's New popup shows the 10 highest-priority entries; all entries appear in the full changelog (Settings → View changelog).
+
 ## Frontend Source Layout
 
 ```
@@ -91,6 +121,9 @@ src/
   theme-picker.css  — CSS isolation for the picker dropdown (.theme-chip-isolate)
   theme-test.jsx    — Side-by-side theme comparison page (served at /themes)
   markdown.js       — Minimal markdown → HTML renderer
+  changelog.json    — Changelog entries (edit this file to add new entries)
+  changelog.js      — Imports changelog.json; exports helpers (hasUnseenChanges, markChangelogSeen)
+  changelog.jsx     — WhatsNewPopup and ChangelogModal components
 ```
 
 **Theme system**: Themes are plain objects in `THEMES` (theme.js) with color/font/radius fields. `makeCSS(T)` returns a JS style-object map (`btn`, `input`, `section`, etc.). Each theme also has `chipShadow` (and optionally `chipBg`) fields used by `ThemeChip` to self-style with the theme's own look. Skeuomorphic themes (parchment, chalkboard, corkboard, blueprint, newspaper, battletech) also have companion CSS files (`theme-*.css`) that apply `!important` rules to `*` elements inside `.sk-topbar`, `.sk-main`, `.sk-section` for texture effects — overriding `color`, `border-color`, `font-family`, etc.

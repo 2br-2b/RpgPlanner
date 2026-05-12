@@ -4,6 +4,7 @@ import { ThemeChipRow } from "./theme-picker.jsx";
 import { SESSION_GUID, listSnapshots, saveSnapshot, deleteSnapshot, restoreSnapshot, migrateCampaign, setSharing, pageCostTotal, pageAwardTotal } from "./storage.js";
 import { ConfirmModal } from "./ui.jsx";
 import { ExportDropdown, ExportModal, ImportButton } from "./io.jsx";
+import { ChangelogModal } from "./changelog.jsx";
 
 function Row({ label, hint, children, T, isMobile }) {
   return (
@@ -243,6 +244,11 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
   const [sharingAll, setSharingAll] = useState(false);
   const [shareAllError, setShareAllError] = useState("");
   const [showSyncId, setShowSyncId] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [changelogOnStartup, setChangelogOnStartup] = useState(() => {
+    const stored = localStorage.getItem("campaign-manager-changelog-startup");
+    return stored === null ? true : stored === "true";
+  });
 
   const handleShareAll = async () => {
     setSharingAll(true); setShareAllError(""); setConfirmShareAll(false);
@@ -352,7 +358,27 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
             <span style={{ fontSize: 12, color: T.textDim }}>Enabled</span>
           </label>
         </Row>
+        <Row label="Show changelog at startup" hint="Display the What's New popup when there are updates you haven't seen." T={T} isMobile={isMobile}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={changelogOnStartup}
+                onChange={(e) => {
+                  setChangelogOnStartup(e.target.checked);
+                  localStorage.setItem("campaign-manager-changelog-startup", String(e.target.checked));
+                }}
+                style={{ accentColor: T.accent, width: 14, height: 14 }}
+              />
+              <span style={{ fontSize: 12, color: T.textDim }}>Enabled</span>
+            </label>
+            <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => setShowChangelog(true)}>
+              View changelog →
+            </button>
+          </div>
+        </Row>
       </div>
+      {showChangelog && <ChangelogModal T={T} css={css} onClose={() => setShowChangelog(false)} />}
 
       <div style={{ ...css.section, marginBottom: 24 }}>
         <div style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>CAMPAIGN STATS</div>

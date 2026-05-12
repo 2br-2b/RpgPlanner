@@ -1,0 +1,37 @@
+[
+  {
+    "id": "whats-new-popup",
+    "date": "2026-05-11",
+    "title": "What's New popup & changelog",
+    "description": "Added a changelog popup that shows new features on first visit, with per-entry priority, startup preference in Settings, and a full scrollable changelog view.",
+    "priority": 7
+  },
+  {
+    "id": "drag-drop-sidebar",
+    "date": "2025-06-10",
+    "title": "Drag-and-drop page reordering",
+    "description": "Pages in the sidebar can now be dragged to reorder or reparent them into a different parent.",
+    "priority": 9
+  },
+  {
+    "id": "api-proxy-unified-dev",
+    "date": "2025-06-09",
+    "title": "Unified dev server startup",
+    "description": "Running npm run dev now starts both the frontend and backend together via a Vite API proxy — no more two separate terminals.",
+    "priority": 5
+  },
+  {
+    "id": "unified-navbar",
+    "date": "2025-06-08",
+    "title": "Unified activity bar & mobile nav",
+    "description": "Desktop sidebar and mobile bottom bar are now a single NavBar component, giving a consistent look across screen sizes.",
+    "priority": 4
+  },
+  {
+    "id": "activity-bar-lucide",
+    "date": "2025-06-07",
+    "title": "VS Code-style activity bar with icons",
+    "description": "Navigation moved to a left-side activity bar with Lucide icons on desktop; previous text-only tabs removed.",
+    "priority": 6
+  }
+]
