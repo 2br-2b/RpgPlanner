@@ -1,5 +1,12 @@
 [
   {
+    "id": "straighten-corkboard-boxes",
+    "date": "2026-05-12",
+    "title": "Straighten corkboard section boxes",
+    "description": "Corkboard theme sections no longer have subtle random rotations applied, so the boxes appear straight.",
+    "priority": 3
+  },
+  {
     "id": "flowchart-delete-sync",
     "date": "2026-05-12",
     "title": "Flowchart and page tree stay in sync on delete",

@@ -110,11 +110,6 @@
   margin-top: 16px !important;
 }
 
-/* Subtle rotation per note */
-[data-theme="corkboard"] .sk-section:nth-child(3n+1) { transform: rotate(-0.5deg); }
-[data-theme="corkboard"] .sk-section:nth-child(3n+2) { transform: rotate(0.4deg); }
-[data-theme="corkboard"] .sk-section:nth-child(3n)   { transform: rotate(-0.2deg); }
-
 /* Pushpin — centered at top */
 [data-theme="corkboard"] .sk-section::before {
   content: '';
