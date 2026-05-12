@@ -28,7 +28,7 @@ import {
 
 const NAV_ITEMS = [
   { key: "outline",   Icon: LayoutList, label: "Outline"  },
-  { key: "schema",    Icon: Shapes,     label: "Types"    },
+  { key: "schema",    Icon: Shapes,     label: "Page Types"    },
   { key: "flowchart", Icon: Workflow,   label: "Flow"     },
   { key: "simulate",  Icon: Dices,      label: "Simulate" },
   { key: "settings",  Icon: Settings,   label: "Settings" },
