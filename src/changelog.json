@@ -1,5 +1,12 @@
 [
   {
+    "id": "flowchart-split-swap",
+    "date": "2026-05-13",
+    "title": "Flowchart split: page on left, flowchart on right",
+    "description": "In the flowchart split view, the page editor now appears on the left and the flowchart on the right.",
+    "priority": 4
+  },
+  {
     "id": "fix-migration-invalid-type",
     "date": "2026-05-13",
     "title": "Fix migration error for campaigns with invalid page types",

@@ -472,7 +472,7 @@ function FlowchartSplitView({ campaign, onUpdate, splitPageId, splitRatio, onSpl
     if (!container) return;
     const onMove = (ev) => {
       const rect = container.getBoundingClientRect();
-      const ratio = Math.max(0.2, Math.min(0.8, (ev.clientX - rect.left) / rect.width));
+      const ratio = Math.max(0.2, Math.min(0.8, 1 - (ev.clientX - rect.left) / rect.width));
       onSplitRatioChange(ratio);
     };
     const onUp = () => {
@@ -485,28 +485,8 @@ function FlowchartSplitView({ campaign, onUpdate, splitPageId, splitRatio, onSpl
 
   return (
     <div ref={containerRef} style={{ display: "flex", flex: 1, minWidth: 0, height: "100%", overflow: "hidden" }}>
-      {/* Left: Flowchart */}
-      <div style={{ width: `${splitRatio * 100}%`, flexShrink: 0, height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        <Suspense fallback={null}>
-          <FlowchartView
-            campaign={campaign}
-            onUpdate={onUpdate}
-            onNavigate={(view, pageId) => { if (view === "editor" && pageId) onSetSplitPage(pageId); }}
-          />
-        </Suspense>
-      </div>
-
-      {/* Drag divider */}
-      <div
-        onMouseDown={onDividerMouseDown}
-        style={{ width: 5, flexShrink: 0, cursor: "col-resize", background: T.border, zIndex: 10, transition: "background 0.15s" }}
-        onMouseEnter={e => e.currentTarget.style.background = T.accent}
-        onMouseLeave={e => e.currentTarget.style.background = T.border}
-        title="Drag to resize"
-      />
-
-      {/* Right: Page editor */}
-      <div style={{ flex: 1, minWidth: 0, height: "100%", overflowY: "auto", ...css.main, padding: mainPad }}>
+      {/* Left: Page editor */}
+      <div style={{ width: `${(1 - splitRatio) * 100}%`, flexShrink: 0, height: "100%", overflowY: "auto", ...css.main, padding: mainPad }}>
         {splitPage
           ? <PageEditor
               key={splitPage.id}
@@ -525,6 +505,26 @@ function FlowchartSplitView({ campaign, onUpdate, splitPageId, splitRatio, onSpl
               </div>
             </div>
         }
+      </div>
+
+      {/* Drag divider */}
+      <div
+        onMouseDown={onDividerMouseDown}
+        style={{ width: 5, flexShrink: 0, cursor: "col-resize", background: T.border, zIndex: 10, transition: "background 0.15s" }}
+        onMouseEnter={e => e.currentTarget.style.background = T.accent}
+        onMouseLeave={e => e.currentTarget.style.background = T.border}
+        title="Drag to resize"
+      />
+
+      {/* Right: Flowchart */}
+      <div style={{ flex: 1, minWidth: 0, height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <Suspense fallback={null}>
+          <FlowchartView
+            campaign={campaign}
+            onUpdate={onUpdate}
+            onNavigate={(view, pageId) => { if (view === "editor" && pageId) onSetSplitPage(pageId); }}
+          />
+        </Suspense>
       </div>
     </div>
   );
