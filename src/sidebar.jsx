@@ -90,6 +90,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
       const newParentId = parent ? (parent.parentId ?? null) : null;
       const newSiblings = getSiblings(c.pages, newParentId);
       const parentIdx = newSiblings.findIndex(s => s.id === parent?.id);
+      if (parentIdx === -1) return c;
       const withRemoved = newSiblings.filter(s => s.id !== pageId);
       withRemoved.splice(parentIdx + 1, 0, { ...page, parentId: newParentId });
       let pages = c.pages.map(p => p.id === pageId ? { ...p, parentId: newParentId } : p);
