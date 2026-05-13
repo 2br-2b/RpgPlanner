@@ -1,5 +1,12 @@
 [
   {
+    "id": "fix-migration-invalid-type",
+    "date": "2026-05-13",
+    "title": "Fix migration error for campaigns with invalid page types",
+    "description": "Campaigns with pages that had the raw type string \"mission\" instead of a proper page type ID (a data integrity issue from older schema versions) now load and migrate cleanly instead of showing a migration error on startup.",
+    "priority": 3
+  },
+  {
     "id": "flowchart-editor-split",
     "date": "2026-05-13",
     "title": "Flowchart + editor split view",

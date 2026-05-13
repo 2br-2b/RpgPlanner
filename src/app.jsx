@@ -167,6 +167,9 @@ function MigrationErrorModal({ error, onContinueUnsafe, T, css }) {
     <ModalOverlay onClose={null} zIndex={9000}>
       <div style={{ background: "#1e1e2e", border: "2px solid #ef4444", borderRadius: 10, padding: 28, maxWidth: 540, width: "100%", color: "#eee", fontFamily: "system-ui, sans-serif", boxShadow: "0 8px 40px rgba(0,0,0,0.7)" }}>
         <div style={{ fontSize: 16, fontWeight: "bold", color: "#ef4444", marginBottom: 8 }}>⚠ Migration Integrity Check Failed</div>
+        <div style={{ fontSize: 12, color: "#888", marginBottom: 8, letterSpacing: "0.04em" }}>
+          Schema v{error.before?.schemaVersion ?? "?"} → v{error.after?.schemaVersion ?? "?"}
+        </div>
         <div style={{ fontSize: 12, color: "#bbb", lineHeight: 1.6, marginBottom: 16 }}>
           Your campaign data was being upgraded to a new schema version, but the migration did not pass all safety checks. No data has been saved yet.
         </div>

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 13,
+  "name": "Test Campaign (bad page types)",
+  "pages": [
+    {
+      "id": "page-mission-1",
+      "name": "Server Added Page",
+      "type": "mission",
+      "tags": [],
+      "sections": {},
+      "costs": [],
+      "awards": [],
+      "parentId": null,
+      "order": 0,
+      "playerVisible": false,
+      "sectionVisibilityOverrides": {},
+      "sectionTimestamps": {}
+    },
+    {
+      "id": "page-free-1",
+      "name": "Local Added Page",
+      "type": "mission",
+      "tags": [],
+      "sections": {},
+      "costs": [],
+      "awards": [],
+      "parentId": null,
+      "order": 1,
+      "playerVisible": false,
+      "sectionVisibilityOverrides": {},
+      "sectionTimestamps": {}
+    }
+  ],
+  "pageTypes": [
+    { "id": "pt-uuid-123", "name": "Mission", "icon": "⚔", "sectionSchema": [] }
+  ],
+  "statDefs": [],
+  "fieldTimestamps": {},
+  "flowchart": {
+    "nodes": [],
+    "edges": [],
+    "nodeTimestamps": {},
+    "edgeTimestamps": {}
+  },
+  "shareEnabled": false,
+  "shareGuid": null,
+  "shareTheme": "materialLight",
+  "shareCustomCss": ""
+}

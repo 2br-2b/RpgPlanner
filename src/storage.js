@@ -223,10 +223,24 @@ function _applyMigrations(data) {
   }
 
   if (v < 14) {
+    // Add flowchart.notes for free-floating sticky notes.
     d = {
       ...d,
       flowchart: d.flowchart ? { ...d.flowchart, notes: d.flowchart.notes || [] } : d.flowchart,
     };
+    // Repair pages whose type is a raw string ("mission", "free") instead of a pageType ID.
+    // Can happen when data at v11–v13 had type strings that were never remapped by the v11
+    // migration block (because v was already >= 11 at that time).
+    const validTypeIds = new Set((d.pageTypes || []).map(t => t.id));
+    const fallbackTypeId = (d.pageTypes || [])[0]?.id;
+    if (fallbackTypeId) {
+      d = {
+        ...d,
+        pages: (d.pages || []).map(p =>
+          validTypeIds.has(p.type) ? p : { ...p, type: fallbackTypeId }
+        ),
+      };
+    }
   }
 
   return { ...d, schemaVersion: SCHEMA_VERSION };
