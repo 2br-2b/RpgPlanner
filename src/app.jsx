@@ -30,7 +30,6 @@ import {
   logMigrationError,
 } from "./storage.js";
 import { diffCampaigns, mergeCampaigns } from "./conflict.js";
-import { useRegisterSW } from "virtual:pwa-register/react";
 
 const NAV_ITEMS = [
   { key: "outline",   Icon: LayoutList, label: "Outline"  },
@@ -467,7 +466,6 @@ export function App() {
   const [isIdleStale, setIsIdleStale] = useState(false);
   const isIdleStaleRef = useRef(false);
   const idleTimerRef = useRef(null);
-  const { needRefresh, updateServiceWorker } = useRegisterSW();
 
   const [showSearch, setShowSearch] = useState(false);
   const [showCampaigns, setShowCampaigns] = useState(false);
@@ -558,14 +556,14 @@ export function App() {
     clearTimeout(idleTimerRef.current);
     idleTimerRef.current = setTimeout(() => {
       const suppressedThisSession = sessionStorage.getItem("campaign-manager-idle-warned-session");
-      if (!suppressedThisSession) setIsIdleStale(true);
+      if (!suppressedThisSession && navigator.onLine) setIsIdleStale(true);
     }, 60 * 60 * 1000);
   }, []);
 
   // Start idle timer on mount; also react to coming back online
   useEffect(() => {
     _resetIdleTimer();
-    const onOnline  = () => { setIsOffline(false); isIdleStaleRef.current = true; setIsIdleStale(true); };
+    const onOnline  = () => { setIsOffline(false); isIdleStaleRef.current = true; };
     const onOffline = () => setIsOffline(true);
     window.addEventListener("online",  onOnline);
     window.addEventListener("offline", onOffline);
@@ -895,14 +893,6 @@ export function App() {
         )}
         {isIdleStale && (
           <IdleWarningModal onDismiss={() => { setIsIdleStale(false); isIdleStaleRef.current = false; }} />
-        )}
-        {needRefresh && (
-          <div style={{ position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", zIndex: 7000, background: "#1e1e2e", border: "1px solid #f59e0b", borderRadius: 8, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.6)", fontFamily: "system-ui, sans-serif", fontSize: 12, color: "#eee", whiteSpace: "nowrap" }}>
-            App update available
-            <button style={{ padding: "4px 12px", borderRadius: 5, border: "none", background: "#3b82f6", color: "#fff", cursor: "pointer", fontSize: 11, fontFamily: "system-ui" }} onClick={() => updateServiceWorker(true)}>
-              Reload
-            </button>
-          </div>
         )}
       </div>
     </ThemeCtx.Provider>
