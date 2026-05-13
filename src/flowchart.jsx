@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow, Background, Controls, MiniMap,
   Handle, Position, MarkerType,
@@ -77,22 +77,16 @@ function getConnectedIds(selectedNodeId, fcNodes, fcEdges) {
   return { nodes: connectedNodes, edges: connectedEdges };
 }
 
+// ── Selection context (keeps selection state out of node data to avoid infinite xyflow update loops) ──
+
+const SelectionCtx = createContext({ selectedNodeId: null, selectedEdgeId: null, fcEdges: [] });
+
 // ── Conversion helpers ────────────────────────────────────────────────────────
 
-function toRFNodes(fcNodes, fcEdges, pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, pageTypes) {
-  const connected = selectedNodeId ? getConnectedIds(selectedNodeId, fcNodes, fcEdges) : null;
-  // For edge selection: find adjacent nodes
-  let edgeAdjacentNodes = null;
-  if (selectedEdgeId) {
-    const [from, to] = selectedEdgeId.split("--");
-    edgeAdjacentNodes = new Set([from, to]);
-  }
-
+function toRFNodes(fcNodes, pages, T, firstPageTypeId, pageTypes) {
   return fcNodes.map(n => {
     const page = pages.find(p => p.id === n.pageId);
     const pt = (pageTypes || []).find(t => t.id === (page?.type ?? firstPageTypeId)) || (pageTypes || [])[0];
-    const dimmed = (selectedNodeId && !connected?.nodes.has(n.id))
-      || (selectedEdgeId && edgeAdjacentNodes && !edgeAdjacentNodes.has(n.id));
     const pageCosts = pageCostTotal(page);
     const pageAwards = pageAwardTotal(page);
     return {
@@ -109,7 +103,6 @@ function toRFNodes(fcNodes, fcEdges, pages, T, selectedNodeId, selectedEdgeId, f
         isStart: n.isStart,
         isEnd: n.isEnd,
         color: n.color,
-        dimmed: !!(selectedNodeId || selectedEdgeId) && dimmed,
         pageCosts,
         pageAwards,
       },
@@ -117,15 +110,11 @@ function toRFNodes(fcNodes, fcEdges, pages, T, selectedNodeId, selectedEdgeId, f
   });
 }
 
-function toRFEdges(fcEdges, T, selectedNodeId, selectedEdgeId) {
+function toRFEdges(fcEdges, T) {
   return fcEdges.map(e => {
     const internalId = `${e.from}--${e.to}`;
     const color = edgeColor(e, T);
     const etd = edgeTypeDef(e.edgeType);
-    const isAdjacentToSelectedNode = selectedNodeId && (e.from === selectedNodeId || e.to === selectedNodeId);
-    const dimmed = !!(selectedNodeId || selectedEdgeId)
-      && internalId !== selectedEdgeId
-      && !isAdjacentToSelectedNode;
     return {
       id: internalId,
       source: e.from,
@@ -137,10 +126,9 @@ function toRFEdges(fcEdges, T, selectedNodeId, selectedEdgeId) {
         edgeType: e.edgeType || "default",
         color,
         dash: etd.dash,
-        dimmed,
       },
       markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color },
-      style: { stroke: color, strokeWidth: 2, opacity: dimmed ? 0.2 : 1 },
+      style: { stroke: color, strokeWidth: 2 },
     };
   });
 }
@@ -160,7 +148,7 @@ function fromRFNodes(rfNodes, prevFcNodes) {
   });
 }
 
-function toRFNotes(fcNotes, onNoteUpdate, selectedNodeId) {
+function toRFNotes(fcNotes, onNoteUpdate) {
   return fcNotes.map(n => ({
     id: n.id,
     type: "noteNode",
@@ -168,7 +156,6 @@ function toRFNotes(fcNotes, onNoteUpdate, selectedNodeId) {
     data: {
       text: n.text || "",
       color: n.color || "#fff9c4",
-      dimmed: false,
       onTextChange: (text) => onNoteUpdate(n.id, { text }),
     },
   }));
@@ -176,12 +163,26 @@ function toRFNotes(fcNotes, onNoteUpdate, selectedNodeId) {
 
 // ── Custom node ───────────────────────────────────────────────────────────────
 
-function MissionNode({ data, selected }) {
+function MissionNode({ id, data, selected }) {
   const { T } = useThemeCSS();
+  const { selectedNodeId, selectedEdgeId, fcEdges } = useContext(SelectionCtx);
   const [hovered, setHovered] = useState(false);
   const accent = data.color || (data.isStart ? T.accentBright : data.isEnd ? T.danger : T.accent);
   const bg = data.color ? `${data.color}22` : data.isStart ? `${T.accentBright}22` : data.isEnd ? `${T.danger}22` : T.surface2;
   const isMission = data.isMissionType !== false;
+
+  const dimmed = useMemo(() => {
+    if (!selectedNodeId && !selectedEdgeId) return false;
+    if (selectedNodeId) {
+      const connected = getConnectedIds(selectedNodeId, [], fcEdges);
+      return !connected?.nodes.has(id);
+    }
+    if (selectedEdgeId) {
+      const [from, to] = selectedEdgeId.split("--");
+      return id !== from && id !== to;
+    }
+    return false;
+  }, [id, selectedNodeId, selectedEdgeId, fcEdges]);
 
   const hasCosts = data.pageCosts > 0;
   const hasAwards = data.pageAwards > 0;
@@ -198,7 +199,7 @@ function MissionNode({ data, selected }) {
         padding: "8px 12px",
         fontFamily: T.font,
         boxShadow: selected ? `0 0 0 2px ${T.accentBright}44` : "none",
-        opacity: data.dimmed ? 0.25 : 1,
+        opacity: dimmed ? 0.25 : 1,
         transition: "opacity 0.15s",
         position: "relative",
       }}>
@@ -255,11 +256,13 @@ const NOTE_COLORS = [
   { label: "White",  value: "#f5f5f5" },
 ];
 
-function NoteNode({ data, selected }) {
+function NoteNode({ id, data, selected }) {
   const { T } = useThemeCSS();
+  const { selectedNodeId, selectedEdgeId } = useContext(SelectionCtx);
   const [text, setText] = useState(data.text);
   useEffect(() => setText(data.text), [data.text]);
   const bg = data.color || "#fff9c4";
+  const dimmed = !!(selectedNodeId || selectedEdgeId) && selectedNodeId !== id;
   return (
     <div style={{
       background: bg,
@@ -268,7 +271,7 @@ function NoteNode({ data, selected }) {
       minWidth: 160,
       padding: 8,
       boxShadow: "2px 2px 8px rgba(0,0,0,0.15)",
-      opacity: data.dimmed ? 0.25 : 1,
+      opacity: dimmed ? 0.25 : 1,
     }}>
       <textarea
         className="nodrag"
@@ -292,10 +295,15 @@ function NoteNode({ data, selected }) {
 
 function MissionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected, style, markerEnd }) {
   const { T } = useThemeCSS();
+  const { selectedNodeId, selectedEdgeId } = useContext(SelectionCtx);
   const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
 
   const color = data?.color || T.accent;
-  const dimmed = data?.dimmed;
+  const [fromNode, toNode] = id.split("--");
+  const isAdjacentToSelected = selectedNodeId && (fromNode === selectedNodeId || toNode === selectedNodeId);
+  const dimmed = !!(selectedNodeId || selectedEdgeId)
+    && id !== selectedEdgeId
+    && !isAdjacentToSelected;
   const dash = data?.dash;
   const etd = edgeTypeDef(data?.edgeType);
 
@@ -586,18 +594,38 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
   }, [onUpdate]);
 
   const firstPageTypeId = (campaign.pageTypes || [])[0]?.id;
-  const rfAllNodes = useMemo(
+  const rfStructuralNodes = useMemo(
     () => [
-      ...toRFNodes(fcNodes, fcEdges, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, campaign.pageTypes),
-      ...toRFNotes(fcNotes, onNoteUpdate, selectedNodeId),
+      ...toRFNodes(fcNodes, campaign.pages, T, firstPageTypeId, campaign.pageTypes),
+      ...toRFNotes(fcNotes, onNoteUpdate),
     ],
-    [fcNodes, fcEdges, fcNotes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, campaign.pageTypes, onNoteUpdate]
+    [fcNodes, fcNotes, campaign.pages, T, firstPageTypeId, campaign.pageTypes, onNoteUpdate]
   );
-  const [nodes, setNodes] = useState(rfAllNodes);
-  useEffect(() => setNodes(rfAllNodes), [rfAllNodes]);
+  const [nodes, setNodes] = useState(rfStructuralNodes);
+
+  // Sync structural changes (nodes added/removed/data changed) into xyflow state.
+  // We compare by a stable signature to avoid triggering on every render.
+  const structuralSig = useMemo(
+    () => rfStructuralNodes.map(n => `${n.id}:${n.data.pageName}:${n.data.isStart}:${n.data.isEnd}:${n.data.color}:${n.data.pageCosts}:${n.data.pageAwards}`).join("|"),
+    [rfStructuralNodes]
+  );
+  const prevSigRef = useRef(structuralSig);
+  useEffect(() => {
+    if (prevSigRef.current === structuralSig) return;
+    prevSigRef.current = structuralSig;
+    setNodes(prev => {
+      // Merge: keep existing positions from prev, update data from rfStructuralNodes
+      const prevMap = new Map(prev.map(n => [n.id, n]));
+      return rfStructuralNodes.map(n => {
+        const existing = prevMap.get(n.id);
+        return existing ? { ...n, position: existing.position } : n;
+      });
+    });
+  }, [structuralSig, rfStructuralNodes]);
+
   const rfEdges = useMemo(
-    () => toRFEdges(fcEdges, T, selectedNodeId, selectedEdgeId),
-    [fcEdges, T, selectedNodeId, selectedEdgeId]
+    () => toRFEdges(fcEdges, T),
+    [fcEdges, T]
   );
 
   const onConnect = useCallback((conn) => {
@@ -755,7 +783,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
     pages: unusedPages.filter(p => p.type === pt.id),
   })).filter(g => g.pages.length > 0);
 
-  const selectedNodeRF = selectedNodeId ? rfAllNodes.find(n => n.id === selectedNodeId) : null;
+  const selectedNodeRF = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
   const selectedEdgeFC = selectedEdgeId ? fcEdges.find(e => `${e.from}--${e.to}` === selectedEdgeId) : null;
   const selectedEdgeRF = selectedEdgeFC ? {
     id: selectedEdgeId,
@@ -803,39 +831,41 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
 
         {/* React Flow canvas */}
         <div style={{ flex: 1, minHeight: 0 }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={rfEdges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            onNodesChange={changes => setNodes(nds => applyNodeChanges(changes, nds))}
-            onEdgesChange={() => {}}
-            onConnect={onConnect}
-            onNodeDragStop={onNodeDragStop}
-            onNodeClick={(_, node) => {
-              setSelectedNodeId(prev => prev === node.id ? null : node.id);
-              setSelectedEdgeId(null);
-            }}
-            onNodeDoubleClick={(_, node) => { if (node.type !== "noteNode") onNavigate("editor", node.data.pageId); }}
-            onEdgeClick={(_, edge) => {
-              setSelectedEdgeId(prev => prev === edge.id ? null : edge.id);
-              setSelectedNodeId(null);
-            }}
-            onPaneClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
-            fitView
-            fitViewOptions={{ padding: 0.2 }}
-            deleteKeyCode={null}
-            style={{ background: T.surface }}
-            defaultEdgeOptions={{
-              type: "missionEdge",
-              markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: T.accent },
-              style: { stroke: T.accent, strokeWidth: 2 },
-            }}
-          >
-            <Background color={T.border} gap={32} />
-            <Controls style={{ button: { background: T.surface2, border: `1px solid ${T.border}`, color: T.text } }} />
-            <MiniMap nodeColor={n => n.data?.color || T.surface2} style={{ background: T.surface, border: `1px solid ${T.border}` }} />
-          </ReactFlow>
+          <SelectionCtx.Provider value={{ selectedNodeId, selectedEdgeId, fcEdges }}>
+            <ReactFlow
+              nodes={nodes}
+              edges={rfEdges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              onNodesChange={changes => setNodes(nds => applyNodeChanges(changes, nds))}
+              onEdgesChange={() => {}}
+              onConnect={onConnect}
+              onNodeDragStop={onNodeDragStop}
+              onNodeClick={(_, node) => {
+                setSelectedNodeId(prev => prev === node.id ? null : node.id);
+                setSelectedEdgeId(null);
+              }}
+              onNodeDoubleClick={(_, node) => { if (node.type !== "noteNode") onNavigate("editor", node.data.pageId); }}
+              onEdgeClick={(_, edge) => {
+                setSelectedEdgeId(prev => prev === edge.id ? null : edge.id);
+                setSelectedNodeId(null);
+              }}
+              onPaneClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              deleteKeyCode={null}
+              style={{ background: T.surface }}
+              defaultEdgeOptions={{
+                type: "missionEdge",
+                markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: T.accent },
+                style: { stroke: T.accent, strokeWidth: 2 },
+              }}
+            >
+              <Background color={T.border} gap={32} />
+              <Controls style={{ button: { background: T.surface2, border: `1px solid ${T.border}`, color: T.text } }} />
+              <MiniMap nodeColor={n => n.data?.color || T.surface2} style={{ background: T.surface, border: `1px solid ${T.border}` }} />
+            </ReactFlow>
+          </SelectionCtx.Provider>
         </div>
       </div>
 
