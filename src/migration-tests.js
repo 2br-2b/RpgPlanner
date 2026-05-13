@@ -21,6 +21,7 @@ export function runMigrationTests(before, after) {
   check(Array.isArray(after.pageTypes), "pageTypes must be an array");
   check(after.flowchart && Array.isArray(after.flowchart.nodes), "flowchart.nodes must be an array");
   check(after.flowchart && Array.isArray(after.flowchart.edges), "flowchart.edges must be an array");
+  check(after.flowchart && Array.isArray(after.flowchart.notes), "flowchart.notes must be an array");
 
   // ── No pages lost ────────────────────────────────────────────────────────────
 

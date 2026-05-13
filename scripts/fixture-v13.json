@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 13,
+  "name": "Test Campaign",
+  "pages": [],
+  "pageTypes": [{ "id": "abc", "name": "Mission", "icon": "⚔", "sectionSchema": [] }],
+  "statDefs": [],
+  "fieldTimestamps": {},
+  "flowchart": { "nodes": [], "edges": [], "nodeTimestamps": {}, "edgeTimestamps": {} },
+  "shareEnabled": false,
+  "shareGuid": null,
+  "shareTheme": "materialLight",
+  "shareCustomCss": ""
+}

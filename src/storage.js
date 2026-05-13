@@ -32,7 +32,8 @@ export const pageAwardTotal = (page) => (page?.awards || []).reduce((s, a) => s 
 // v12: pageTypes gain .icon field
 // v13: fieldTimestamps on campaign root, sectionTimestamps on pages,
 //      nodeTimestamps/edgeTimestamps on flowchart — all empty on migration (no fabricated times)
-export const SCHEMA_VERSION = 13;
+// v14: flowchart.notes [] for free-floating text annotations
+export const SCHEMA_VERSION = 14;
 
 function _applyMigrations(data) {
   const v = data.schemaVersion || 1;
@@ -218,6 +219,13 @@ function _applyMigrations(data) {
         edgeTimestamps: {},
         ...d.flowchart,
       } : d.flowchart,
+    };
+  }
+
+  if (v < 14) {
+    d = {
+      ...d,
+      flowchart: d.flowchart ? { ...d.flowchart, notes: d.flowchart.notes || [] } : d.flowchart,
     };
   }
 
