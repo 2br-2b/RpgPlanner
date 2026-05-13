@@ -122,17 +122,16 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
 
     let pageHasConflict = false;
     let mergedPage = { ...sp, sections: { ...(sp.sections || {}) }, sectionTimestamps: { ...sTs } };
+    const sectionConflicts = [];
+    const autoMergedSections = [];
 
     for (const key of allKeys) {
-      const res = _resolveByTimestamp(
-        _getPageField(lp, key),
-        _getPageField(sp, key),
-        lTs[key],
-        sTs[key],
-        anchorMs,
-      );
+      const localVal  = _getPageField(lp, key);
+      const serverVal = _getPageField(sp, key);
+      const res = _resolveByTimestamp(localVal, serverVal, lTs[key], sTs[key], anchorMs);
       if (res.conflict) {
         pageHasConflict = true;
+        sectionConflicts.push({ sectionId: key, localValue: localVal, serverValue: serverVal });
       } else if (res.winner === "local") {
         if (key === "__meta__") {
           mergedPage = { ...mergedPage, name: lp.name, tags: lp.tags, type: lp.type, playerVisible: lp.playerVisible };
@@ -141,18 +140,21 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
         } else if (key === "__awards__") {
           mergedPage = { ...mergedPage, awards: lp.awards };
         } else {
-          mergedPage.sections[key] = _getPageField(lp, key);
+          mergedPage.sections[key] = localVal;
         }
         mergedPage.sectionTimestamps[key] = lTs[key];
+        if (!_deepEqual(localVal, serverVal)) autoMergedSections.push({ sectionId: key, winner: "local", keptValue: localVal, discardedValue: serverVal });
+      } else {
+        if (!_deepEqual(localVal, serverVal)) autoMergedSections.push({ sectionId: key, winner: "server", keptValue: serverVal, discardedValue: localVal });
       }
     }
 
     mergedPages.push(mergedPage);
 
     if (pageHasConflict) {
-      conflicts.push({ kind: "page-edited", id, label: lp.name });
+      conflicts.push({ kind: "page-edited", id, label: lp.name, sectionConflicts, autoMergedSections });
     } else {
-      autoResolved.push({ kind: "page-merged", id, label: lp.name });
+      autoResolved.push({ kind: "page-merged", id, label: lp.name, autoMergedSections });
     }
   }
 

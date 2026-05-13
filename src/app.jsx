@@ -218,6 +218,19 @@ function SyncConflictModal({ conflict, diffs, mergeResult, onUseServer, onUseLoc
     catch { return String(ts); }
   };
 
+  const fmtSectionId = (id) => {
+    if (id === "__meta__")   return "Page name / tags";
+    if (id === "__costs__")  return "Costs";
+    if (id === "__awards__") return "Awards";
+    return id;
+  };
+
+  const fmtVal = (val) => {
+    if (val == null || val === "") return "(empty)";
+    if (typeof val === "string") return val;
+    return JSON.stringify(val, null, 2);
+  };
+
   const kindIcon = (kind) => {
     if (kind.includes("added"))   return "＋";
     if (kind.includes("removed")) return "−";
@@ -227,10 +240,11 @@ function SyncConflictModal({ conflict, diffs, mergeResult, onUseServer, onUseLoc
   };
 
   const canMerge = mergeResult.conflicts.length === 0;
+  const nonConflictDiffs = diffs.filter(d => !mergeResult.conflicts.some(c => c.id === d.id && c.kind === d.kind));
 
   return (
     <ModalOverlay onClose={null} zIndex={9000}>
-      <div style={{ background: "#1e1e2e", border: "2px solid #f59e0b", borderRadius: 10, padding: 28, maxWidth: 560, width: "100%", color: "#eee", fontFamily: "system-ui, sans-serif", boxShadow: "0 8px 40px rgba(0,0,0,0.7)" }}>
+      <div style={{ background: "#1e1e2e", border: "2px solid #f59e0b", borderRadius: 10, padding: 28, maxWidth: 640, width: "100%", color: "#eee", fontFamily: "system-ui, sans-serif", boxShadow: "0 8px 40px rgba(0,0,0,0.7)", maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ fontSize: 16, fontWeight: "bold", color: "#f59e0b", marginBottom: 8 }}>⚠ Sync Conflict Detected</div>
         <div style={{ fontSize: 11, color: "#888", marginBottom: 16 }}>
           Server modified: {fmtTime(conflict.serverUpdatedAt)} · Last synced: {fmtTime(conflict.lastSyncedAt)}
@@ -242,37 +256,83 @@ function SyncConflictModal({ conflict, diffs, mergeResult, onUseServer, onUseLoc
           </div>
         )}
 
-        {diffs.length > 0 && (
-          <>
-            <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.1em", marginBottom: 6 }}>CONFLICTS ({mergeResult.conflicts.length}) & CHANGES ({diffs.length})</div>
-            <div style={{ background: "#12121e", border: "1px solid #555", borderRadius: 6, padding: 10, marginBottom: 12, maxHeight: 180, overflowY: "auto" }}>
-              {mergeResult.conflicts.map((c, i) => (
-                <div key={i} style={{ fontSize: 11, color: "#fca5a5", marginBottom: 3 }}>
-                  ✗ {c.label || c.id} <span style={{ color: "#666", fontSize: 10 }}>({c.kind})</span>
+        {mergeResult.conflicts.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 10, color: "#f87171", letterSpacing: "0.1em", marginBottom: 8 }}>CONFLICTS — must choose local or server</div>
+            {mergeResult.conflicts.map((c, i) => (
+              <div key={i} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "#fca5a5", marginBottom: 6, fontWeight: "bold" }}>
+                  ✗ {c.label || c.id} <span style={{ color: "#666", fontSize: 10, fontWeight: "normal" }}>({c.kind})</span>
                 </div>
-              ))}
-              {diffs.filter(d => !mergeResult.conflicts.some(c => c.id === d.id && c.kind === d.kind)).map((d, i) => (
-                <div key={i} style={{ fontSize: 11, color: "#bbb", marginBottom: 3 }}>
-                  {kindIcon(d.kind)} {d.label || d.id} <span style={{ color: "#666", fontSize: 10 }}>({d.kind})</span>
+                {c.sectionConflicts?.map((sc, j) => (
+                  <div key={j} style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, color: "#9ca3af", marginBottom: 4 }}>
+                      Section: <span style={{ color: "#e2e8f0" }}>{fmtSectionId(sc.sectionId)}</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                      <div style={{ background: "#2d1515", border: "1px solid #7f1d1d", borderRadius: 5, padding: "6px 8px" }}>
+                        <div style={{ fontSize: 9, color: "#f87171", letterSpacing: "0.08em", marginBottom: 4 }}>LOCAL</div>
+                        <pre style={{ margin: 0, fontSize: 10, color: "#fca5a5", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 120, overflowY: "auto" }}>{fmtVal(sc.localValue)}</pre>
+                      </div>
+                      <div style={{ background: "#152d15", border: "1px solid #14532d", borderRadius: 5, padding: "6px 8px" }}>
+                        <div style={{ fontSize: 9, color: "#4ade80", letterSpacing: "0.08em", marginBottom: 4 }}>SERVER</div>
+                        <pre style={{ margin: 0, fontSize: 10, color: "#86efac", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 120, overflowY: "auto" }}>{fmtVal(sc.serverValue)}</pre>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {nonConflictDiffs.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 10, color: "#888", letterSpacing: "0.1em", marginBottom: 6 }}>OTHER CHANGES</div>
+            <div style={{ background: "#12121e", border: "1px solid #333", borderRadius: 6, padding: 10 }}>
+              {nonConflictDiffs.map((d, i) => (
+                <div key={i} style={{ fontSize: 11, color: "#bbb", marginBottom: 2 }}>
+                  {kindIcon(d.kind)} {d.label || d.id} <span style={{ color: "#555", fontSize: 10 }}>({d.kind})</span>
                 </div>
               ))}
             </div>
-          </>
+          </div>
         )}
 
         {mergeResult.autoResolved.length > 0 && (
           <details style={{ marginBottom: 16 }}>
-            <summary style={{ fontSize: 11, color: "#888", cursor: "pointer" }}>Auto-merged {mergeResult.autoResolved.length} item(s)</summary>
-            <div style={{ paddingTop: 6, paddingLeft: 8 }}>
+            <summary style={{ fontSize: 11, color: "#6b7280", cursor: "pointer" }}>Auto-merged {mergeResult.autoResolved.length} item(s) by timestamp</summary>
+            <div style={{ paddingTop: 8, paddingLeft: 8 }}>
               {mergeResult.autoResolved.map((r, i) => (
-                <div key={i} style={{ fontSize: 10, color: "#6b7280", marginBottom: 2 }}>{kindIcon(r.kind)} {r.label || r.id}</div>
+                <div key={i} style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: "#6b7280", marginBottom: r.autoMergedSections?.length ? 4 : 0 }}>{kindIcon(r.kind)} {r.label || r.id}</div>
+                  {r.autoMergedSections?.map((s, j) => (
+                    <div key={j} style={{ marginBottom: 6, paddingLeft: 8 }}>
+                      <div style={{ fontSize: 10, color: "#4b5563", marginBottom: 3 }}>
+                        {fmtSectionId(s.sectionId)} → kept {s.winner} version
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                        <div style={{ background: s.winner === "local" ? "#152d15" : "#1e1e2e", border: `1px solid ${s.winner === "local" ? "#14532d" : "#333"}`, borderRadius: 4, padding: "4px 6px", opacity: s.winner === "local" ? 1 : 0.4 }}>
+                          <div style={{ fontSize: 9, color: s.winner === "local" ? "#4ade80" : "#555", marginBottom: 2 }}>LOCAL{s.winner === "local" ? " ✓" : ""}</div>
+                          <pre style={{ margin: 0, fontSize: 10, color: s.winner === "local" ? "#86efac" : "#555", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 60, overflowY: "auto" }}>{fmtVal(s.winner === "local" ? s.keptValue : s.discardedValue)}</pre>
+                        </div>
+                        <div style={{ background: s.winner === "server" ? "#152d15" : "#1e1e2e", border: `1px solid ${s.winner === "server" ? "#14532d" : "#333"}`, borderRadius: 4, padding: "4px 6px", opacity: s.winner === "server" ? 1 : 0.4 }}>
+                          <div style={{ fontSize: 9, color: s.winner === "server" ? "#4ade80" : "#555", marginBottom: 2 }}>SERVER{s.winner === "server" ? " ✓" : ""}</div>
+                          <pre style={{ margin: 0, fontSize: 10, color: s.winner === "server" ? "#86efac" : "#555", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 60, overflowY: "auto" }}>{fmtVal(s.winner === "server" ? s.keptValue : s.discardedValue)}</pre>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ))}
             </div>
           </details>
         )}
 
         <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 20, lineHeight: 1.6 }}>
-          Choose how to resolve this conflict. The server version was edited on another device since your last sync.
+          {canMerge
+            ? "All conflicts were resolved automatically by timestamp. Click Merge to apply."
+            : "Some sections were edited on both sides. Choose which full version to keep, or resolve individual conflicts and Merge. Any sections which were only edited on one side will be saved regardless."}
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -286,7 +346,7 @@ function SyncConflictModal({ conflict, diffs, mergeResult, onUseServer, onUseLoc
             style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${canMerge ? "#3b82f6" : "#555"}`, background: canMerge ? "#3b82f6" : "transparent", color: canMerge ? "#fff" : "#666", cursor: canMerge ? "pointer" : "not-allowed", fontSize: 12, fontFamily: "system-ui", fontWeight: "bold" }}
             onClick={canMerge ? onUseMerge : undefined}
             disabled={!canMerge}
-            title={canMerge ? undefined : "Some items were edited on both sides — choose server or local version"}
+            title={canMerge ? undefined : "Some sections were edited on both sides — choose server or local version to proceed"}
           >
             Merge ✓
           </button>
