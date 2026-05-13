@@ -1,5 +1,12 @@
 [
   {
+    "id": "flowchart-editor-split",
+    "date": "2026-05-13",
+    "title": "Flowchart + editor split view",
+    "description": "Enable a split layout from the Flow tab that shows the flowchart on the left and a page editor on the right. Click 'Open page' on any node or double-click it to open the page instantly in the editor pane.",
+    "priority": 7
+  },
+  {
     "id": "flowchart-notes",
     "date": "2026-05-13",
     "title": "Add free-floating notes to flowcharts",

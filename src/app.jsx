@@ -456,6 +456,74 @@ function SplitView({ campaign, leftPageId, rightPageId, onUpdate, onNavigate, sp
   );
 }
 
+function FlowchartSplitView({ campaign, onUpdate, splitPageId, splitRatio, onSplitRatioChange, onSetSplitPage, T, css, mainPad }) {
+  const splitPage = campaign.pages.find(p => p.id === splitPageId);
+  const containerRef = useRef(null);
+
+  const onDividerMouseDown = (e) => {
+    e.preventDefault();
+    const container = containerRef.current;
+    if (!container) return;
+    const onMove = (ev) => {
+      const rect = container.getBoundingClientRect();
+      const ratio = Math.max(0.2, Math.min(0.8, (ev.clientX - rect.left) / rect.width));
+      onSplitRatioChange(ratio);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  return (
+    <div ref={containerRef} style={{ display: "flex", flex: 1, minWidth: 0, height: "100%", overflow: "hidden" }}>
+      {/* Left: Flowchart */}
+      <div style={{ width: `${splitRatio * 100}%`, flexShrink: 0, height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <Suspense fallback={null}>
+          <FlowchartView
+            campaign={campaign}
+            onUpdate={onUpdate}
+            onNavigate={(view, pageId) => { if (view === "editor" && pageId) onSetSplitPage(pageId); }}
+          />
+        </Suspense>
+      </div>
+
+      {/* Drag divider */}
+      <div
+        onMouseDown={onDividerMouseDown}
+        style={{ width: 5, flexShrink: 0, cursor: "col-resize", background: T.border, zIndex: 10, transition: "background 0.15s" }}
+        onMouseEnter={e => e.currentTarget.style.background = T.accent}
+        onMouseLeave={e => e.currentTarget.style.background = T.border}
+        title="Drag to resize"
+      />
+
+      {/* Right: Page editor */}
+      <div style={{ flex: 1, minWidth: 0, height: "100%", overflowY: "auto", ...css.main, padding: mainPad }}>
+        {splitPage
+          ? <PageEditor
+              key={splitPage.id}
+              page={splitPage}
+              pageTypes={campaign.pageTypes || []}
+              allPages={campaign.pages}
+              onUpdate={(updater) => onUpdate((data) => ({ ...data, pages: data.pages.map(p => p.id === splitPage.id ? updater(p) : p) }))}
+              onBack={() => onSetSplitPage(null)}
+              shareEnabled={campaign.shareEnabled || false}
+            />
+          : <div style={{ color: T.textDim, textAlign: "center", marginTop: 80 }}>
+              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.2 }}>◨</div>
+              <div style={{ fontSize: 14, marginBottom: 8 }}>No page open</div>
+              <div style={{ fontSize: 12, color: T.textMuted, maxWidth: 280, margin: "0 auto", lineHeight: 1.6 }}>
+                Double-click a node or click <strong style={{ color: T.accent }}>Open page →</strong> in the panel to view it here.
+              </div>
+            </div>
+        }
+      </div>
+    </div>
+  );
+}
+
 // Shared nav item button — used by both the desktop activity bar and mobile bottom bar.
 // variant="sidebar": vertical left column, left-border active indicator, hover effects.
 // variant="bottom": horizontal bottom bar, bottom-underline active indicator, no hover.
@@ -544,6 +612,11 @@ export function App() {
   const [splitPageId, setSplitPageId] = useState(null);       // page shown in right pane
   const [splitTarget, setSplitTarget] = useState("right");    // "left" | "right" — which pane sidebar clicks go to
   const [splitRatio, setSplitRatio] = useState(0.5);          // fraction of main area for left pane
+
+  // Flowchart+editor split state
+  const [flowchartSplitEnabled, setFlowchartSplitEnabled] = useState(false);
+  const [flowchartSplitPageId, setFlowchartSplitPageId] = useState(null);
+  const [flowchartSplitRatio, setFlowchartSplitRatio] = useState(0.6); // flowchart gets more space
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
 
   useEffect(() => {
@@ -840,6 +913,13 @@ export function App() {
                 Split
               </label>
             )}
+            {splitAvailable && view === "flowchart" && (
+              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: T.textDim, cursor: "pointer", userSelect: "none", flexShrink: 0 }} title="Show flowchart and page editor side by side">
+                <input type="checkbox" checked={flowchartSplitEnabled} onChange={e => { setFlowchartSplitEnabled(e.target.checked); if (!e.target.checked) setFlowchartSplitPageId(null); }}
+                  style={{ accentColor: T.accent, width: 13, height: 13 }} />
+                Split
+              </label>
+            )}
             {isOffline && <span style={{ fontSize: 10, color: "#f59e0b", flexShrink: 0, fontWeight: "bold" }}>Offline</span>}
             <span style={{ fontSize: 10, color: saveStatus === "local storage full" ? T.warn : T.textMuted, flexShrink: 0 }} title={saveStatus === "local storage full" ? "Local backup failed: browser storage is full. Data is saved to the server." : undefined}>{isOffline ? "" : saveStatus}</span>
           </div>
@@ -905,7 +985,17 @@ export function App() {
           )}
 
           {/* Main content — single or split pane */}
-          {splitActive && view === "editor" ? (
+          {flowchartSplitEnabled && view === "flowchart" && splitAvailable ? (
+            <FlowchartSplitView
+              campaign={campaign}
+              onUpdate={update}
+              splitPageId={flowchartSplitPageId}
+              splitRatio={flowchartSplitRatio}
+              onSplitRatioChange={setFlowchartSplitRatio}
+              onSetSplitPage={setFlowchartSplitPageId}
+              T={T} css={css} mainPad={mainPad}
+            />
+          ) : splitActive && view === "editor" ? (
             <SplitView
               campaign={campaign}
               leftPageId={selectedPageId}
