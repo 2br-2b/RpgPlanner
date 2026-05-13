@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useThemeCSS } from "./theme.js";
 import { uid } from "./storage.js";
+import { ConfirmModal } from "./ui.jsx";
 
 export function getSiblings(pages, parentId) {
   return pages.filter(p => (p.parentId ?? null) === (parentId ?? null)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -26,7 +27,8 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
   const [name, setName] = useState("");
   const pageTypes = campaign.pageTypes || [];
   const [type, setType] = useState(() => pageTypes[0]?.id || "");
-  const [pendingDelete, setPendingDelete] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null); // { page, childNames }
+
   const [nameError, setNameError] = useState(false);
   const [collapsed, setCollapsed] = useState(new Set());
 
@@ -275,7 +277,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
     return siblings.map((page, idx) => {
       const isSelected = selectedPageId === page.id;
       const isRightPane = splitActive && splitPageId === page.id;
-      const isDeleting = pendingDelete === page.id;
+      const isDeleting = pendingDelete?.page?.id === page.id;
       const children = getSiblings(campaign.pages, page.id);
       const hasChildren = children.length > 0;
       const hasParent = (page.parentId ?? null) !== null;
@@ -306,7 +308,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
                   ? T.surface2
                   : "transparent",
               borderLeft: `3px solid ${isSelected ? T.accent : isRightPane ? T.accentBright : isDropInside ? T.accent : "transparent"}`,
-              borderBottom: isDeleting ? "none" : `1px solid ${T.border}`,
+              borderBottom: `1px solid ${T.border}`,
               display: "flex",
               alignItems: "center",
               gap: 3,
@@ -334,49 +336,15 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
             <button style={{ ...css.btn(), padding: "1px 5px", fontSize: 10, opacity: 0.6, flexShrink: 0 }} title="Duplicate page"
               onClick={e => { e.stopPropagation(); duplicatePage(page.id); }}>⧉</button>
             <button style={{ ...css.btn("danger"), padding: "1px 5px", fontSize: 10, opacity: 0.6, flexShrink: 0 }}
-              onClick={e => { e.stopPropagation(); setPendingDelete(isDeleting ? null : page.id); }}>×</button>
+              onClick={e => {
+                e.stopPropagation();
+                const collectNames = (id) => {
+                  const kids = getSiblings(campaign.pages, id);
+                  return kids.flatMap(k => [k.name, ...collectNames(k.id)]);
+                };
+                setPendingDelete({ page, childNames: collectNames(page.id) });
+              }}>×</button>
           </div>
-          {isDeleting && (() => {
-            const collectNames = (id) => {
-              const kids = getSiblings(campaign.pages, id);
-              return kids.flatMap(k => [k.name, ...collectNames(k.id)]);
-            };
-            const childNames = collectNames(page.id);
-            return (
-              <div style={{ background: T.danger + "22", borderBottom: `1px solid ${T.border}`, paddingLeft: 4 + depth * 16, paddingRight: 8, paddingTop: 6, paddingBottom: 6 }}>
-                <div style={{ fontSize: 10, color: T.danger, marginBottom: childNames.length ? 4 : 0 }}>
-                  Delete &ldquo;{page.name}&rdquo;{childNames.length > 0 ? " and its children?" : "?"}
-                </div>
-                {childNames.length > 0 && (
-                  <div style={{ fontSize: 9, color: T.textDim, marginBottom: 6, lineHeight: 1.5 }}>
-                    {childNames.map(n => <span key={n} style={{ display: "inline-block", background: T.surface2, borderRadius: 3, padding: "0 4px", marginRight: 4 }}>{n}</span>)}
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button style={{ ...css.btn("danger"), padding: "2px 8px", fontSize: 10 }} onClick={() => {
-                    const toDelete = new Set();
-                    const collect = (id) => { toDelete.add(id); getSiblings(campaign.pages, id).forEach(c => collect(c.id)); };
-                    collect(page.id);
-                    onUpdate(c => {
-                      const fc = c.flowchart;
-                      const deletedNodes = fc ? fc.nodes.filter(n => toDelete.has(n.pageId)).map(n => n.id) : [];
-                      const deletedNodeSet = new Set(deletedNodes);
-                      return {
-                        ...c,
-                        pages: c.pages.filter(p => !toDelete.has(p.id)),
-                        flowchart: fc ? {
-                          nodes: fc.nodes.filter(n => !deletedNodeSet.has(n.id)),
-                          edges: fc.edges.filter(e => !deletedNodeSet.has(e.from) && !deletedNodeSet.has(e.to)),
-                        } : fc,
-                      };
-                    });
-                    setPendingDelete(null);
-                  }}>Yes, delete</button>
-                  <button style={{ ...css.btn(), padding: "2px 8px", fontSize: 10 }} onClick={() => setPendingDelete(null)}>Cancel</button>
-                </div>
-              </div>
-            );
-          })()}
           {hasChildren && !isCollapsed && renderTree(page.id, depth + 1)}
         </div>
       );
@@ -438,6 +406,36 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
           }} />
         )}
       </div>
+
+      {pendingDelete && (
+        <ConfirmModal
+          title={`Delete "${pendingDelete.page.name}"?`}
+          message={pendingDelete.childNames.length > 0 ? `This will also delete ${pendingDelete.childNames.length} child page${pendingDelete.childNames.length > 1 ? "s" : ""}: ${pendingDelete.childNames.join(", ")}.` : undefined}
+          confirmLabel="Yes, delete"
+          onConfirm={() => {
+            const pageId = pendingDelete.page.id;
+            const toDelete = new Set();
+            const collect = (id) => { toDelete.add(id); getSiblings(campaign.pages, id).forEach(c => collect(c.id)); };
+            collect(pageId);
+            onUpdate(c => {
+              const fc = c.flowchart;
+              const deletedNodes = fc ? fc.nodes.filter(n => toDelete.has(n.pageId)).map(n => n.id) : [];
+              const deletedNodeSet = new Set(deletedNodes);
+              return {
+                ...c,
+                pages: c.pages.filter(p => !toDelete.has(p.id)),
+                flowchart: fc ? {
+                  ...fc,
+                  nodes: fc.nodes.filter(n => !deletedNodeSet.has(n.id)),
+                  edges: fc.edges.filter(e => !deletedNodeSet.has(e.from) && !deletedNodeSet.has(e.to)),
+                } : fc,
+              };
+            });
+            setPendingDelete(null);
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }

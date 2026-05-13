@@ -10,7 +10,7 @@ const SchemaEditor  = lazy(() => import("./schema-editor.jsx").then(m => ({ defa
 const SimulatorView = lazy(() => import("./simulator.jsx").then(m => ({ default: m.SimulatorView })));
 import { ThemeCtx, THEMES, makeCSS, useIsMobile, useThemeCSS } from "./theme.js";
 import { ThemePicker } from "./theme-picker.jsx";
-import { useEscapeKey, ModalOverlay } from "./ui.jsx";
+import { useEscapeKey, ModalOverlay, ConfirmModal } from "./ui.jsx";
 import { WhatsNewPopup, ChangelogModal } from "./changelog.jsx";
 import { hasUnseenChanges, markChangelogSeen } from "./changelog.js";
 import {
@@ -91,7 +91,7 @@ function SearchModal({ campaign, onNavigate, onClose, T, css }) {
 
 function CampaignSwitcher({ current, onClose, T, css }) {
   const [campaigns, setCampaigns] = useState(() => getKnownCampaigns());
-  const [confirmForget, setConfirmForget] = useState(null);
+  const [confirmForget, setConfirmForget] = useState(null); // campaign object
 
   useEscapeKey(onClose);
 
@@ -117,13 +117,7 @@ function CampaignSwitcher({ current, onClose, T, css }) {
                   {!isCurrent && (
                     <>
                       <button style={{ ...css.btn("primary"), fontSize: 10, padding: "2px 8px", flexShrink: 0 }} onClick={() => switchCampaign(c.guid)}>Open</button>
-                      {confirmForget === c.guid
-                        ? <>
-                          <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 8px" }} onClick={() => { forgetCampaign(c.guid); setCampaigns(getKnownCampaigns()); setConfirmForget(null); }}>Remove</button>
-                          <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={() => setConfirmForget(null)}>Cancel</button>
-                        </>
-                        : <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 6px", opacity: 0.6 }} title="Remove from list" onClick={() => setConfirmForget(c.guid)}>×</button>
-                      }
+                      <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 6px", opacity: 0.6 }} title="Remove from list" onClick={() => setConfirmForget(c)}>×</button>
                     </>
                   )}
                 </div>
@@ -136,6 +130,15 @@ function CampaignSwitcher({ current, onClose, T, css }) {
           <button style={{ ...css.btn("primary"), width: "100%" }} onClick={() => createNewCampaign()}>+ New Campaign</button>
         </div>
       </div>
+      {confirmForget && (
+        <ConfirmModal
+          title={`Remove "${confirmForget.name}"?`}
+          message="This only removes it from your recent list — the campaign data on the server is not deleted."
+          confirmLabel="Remove"
+          onConfirm={() => { forgetCampaign(confirmForget.guid); setCampaigns(getKnownCampaigns()); setConfirmForget(null); }}
+          onCancel={() => setConfirmForget(null)}
+        />
+      )}
     </ModalOverlay>
   );
 }

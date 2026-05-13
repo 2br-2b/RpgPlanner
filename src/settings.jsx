@@ -24,7 +24,7 @@ function SnapshotsPanel({ campaign, onRestore, T, css, isMobile }) {
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // snap object
   const [restoring, setRestoring] = useState(null);
   const [exportingSnap, setExportingSnap] = useState(null); // { snapId, data }
 
@@ -52,6 +52,8 @@ function SnapshotsPanel({ campaign, onRestore, T, css, isMobile }) {
     try { await deleteSnapshot(id); reload(); } catch { reload(); }
     setConfirmDelete(null);
   };
+
+  const pendingDeleteSnap = confirmDelete;
 
   const handleRestore = async (id, name) => {
     setRestoring(id);
@@ -98,26 +100,26 @@ function SnapshotsPanel({ campaign, onRestore, T, css, isMobile }) {
             <div style={{ fontSize: 12, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{snap.name}</div>
             <div style={{ fontSize: 10, color: T.textDim }}>{new Date(snap.created_at * 1000).toLocaleString()}</div>
           </div>
-          {confirmDelete === snap.id ? (
-            <>
-              <span style={{ fontSize: 10, color: T.danger }}>Delete?</span>
-              <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 8px" }} onClick={() => handleDelete(snap.id)}>Yes</button>
-              <button style={{ ...css.btn(), fontSize: 10, padding: "2px 6px" }} onClick={() => setConfirmDelete(null)}>No</button>
-            </>
-          ) : (
-            <>
-              <button style={{ ...css.btn(), fontSize: 10, padding: "2px 8px" }} onClick={() => handleExportSnap(snap.id)} title="Export this snapshot">
-                ⬇
-              </button>
-              <button style={{ ...css.btn(), fontSize: 10, padding: "2px 8px" }} onClick={() => handleRestore(snap.id, snap.name)} disabled={restoring === snap.id}>
-                {restoring === snap.id ? "…" : "Restore"}
-              </button>
-              <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 6px", opacity: 0.7 }} onClick={() => setConfirmDelete(snap.id)}>×</button>
-            </>
-          )}
+          <button style={{ ...css.btn(), fontSize: 10, padding: "2px 8px" }} onClick={() => handleExportSnap(snap.id)} title="Export this snapshot">
+              ⬇
+            </button>
+            <button style={{ ...css.btn(), fontSize: 10, padding: "2px 8px" }} onClick={() => handleRestore(snap.id, snap.name)} disabled={restoring === snap.id}>
+              {restoring === snap.id ? "…" : "Restore"}
+            </button>
+            <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 6px", opacity: 0.7 }} onClick={() => setConfirmDelete(snap)}>×</button>
         </div>
       ))}
       <div style={{ fontSize: 10, color: T.textMuted, marginTop: 8 }}>Snapshots save the current server-side state. Up to 50 per campaign.</div>
+
+      {pendingDeleteSnap && (
+        <ConfirmModal
+          title={`Delete "${pendingDeleteSnap.name}"?`}
+          message="This snapshot will be permanently removed."
+          confirmLabel="Delete"
+          onConfirm={() => handleDelete(pendingDeleteSnap.id)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
