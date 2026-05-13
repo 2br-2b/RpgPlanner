@@ -1,5 +1,12 @@
 [
   {
+    "id": "sticky-note-drag-handle",
+    "date": "2026-05-13",
+    "title": "Sticky notes: drag handle to move notes",
+    "description": "Sticky notes now have a drag handle at the top so they can be moved around the flowchart.",
+    "priority": 3
+  },
+  {
     "id": "flowchart-split-swap",
     "date": "2026-05-13",
     "title": "Flowchart split: page on left, flowchart on right",

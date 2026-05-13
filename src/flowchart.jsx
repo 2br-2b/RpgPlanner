@@ -273,6 +273,7 @@ function NoteNode({ id, data, selected }) {
       boxShadow: "2px 2px 8px rgba(0,0,0,0.15)",
       opacity: dimmed ? 0.25 : 1,
     }}>
+      <div style={{ height: 10, marginBottom: 4, cursor: "grab", opacity: 0.3, textAlign: "center", fontSize: 10, lineHeight: "10px", userSelect: "none" }}>⠿</div>
       <textarea
         className="nodrag"
         value={text}
