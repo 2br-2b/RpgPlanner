@@ -1,13 +1,13 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow, Background, Controls, MiniMap,
   Handle, Position, MarkerType,
   BaseEdge, EdgeLabelRenderer, getBezierPath,
+  applyNodeChanges,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useThemeCSS } from "./theme.js";
 import { uid, pageCostTotal, pageAwardTotal } from "./storage.js";
-import { useState } from "react";
 
 // ── Edge type definitions ─────────────────────────────────────────────────────
 
@@ -79,8 +79,8 @@ function getConnectedIds(selectedNodeId, fcNodes, fcEdges) {
 
 // ── Conversion helpers ────────────────────────────────────────────────────────
 
-function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, pageTypes) {
-  const connected = selectedNodeId ? getConnectedIds(selectedNodeId, fcNodes, []) : null;
+function toRFNodes(fcNodes, fcEdges, pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, pageTypes) {
+  const connected = selectedNodeId ? getConnectedIds(selectedNodeId, fcNodes, fcEdges) : null;
   // For edge selection: find adjacent nodes
   let edgeAdjacentNodes = null;
   if (selectedEdgeId) {
@@ -91,7 +91,7 @@ function toRFNodes(fcNodes, pages, T, selectedNodeId, selectedEdgeId, firstPageT
   return fcNodes.map(n => {
     const page = pages.find(p => p.id === n.pageId);
     const pt = (pageTypes || []).find(t => t.id === (page?.type ?? firstPageTypeId)) || (pageTypes || [])[0];
-    const dimmed = (selectedNodeId && !getConnectedIds(selectedNodeId, fcNodes, [/* no edges needed for node set */])?.nodes.has(n.id))
+    const dimmed = (selectedNodeId && !connected?.nodes.has(n.id))
       || (selectedEdgeId && edgeAdjacentNodes && !edgeAdjacentNodes.has(n.id));
     const pageCosts = pageCostTotal(page);
     const pageAwards = pageAwardTotal(page);
@@ -158,6 +158,20 @@ function fromRFNodes(rfNodes, prevFcNodes) {
       color: prev.color ?? null,
     };
   });
+}
+
+function toRFNotes(fcNotes, onNoteUpdate, selectedNodeId) {
+  return fcNotes.map(n => ({
+    id: n.id,
+    type: "noteNode",
+    position: { x: n.x, y: n.y },
+    data: {
+      text: n.text || "",
+      color: n.color || "#fff9c4",
+      dimmed: false,
+      onTextChange: (text) => onNoteUpdate(n.id, { text }),
+    },
+  }));
 }
 
 // ── Custom node ───────────────────────────────────────────────────────────────
@@ -229,6 +243,51 @@ function MissionNode({ data, selected }) {
   );
 }
 
+// ── Note node ─────────────────────────────────────────────────────────────────
+
+const NOTE_COLORS = [
+  { label: "Yellow", value: "#fff9c4" },
+  { label: "Blue",   value: "#bbdefb" },
+  { label: "Green",  value: "#c8e6c9" },
+  { label: "Pink",   value: "#f8bbd0" },
+  { label: "Purple", value: "#e1bee7" },
+  { label: "Orange", value: "#ffe0b2" },
+  { label: "White",  value: "#f5f5f5" },
+];
+
+function NoteNode({ data, selected }) {
+  const { T } = useThemeCSS();
+  const [text, setText] = useState(data.text);
+  useEffect(() => setText(data.text), [data.text]);
+  const bg = data.color || "#fff9c4";
+  return (
+    <div style={{
+      background: bg,
+      border: `2px solid ${selected ? T.accentBright : "rgba(0,0,0,0.18)"}`,
+      borderRadius: 4,
+      minWidth: 160,
+      padding: 8,
+      boxShadow: "2px 2px 8px rgba(0,0,0,0.15)",
+      opacity: data.dimmed ? 0.25 : 1,
+    }}>
+      <textarea
+        className="nodrag"
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={() => data.onTextChange(text)}
+        placeholder="Note…"
+        style={{
+          display: "block", width: "100%", minHeight: 70,
+          background: "transparent", border: "none", outline: "none",
+          resize: "both", fontSize: 12, lineHeight: 1.4,
+          fontFamily: "inherit", color: "#222", cursor: "text",
+          boxSizing: "border-box",
+        }}
+      />
+    </div>
+  );
+}
+
 // ── Custom edge ───────────────────────────────────────────────────────────────
 
 function MissionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected, style, markerEnd }) {
@@ -286,7 +345,7 @@ function MissionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, t
   );
 }
 
-const nodeTypes = { missionNode: MissionNode };
+const nodeTypes = { missionNode: MissionNode, noteNode: NoteNode };
 const edgeTypes = { missionEdge: MissionEdge };
 
 // ── Side panels ───────────────────────────────────────────────────────────────
@@ -482,20 +541,60 @@ function EdgePanel({ edge, statDefs, onUpdate, onDelete, T, css }) {
   );
 }
 
+function NotePanel({ node, onUpdate, onDelete, T, css }) {
+  return (
+    <div style={{ padding: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: "bold", color: T.text }}>📝 Note</span>
+        <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 8px" }} onClick={onDelete}>Remove</button>
+      </div>
+      <div style={{ fontSize: 11, color: T.textDim, marginBottom: 6 }}>Color</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {NOTE_COLORS.map(c => (
+          <div key={c.value} title={c.label}
+            onClick={() => onUpdate({ color: c.value })}
+            style={{
+              width: 22, height: 22, borderRadius: 4,
+              background: c.value,
+              border: `2px solid ${node.data.color === c.value ? T.accentBright : T.border}`,
+              cursor: "pointer",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 export function FlowchartView({ campaign, onUpdate, onNavigate }) {
   const { T, css } = useThemeCSS();
-  const { nodes: fcNodes, edges: fcEdges } = campaign.flowchart;
+  const { nodes: fcNodes, edges: fcEdges, notes: fcNotes = [] } = campaign.flowchart;
   const statDefs = campaign.statDefs || [];
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
 
+  const onNoteUpdate = useCallback((noteId, patch) => {
+    onUpdate(data => ({
+      ...data,
+      flowchart: {
+        ...data.flowchart,
+        notes: (data.flowchart.notes || []).map(n => n.id === noteId ? { ...n, ...patch } : n),
+      },
+    }));
+  }, [onUpdate]);
+
   const firstPageTypeId = (campaign.pageTypes || [])[0]?.id;
-  const rfNodes = useMemo(
-    () => toRFNodes(fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, campaign.pageTypes),
-    [fcNodes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, campaign.pageTypes]
+  const rfAllNodes = useMemo(
+    () => [
+      ...toRFNodes(fcNodes, fcEdges, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, campaign.pageTypes),
+      ...toRFNotes(fcNotes, onNoteUpdate, selectedNodeId),
+    ],
+    [fcNodes, fcEdges, fcNotes, campaign.pages, T, selectedNodeId, selectedEdgeId, firstPageTypeId, campaign.pageTypes, onNoteUpdate]
   );
+  const [nodes, setNodes] = useState(rfAllNodes);
+  useEffect(() => setNodes(rfAllNodes), [rfAllNodes]);
   const rfEdges = useMemo(
     () => toRFEdges(fcEdges, T, selectedNodeId, selectedEdgeId),
     [fcEdges, T, selectedNodeId, selectedEdgeId]
@@ -510,13 +609,23 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
   }, [fcEdges, onUpdate]);
 
   const onNodeDragStop = useCallback((_, node) => {
-    onUpdate(data => ({
-      ...data,
-      flowchart: {
-        ...data.flowchart,
-        nodes: data.flowchart.nodes.map(n => n.id === node.id ? { ...n, x: node.position.x, y: node.position.y } : n),
-      },
-    }));
+    if (node.type === "noteNode") {
+      onUpdate(data => ({
+        ...data,
+        flowchart: {
+          ...data.flowchart,
+          notes: (data.flowchart.notes || []).map(n => n.id === node.id ? { ...n, x: node.position.x, y: node.position.y } : n),
+        },
+      }));
+    } else {
+      onUpdate(data => ({
+        ...data,
+        flowchart: {
+          ...data.flowchart,
+          nodes: data.flowchart.nodes.map(n => n.id === node.id ? { ...n, x: node.position.x, y: node.position.y } : n),
+        },
+      }));
+    }
   }, [onUpdate]);
 
   const addNode = (pageId) => {
@@ -529,6 +638,14 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
     };
     const ts = new Date().toISOString();
     onUpdate(data => ({ ...data, flowchart: { ...data.flowchart, nodes: [...data.flowchart.nodes, newNode], nodeTimestamps: { ...(data.flowchart.nodeTimestamps || {}), [newNode.id]: ts } } }));
+  };
+
+  const addNote = () => {
+    const newNote = { id: uid(), x: 80, y: 80, text: "", color: "#fff9c4" };
+    onUpdate(data => ({
+      ...data,
+      flowchart: { ...data.flowchart, notes: [...(data.flowchart.notes || []), newNote] },
+    }));
   };
 
   const updateSelectedNode = (patch) => {
@@ -549,17 +666,34 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
     }));
   };
 
+  const updateSelectedNote = (patch) => {
+    if (!selectedNodeId) return;
+    onNoteUpdate(selectedNodeId, patch);
+  };
+
   const deleteSelectedNode = () => {
     if (!selectedNodeId) return;
-    const node = fcNodes.find(n => n.id === selectedNodeId);
-    onUpdate(data => ({
-      ...data,
-      pages: node ? data.pages.filter(p => p.id !== node.pageId) : data.pages,
-      flowchart: {
-        nodes: data.flowchart.nodes.filter(n => n.id !== selectedNodeId),
-        edges: data.flowchart.edges.filter(e => e.from !== selectedNodeId && e.to !== selectedNodeId),
-      },
-    }));
+    const isNote = fcNotes.some(n => n.id === selectedNodeId);
+    if (isNote) {
+      onUpdate(data => ({
+        ...data,
+        flowchart: {
+          ...data.flowchart,
+          notes: (data.flowchart.notes || []).filter(n => n.id !== selectedNodeId),
+        },
+      }));
+    } else {
+      const node = fcNodes.find(n => n.id === selectedNodeId);
+      onUpdate(data => ({
+        ...data,
+        pages: node ? data.pages.filter(p => p.id !== node.pageId) : data.pages,
+        flowchart: {
+          ...data.flowchart,
+          nodes: data.flowchart.nodes.filter(n => n.id !== selectedNodeId),
+          edges: data.flowchart.edges.filter(e => e.from !== selectedNodeId && e.to !== selectedNodeId),
+        },
+      }));
+    }
     setSelectedNodeId(null);
   };
 
@@ -621,7 +755,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
     pages: unusedPages.filter(p => p.type === pt.id),
   })).filter(g => g.pages.length > 0);
 
-  const selectedNodeRF = selectedNodeId ? rfNodes.find(n => n.id === selectedNodeId) : null;
+  const selectedNodeRF = selectedNodeId ? rfAllNodes.find(n => n.id === selectedNodeId) : null;
   const selectedEdgeFC = selectedEdgeId ? fcEdges.find(e => `${e.from}--${e.to}` === selectedEdgeId) : null;
   const selectedEdgeRF = selectedEdgeFC ? {
     id: selectedEdgeId,
@@ -654,6 +788,8 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
             </React.Fragment>
           ))}
 
+          <button style={{ ...css.btn(), fontSize: 11, padding: "3px 10px", marginLeft: "auto" }} onClick={addNote}>📝 Add note</button>
+
           {unusedPages.length === 0 && fcNodes.length > 0 && (
             <span style={{ fontSize: 11, color: T.textDim }}>All pages on chart — drag right handle → left handle to connect.</span>
           )}
@@ -668,11 +804,11 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
         {/* React Flow canvas */}
         <div style={{ flex: 1, minHeight: 0 }}>
           <ReactFlow
-            nodes={rfNodes}
+            nodes={nodes}
             edges={rfEdges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            onNodesChange={() => {}}
+            onNodesChange={changes => setNodes(nds => applyNodeChanges(changes, nds))}
             onEdgesChange={() => {}}
             onConnect={onConnect}
             onNodeDragStop={onNodeDragStop}
@@ -680,7 +816,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
               setSelectedNodeId(prev => prev === node.id ? null : node.id);
               setSelectedEdgeId(null);
             }}
-            onNodeDoubleClick={(_, node) => { onNavigate("editor", node.data.pageId); }}
+            onNodeDoubleClick={(_, node) => { if (node.type !== "noteNode") onNavigate("editor", node.data.pageId); }}
             onEdgeClick={(_, edge) => {
               setSelectedEdgeId(prev => prev === edge.id ? null : edge.id);
               setSelectedNodeId(null);
@@ -709,7 +845,10 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
           <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 12px 0" }}>
             <button style={{ ...css.btn(), fontSize: 11, padding: "2px 8px" }} onClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}>✕</button>
           </div>
-          {selectedNodeRF && (
+          {selectedNodeRF?.type === "noteNode" && (
+            <NotePanel node={selectedNodeRF} onUpdate={updateSelectedNote} onDelete={deleteSelectedNode} T={T} css={css} />
+          )}
+          {selectedNodeRF && selectedNodeRF.type !== "noteNode" && (
             <NodePanel node={selectedNodeRF} pages={campaign.pages} onUpdate={updateSelectedNode} onDelete={deleteSelectedNode} onNavigate={onNavigate} T={T} css={css} />
           )}
           {selectedEdgeRF && (

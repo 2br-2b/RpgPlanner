@@ -1,5 +1,19 @@
 [
   {
+    "id": "flowchart-notes",
+    "date": "2026-05-13",
+    "title": "Add free-floating notes to flowcharts",
+    "description": "You can now add sticky-note text boxes to flowcharts via the 'Add note' button. Notes are draggable, editable inline, and support color-coding from the side panel.",
+    "priority": 7
+  },
+  {
+    "id": "flowchart-drag-live",
+    "date": "2026-05-13",
+    "title": "Flowchart nodes move live while dragging",
+    "description": "Dragging a flowchart node now shows its new position in real time instead of snapping into place only after you release the mouse.",
+    "priority": 5
+  },
+  {
     "id": "offline-pwa",
     "date": "2026-05-12",
     "title": "Installable offline PWA",
