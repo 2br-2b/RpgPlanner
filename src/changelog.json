@@ -1,5 +1,12 @@
 [
   {
+    "id": "node-add-viewport-center",
+    "date": "2026-05-13",
+    "title": "New nodes appear at center of visible canvas",
+    "description": "Adding a node or sticky note now places it at the center of your current view instead of a fixed position on the canvas.",
+    "priority": 5
+  },
+  {
     "id": "sticky-note-drag-handle",
     "date": "2026-05-13",
     "title": "Sticky notes: drag handle to move notes",

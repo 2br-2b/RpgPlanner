@@ -3,7 +3,7 @@ import {
   ReactFlow, Background, Controls, MiniMap,
   Handle, Position, MarkerType,
   BaseEdge, EdgeLabelRenderer, getBezierPath,
-  applyNodeChanges,
+  applyNodeChanges, useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useThemeCSS } from "./theme.js";
@@ -577,6 +577,18 @@ function NotePanel({ node, onUpdate, onDelete, T, css }) {
 
 // ── Main view ─────────────────────────────────────────────────────────────────
 
+function ViewportCenterCapture({ centerRef }) {
+  const { screenToFlowPosition, getViewport } = useReactFlow();
+  centerRef.current = () => {
+    const vp = getViewport();
+    const el = document.querySelector(".react-flow__renderer");
+    const w = el ? el.clientWidth : 800;
+    const h = el ? el.clientHeight : 600;
+    return screenToFlowPosition({ x: w / 2, y: h / 2 });
+  };
+  return null;
+}
+
 export function FlowchartView({ campaign, onUpdate, onNavigate }) {
   const { T, css } = useThemeCSS();
   const { nodes: fcNodes, edges: fcEdges, notes: fcNotes = [] } = campaign.flowchart;
@@ -657,12 +669,13 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
     }
   }, [onUpdate]);
 
+  const viewportCenterRef = useRef(null);
+
   const addNode = (pageId) => {
-    const existing = fcNodes.length;
+    const center = viewportCenterRef.current?.() ?? { x: 80, y: 80 };
     const newNode = {
       id: uid(), pageId,
-      x: 60 + (existing % 4) * 220,
-      y: 80 + Math.floor(existing / 4) * 150,
+      x: center.x, y: center.y,
       isStart: false, isEnd: false, color: null,
     };
     const ts = new Date().toISOString();
@@ -670,7 +683,8 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
   };
 
   const addNote = () => {
-    const newNote = { id: uid(), x: 80, y: 80, text: "", color: "#fff9c4" };
+    const center = viewportCenterRef.current?.() ?? { x: 80, y: 80 };
+    const newNote = { id: uid(), x: center.x, y: center.y, text: "", color: "#fff9c4" };
     onUpdate(data => ({
       ...data,
       flowchart: { ...data.flowchart, notes: [...(data.flowchart.notes || []), newNote] },
@@ -862,6 +876,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
                 style: { stroke: T.accent, strokeWidth: 2 },
               }}
             >
+              <ViewportCenterCapture centerRef={viewportCenterRef} />
               <Background color={T.border} gap={32} />
               <Controls style={{ button: { background: T.surface2, border: `1px solid ${T.border}`, color: T.text } }} />
               <MiniMap nodeColor={n => n.data?.color || T.surface2} style={{ background: T.surface, border: `1px solid ${T.border}` }} />
