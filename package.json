@@ -20,7 +20,7 @@
     "@milkdown/plugin-listener": "^7.20.0",
     "@milkdown/plugin-trailing": "^7.20.0",
     "@milkdown/plugin-upload": "^7.20.0",
-    "@milkdown/preset-commonmark": "^7.20.0",
+    "@milkdown/preset-commonmark": "^7.21.1",
     "@milkdown/prose": "^7.20.0",
     "@milkdown/react": "^7.20.0",
     "@milkdown/utils": "^7.20.0",
