@@ -22,7 +22,7 @@
     "@milkdown/plugin-upload": "^7.20.0",
     "@milkdown/preset-commonmark": "^7.20.0",
     "@milkdown/prose": "^7.20.0",
-    "@milkdown/react": "^7.20.0",
+    "@milkdown/react": "^7.21.1",
     "@milkdown/utils": "^7.20.0",
     "@types/dompurify": "^3.0.5",
     "@xyflow/react": "^12.10.2",
