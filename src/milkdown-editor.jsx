@@ -1,8 +1,11 @@
-import { forwardRef, useImperativeHandle, useState, useCallback, useRef } from "react";
-import { Editor, rootCtx, defaultValueCtx, commandsCtx } from "@milkdown/core";
+import { forwardRef, useImperativeHandle, useState, useCallback, useRef, useEffect } from "react";
+import { Link, Unlink } from "lucide-react";
+import { Editor, rootCtx, defaultValueCtx, commandsCtx, editorViewCtx } from "@milkdown/core";
 import {
   commonmark,
   insertImageCommand,
+  toggleLinkCommand,
+  linkSchema,
   toggleStrongCommand,
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
@@ -57,7 +60,7 @@ const TOOLBAR_GROUPS = [
   ],
 ];
 
-function EditorToolbar({ cmd, visible }) {
+function EditorToolbar({ cmd, visible, onLinkOpen, onUnlink, isOnLink }) {
   if (!visible) return null;
   return (
     <div className="mk-toolbar">
@@ -65,7 +68,7 @@ function EditorToolbar({ cmd, visible }) {
         <span key={gi} className="mk-toolbar-group">
           {group.map(({ label, title, cmd: action, cls }) => (
             <button
-              key={label}
+              key={title}
               title={title}
               className={["mk-toolbar-btn", cls].filter(Boolean).join(" ")}
               onMouseDown={(e) => { e.preventDefault(); action(cmd); }}
@@ -73,6 +76,15 @@ function EditorToolbar({ cmd, visible }) {
               {label}
             </button>
           ))}
+          {gi === 1 && (
+            <button
+              title={isOnLink ? "Remove link" : "Link (Ctrl+K)"}
+              className="mk-toolbar-btn"
+              onMouseDown={(e) => { e.preventDefault(); isOnLink ? onUnlink() : onLinkOpen(); }}
+            >
+              {isOnLink ? <Unlink size={12} strokeWidth={2} /> : <Link size={12} strokeWidth={2} />}
+            </button>
+          )}
         </span>
       ))}
     </div>
@@ -82,6 +94,11 @@ function EditorToolbar({ cmd, visible }) {
 const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, onBlur, focused }, ref) {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkHref, setLinkHref] = useState("");
+  const [isOnLink, setIsOnLink] = useState(false);
+  const linkInputRef = useRef(null);
 
   const { get } = useEditor((root) =>
     Editor.make()
@@ -98,9 +115,20 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
       .use(history)
       .use(listener)
       .config((ctx) => {
-        ctx.get(listenerCtx).markdownUpdated((_, markdown) => {
-          onChangeRef.current?.(markdown);
-        });
+        ctx.get(listenerCtx)
+          .markdownUpdated((_, markdown) => { onChangeRef.current?.(markdown); })
+          .selectionUpdated(() => {
+            const view = ctx.get(editorViewCtx);
+            const { state } = view;
+            const { from, to } = state.selection;
+            const linkType = linkSchema.type(ctx);
+            let found = false;
+            state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
+              if (found) return false;
+              if (node.marks.some((m) => m.type === linkType)) found = true;
+            });
+            setIsOnLink(found);
+          });
       })
   );
 
@@ -108,14 +136,91 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
     get()?.action((ctx) => ctx.get(commandsCtx).call(command.key, payload));
   }, [get]);
 
+  const getLinkAtCursor = useCallback(() => {
+    let href = null;
+    get()?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      const { from, to } = state.selection;
+      const linkType = linkSchema.type(ctx);
+      state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
+        if (href) return false;
+        const mark = node.marks.find((m) => m.type === linkType);
+        if (mark) href = mark.attrs.href || "";
+      });
+    });
+    return href;
+  }, [get]);
+
   useImperativeHandle(ref, () => ({
     insertImage: (src, alt) => cmd(insertImageCommand, { src, alt, title: "" }),
+    insertLink: (href) => cmd(toggleLinkCommand, { href }),
   }), [cmd]);
 
+  const openLinkDialog = useCallback(() => {
+    const existing = getLinkAtCursor();
+    setLinkHref(existing ?? "");
+    setLinkDialogOpen(true);
+  }, [getLinkAtCursor]);
+
+  const confirmLink = useCallback(() => {
+    if (linkHref.trim()) {
+      cmd(toggleLinkCommand, { href: linkHref.trim() });
+    }
+    setLinkDialogOpen(false);
+  }, [cmd, linkHref]);
+
+  const cancelLink = useCallback(() => {
+    setLinkDialogOpen(false);
+  }, []);
+
+  const removeLink = useCallback(() => {
+    cmd(toggleLinkCommand);
+  }, [cmd]);
+
+  useEffect(() => {
+    if (linkDialogOpen) linkInputRef.current?.focus();
+  }, [linkDialogOpen]);
+
   return (
-    <div onFocus={onFocus} onBlur={onBlur}>
-      <EditorToolbar cmd={cmd} visible={focused} />
+    <div
+      onFocus={onFocus}
+      onBlur={onBlur}
+      style={{ position: "relative" }}
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+          e.preventDefault();
+          if (isOnLink) removeLink();
+          else openLinkDialog();
+        }
+      }}
+    >
+      <EditorToolbar cmd={cmd} visible={focused} onLinkOpen={openLinkDialog} onUnlink={removeLink} isOnLink={isOnLink} />
       <Milkdown />
+      {linkDialogOpen && (
+        <div className="mk-link-dialog">
+          <input
+            ref={linkInputRef}
+            className="mk-link-input"
+            type="url"
+            placeholder="https://example.com"
+            value={linkHref}
+            onChange={(e) => setLinkHref(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); confirmLink(); }
+              if (e.key === "Escape") { e.preventDefault(); cancelLink(); }
+            }}
+          />
+          <div className="mk-link-dialog-actions">
+            <button className="mk-toolbar-btn" onMouseDown={(e) => { e.preventDefault(); confirmLink(); }}>
+              Apply
+            </button>
+            <button className="mk-toolbar-btn" onMouseDown={(e) => { e.preventDefault(); cancelLink(); }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
