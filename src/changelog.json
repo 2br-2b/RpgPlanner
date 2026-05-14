@@ -42,6 +42,13 @@
     "priority": 6
   },
   {
+    "id": "emoji-picker-native-style",
+    "date": "2026-05-14",
+    "title": "Fix emoji picker not showing emojis",
+    "description": "Emoji picker now uses native system emoji instead of loading images from an external CDN, which was failing in production.",
+    "priority": 3
+  },
+  {
     "id": "fix-share-view-blank",
     "date": "2026-05-14",
     "title": "Fix share view showing blank pages",
