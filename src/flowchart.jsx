@@ -758,11 +758,13 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
 
   const deleteSelectedEdge = () => {
     if (!selectedEdgeId) return;
+    const ts = new Date().toISOString();
     onUpdate(data => ({
       ...data,
       flowchart: {
         ...data.flowchart,
         edges: data.flowchart.edges.filter(e => `${e.from}--${e.to}` !== selectedEdgeId),
+        edgeDeletedTimestamps: { ...(data.flowchart.edgeDeletedTimestamps || {}), [selectedEdgeId]: ts },
       },
     }));
     setSelectedEdgeId(null);

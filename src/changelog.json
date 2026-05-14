@@ -1,5 +1,12 @@
 [
   {
+    "id": "flowchart-edge-sync",
+    "date": "2026-05-14",
+    "title": "Fix flowchart connections not syncing correctly",
+    "description": "Deleting a connection on one device no longer causes it to reappear when syncing with another device.",
+    "priority": 6
+  },
+  {
     "id": "device-local-theme",
     "date": "2026-05-14",
     "title": "Theme changes now sync across devices",

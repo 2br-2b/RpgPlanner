@@ -119,21 +119,31 @@ export function runMigrationTests(before, after) {
         "flowchart.edgeTimestamps must be a plain object"
       );
     }
-    // Migration must not fabricate timestamps — all objects must be empty after migration
-    const beforeVersion = before.schemaVersion || 1;
-    if (beforeVersion < 13) {
+  }
+
+  if ((after.schemaVersion || 0) >= 15) {
+    if (after.flowchart) {
       check(
-        Object.keys(after.fieldTimestamps || {}).length === 0,
-        "fieldTimestamps must be empty after v13 migration (no fabricated timestamps)"
+        typeof after.flowchart.edgeDeletedTimestamps === "object" && !Array.isArray(after.flowchart.edgeDeletedTimestamps),
+        "flowchart.edgeDeletedTimestamps must be a plain object"
       );
-      for (const p of afterPages) {
-        const beforePage = (before.pages || []).find(bp => bp.id === p.id);
-        if (!beforePage || !beforePage.sectionTimestamps) {
-          check(
-            Object.keys(p.sectionTimestamps || {}).length === 0,
-            `Page "${p.name}" sectionTimestamps must be empty after v13 migration`
-          );
-        }
+    }
+  }
+
+  // Migration must not fabricate timestamps — all objects must be empty after migration
+  const beforeVersion = before.schemaVersion || 1;
+  if (beforeVersion < 13) {
+    check(
+      Object.keys(after.fieldTimestamps || {}).length === 0,
+      "fieldTimestamps must be empty after v13 migration (no fabricated timestamps)"
+    );
+    for (const p of afterPages) {
+      const beforePage = (before.pages || []).find(bp => bp.id === p.id);
+      if (!beforePage || !beforePage.sectionTimestamps) {
+        check(
+          Object.keys(p.sectionTimestamps || {}).length === 0,
+          `Page "${p.name}" sectionTimestamps must be empty after v13 migration`
+        );
       }
     }
   }

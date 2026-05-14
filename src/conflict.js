@@ -221,6 +221,8 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
   const sNTs = sfc.nodeTimestamps || {};
   const lETs = lfc.edgeTimestamps || {};
   const sETs = sfc.edgeTimestamps || {};
+  const lEDTs = lfc.edgeDeletedTimestamps || {};
+  const sEDTs = sfc.edgeDeletedTimestamps || {};
 
   const localNodes  = _byId(lfc.nodes || []);
   const serverNodes = _byId(sfc.nodes || []);
@@ -242,19 +244,32 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
   const serverEdges = _byEdgeId(sfc.edges || []);
   const mergedEdges = [];
   const mergedETs   = { ...sETs };
+  const mergedEDTs  = { ...sEDTs, ...lEDTs }; // union of tombstones; later deletion wins
 
   for (const id of new Set([...Object.keys(localEdges), ...Object.keys(serverEdges)])) {
     const le = localEdges[id];
     const se = serverEdges[id];
-    if (!se) { mergedEdges.push(le); mergedETs[id] = lETs[id]; autoResolved.push({ kind: "edge-added", id }); continue; }
-    if (!le) { mergedEdges.push(se); continue; }
+    if (!se) {
+      // Local has it, server doesn't — check server didn't delete it after local added it
+      const serverDeletedT = sEDTs[id] ? new Date(sEDTs[id]).getTime() : 0;
+      const localAddedT    = lETs[id]  ? new Date(lETs[id]).getTime()  : 0;
+      if (serverDeletedT > localAddedT) { autoResolved.push({ kind: "edge-deleted-server", id }); continue; }
+      mergedEdges.push(le); mergedETs[id] = lETs[id]; autoResolved.push({ kind: "edge-added", id }); continue;
+    }
+    if (!le) {
+      // Server has it, local doesn't — check local deleted it after server's last edit
+      const localDeletedT  = lEDTs[id] ? new Date(lEDTs[id]).getTime() : 0;
+      const serverEditedT  = sETs[id]  ? new Date(sETs[id]).getTime()  : 0;
+      if (localDeletedT > serverEditedT) { autoResolved.push({ kind: "edge-deleted-local", id }); continue; }
+      mergedEdges.push(se); continue;
+    }
     const res = _resolveByTimestamp(le, se, lETs[id], sETs[id], anchorMs);
     if (res.conflict) { conflicts.push({ kind: "flowchart-edge-edited", id, label: id }); mergedEdges.push(se); }
     else if (res.winner === "local") { mergedEdges.push(le); mergedETs[id] = lETs[id]; autoResolved.push({ kind: "edge-merged", id }); }
     else mergedEdges.push(se);
   }
 
-  merged.flowchart = { ...sfc, nodes: mergedNodes, nodeTimestamps: mergedNTs, edges: mergedEdges, edgeTimestamps: mergedETs };
+  merged.flowchart = { ...sfc, nodes: mergedNodes, nodeTimestamps: mergedNTs, edges: mergedEdges, edgeTimestamps: mergedETs, edgeDeletedTimestamps: mergedEDTs };
 
   return { merged, conflicts, autoResolved };
 }

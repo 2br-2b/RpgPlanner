@@ -33,7 +33,8 @@ export const pageAwardTotal = (page) => (page?.awards || []).reduce((s, a) => s 
 // v13: fieldTimestamps on campaign root, sectionTimestamps on pages,
 //      nodeTimestamps/edgeTimestamps on flowchart — all empty on migration (no fabricated times)
 // v14: flowchart.notes [] for free-floating text annotations
-export const SCHEMA_VERSION = 14;
+// v15: flowchart.edgeDeletedTimestamps {} — tombstones so edge deletions win over remote resurrection
+export const SCHEMA_VERSION = 15;
 
 function _applyMigrations(data) {
   const v = data.schemaVersion || 1;
@@ -243,6 +244,13 @@ function _applyMigrations(data) {
     }
   }
 
+  if (v < 15) {
+    d = {
+      ...d,
+      flowchart: d.flowchart ? { edgeDeletedTimestamps: {}, ...d.flowchart } : d.flowchart,
+    };
+  }
+
   return { ...d, schemaVersion: SCHEMA_VERSION };
 }
 
@@ -323,7 +331,7 @@ export function defaultCampaign() {
     statDefs: [],
     fieldTimestamps: {},
     pages: [],
-    flowchart: { nodes: [], edges: [], nodeTimestamps: {}, edgeTimestamps: {} },
+    flowchart: { nodes: [], edges: [], nodeTimestamps: {}, edgeTimestamps: {}, edgeDeletedTimestamps: {} },
   };
 }
 
