@@ -1,5 +1,12 @@
 [
   {
+    "id": "fix-whats-new-unseen-only",
+    "date": "2026-05-14",
+    "title": "What's New only shows entries you haven't seen",
+    "description": "The What's New popup now filters to only show changelog entries added since you last dismissed it, instead of always showing the same top entries.",
+    "priority": 3
+  },
+  {
     "id": "flowchart-edge-sync",
     "date": "2026-05-14",
     "title": "Fix flowchart connections not syncing correctly",

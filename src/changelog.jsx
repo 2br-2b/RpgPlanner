@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ModalOverlay, useEscapeKey } from "./ui.jsx";
-import { CHANGELOG_SORTED, getCompactEntries, isFirstVisit } from "./changelog.js";
+import { CHANGELOG_SORTED, COMPACT_LIMIT, getUnseenEntries, isFirstVisit } from "./changelog.js";
 
 function PriorityDot({ priority }) {
   // Color scale: 1–3 dim, 4–6 accent, 7–8 bright, 9–10 warn/highlight
@@ -90,8 +90,8 @@ export function ChangelogModal({ onClose, T, css }) {
 export function WhatsNewPopup({ onClose, onNeverShow, T, css, isMobile }) {
   const [showAll, setShowAll] = useState(false);
   const firstVisit = isFirstVisit();
-  const compact = getCompactEntries();
-  const hasMore = CHANGELOG_SORTED.length > compact.length;
+  const unseen = getUnseenEntries().slice(0, COMPACT_LIMIT);
+  const hasMore = CHANGELOG_SORTED.length > unseen.length;
 
   useEscapeKey(onClose);
 
@@ -173,7 +173,7 @@ export function WhatsNewPopup({ onClose, onNeverShow, T, css, isMobile }) {
         )}
 
         {!firstVisit && !showAll && (
-          <EntryList entries={compact} T={T} />
+          <EntryList entries={unseen} T={T} />
         )}
 
         {showAll && (

@@ -16,12 +16,21 @@ export const CHANGELOG_SORTED = [...CHANGELOG].sort((a, b) => {
 });
 
 // The N highest-priority entries shown in the compact popup.
-const COMPACT_LIMIT = 10;
+export const COMPACT_LIMIT = 10;
 
 export function getCompactEntries() {
   return [...CHANGELOG_SORTED]
     .sort((a, b) => b.priority - a.priority)
     .slice(0, COMPACT_LIMIT);
+}
+
+// Returns only entries newer than the last-seen marker (high-water-mark).
+export function getUnseenEntries() {
+  const seen = localStorage.getItem(CHANGELOG_SEEN_KEY);
+  if (!seen) return CHANGELOG_SORTED;
+  const idx = CHANGELOG_SORTED.findIndex(e => e.id === seen);
+  if (idx === -1) return CHANGELOG_SORTED;
+  return CHANGELOG_SORTED.slice(0, idx);
 }
 
 // localStorage key that stores the id of the last changelog entry the user saw.
