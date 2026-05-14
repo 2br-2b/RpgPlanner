@@ -34,7 +34,10 @@ export const pageAwardTotal = (page) => (page?.awards || []).reduce((s, a) => s 
 //      nodeTimestamps/edgeTimestamps on flowchart — all empty on migration (no fabricated times)
 // v14: flowchart.notes [] for free-floating text annotations
 // v15: flowchart.edgeDeletedTimestamps {} — tombstones so edge deletions win over remote resurrection
-export const SCHEMA_VERSION = 15;
+// v16: pageDeletedTimestamps, typeDeletedTimestamps, statDeletedTimestamps on campaign root;
+//      nodeDeletedTimestamps, noteDeletedTimestamps on flowchart — all empty on migration;
+//      also repairs pages missing sectionTimestamps (created after v13 without the field)
+export const SCHEMA_VERSION = 16;
 
 function _applyMigrations(data) {
   const v = data.schemaVersion || 1;
@@ -251,6 +254,21 @@ function _applyMigrations(data) {
     };
   }
 
+  if (v < 16) {
+    d = {
+      pageDeletedTimestamps: {},
+      typeDeletedTimestamps: {},
+      statDeletedTimestamps: {},
+      ...d,
+      pages: (d.pages || []).map(p => p.sectionTimestamps ? p : { ...p, sectionTimestamps: {} }),
+      flowchart: d.flowchart ? {
+        nodeDeletedTimestamps: {},
+        noteDeletedTimestamps: {},
+        ...d.flowchart,
+      } : d.flowchart,
+    };
+  }
+
   return { ...d, schemaVersion: SCHEMA_VERSION };
 }
 
@@ -330,8 +348,11 @@ export function defaultCampaign() {
     schemaVersion: SCHEMA_VERSION,
     statDefs: [],
     fieldTimestamps: {},
+    pageDeletedTimestamps: {},
+    typeDeletedTimestamps: {},
+    statDeletedTimestamps: {},
     pages: [],
-    flowchart: { nodes: [], edges: [], nodeTimestamps: {}, edgeTimestamps: {}, edgeDeletedTimestamps: {} },
+    flowchart: { nodes: [], edges: [], nodeTimestamps: {}, edgeTimestamps: {}, edgeDeletedTimestamps: {}, nodeDeletedTimestamps: {}, noteDeletedTimestamps: {} },
   };
 }
 

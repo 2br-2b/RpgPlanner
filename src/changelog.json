@@ -1,5 +1,12 @@
 [
   {
+    "id": "deletion-sync-fix",
+    "date": "2026-05-14",
+    "title": "Fix deleted items reappearing after sync",
+    "description": "Deleting a page, flowchart node, sticky note, page type, or stat on one device no longer causes it to reappear when syncing with another device.",
+    "priority": 7
+  },
+  {
     "id": "share-section-override-fix",
     "date": "2026-05-14",
     "title": "Fix share view ignoring per-page section visibility overrides",

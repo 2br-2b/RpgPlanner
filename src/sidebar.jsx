@@ -54,7 +54,7 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
     if (!name.trim()) { setNameError(true); return; }
     setNameError(false);
     const siblings = getSiblings(campaign.pages, null);
-    onUpdate(c => ({ ...c, pages: [...c.pages, { id: uid(), name: name.trim(), type, tags: [], sections: {}, costs: [], awards: [], parentId: null, order: siblings.length }] }));
+    onUpdate(c => ({ ...c, pages: [...c.pages, { id: uid(), name: name.trim(), type, tags: [], sections: {}, sectionTimestamps: {}, costs: [], awards: [], parentId: null, order: siblings.length }] }));
     setName("");
   };
 
@@ -421,13 +421,18 @@ export function Sidebar({ campaign, selectedPageId, onSelect, onUpdate, width, s
               const fc = c.flowchart;
               const deletedNodes = fc ? fc.nodes.filter(n => toDelete.has(n.pageId)).map(n => n.id) : [];
               const deletedNodeSet = new Set(deletedNodes);
+              const ts = new Date().toISOString();
+              const pageTs = Object.fromEntries([...toDelete].map(id => [id, ts]));
+              const nodeTs = Object.fromEntries(deletedNodes.map(id => [id, ts]));
               return {
                 ...c,
                 pages: c.pages.filter(p => !toDelete.has(p.id)),
+                pageDeletedTimestamps: { ...(c.pageDeletedTimestamps || {}), ...pageTs },
                 flowchart: fc ? {
                   ...fc,
                   nodes: fc.nodes.filter(n => !deletedNodeSet.has(n.id)),
                   edges: fc.edges.filter(e => !deletedNodeSet.has(e.from) && !deletedNodeSet.has(e.to)),
+                  nodeDeletedTimestamps: { ...(fc.nodeDeletedTimestamps || {}), ...nodeTs },
                 } : fc,
               };
             });

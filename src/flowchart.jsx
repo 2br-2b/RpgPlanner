@@ -716,6 +716,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
 
   const deleteSelectedNode = () => {
     if (!selectedNodeId) return;
+    const ts = new Date().toISOString();
     const isNote = fcNotes.some(n => n.id === selectedNodeId);
     if (isNote) {
       onUpdate(data => ({
@@ -723,6 +724,7 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
         flowchart: {
           ...data.flowchart,
           notes: (data.flowchart.notes || []).filter(n => n.id !== selectedNodeId),
+          noteDeletedTimestamps: { ...(data.flowchart.noteDeletedTimestamps || {}), [selectedNodeId]: ts },
         },
       }));
     } else {
@@ -730,10 +732,12 @@ export function FlowchartView({ campaign, onUpdate, onNavigate }) {
       onUpdate(data => ({
         ...data,
         pages: node ? data.pages.filter(p => p.id !== node.pageId) : data.pages,
+        pageDeletedTimestamps: node ? { ...(data.pageDeletedTimestamps || {}), [node.pageId]: ts } : data.pageDeletedTimestamps,
         flowchart: {
           ...data.flowchart,
           nodes: data.flowchart.nodes.filter(n => n.id !== selectedNodeId),
           edges: data.flowchart.edges.filter(e => e.from !== selectedNodeId && e.to !== selectedNodeId),
+          nodeDeletedTimestamps: { ...(data.flowchart.nodeDeletedTimestamps || {}), [selectedNodeId]: ts },
         },
       }));
     }

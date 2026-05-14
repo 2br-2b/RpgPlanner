@@ -130,6 +130,37 @@ export function runMigrationTests(before, after) {
     }
   }
 
+  if ((after.schemaVersion || 0) >= 16) {
+    check(
+      typeof after.pageDeletedTimestamps === "object" && !Array.isArray(after.pageDeletedTimestamps),
+      "pageDeletedTimestamps must be a plain object"
+    );
+    check(
+      typeof after.typeDeletedTimestamps === "object" && !Array.isArray(after.typeDeletedTimestamps),
+      "typeDeletedTimestamps must be a plain object"
+    );
+    check(
+      typeof after.statDeletedTimestamps === "object" && !Array.isArray(after.statDeletedTimestamps),
+      "statDeletedTimestamps must be a plain object"
+    );
+    for (const p of afterPages) {
+      check(
+        p.sectionTimestamps !== null && typeof p.sectionTimestamps === "object" && !Array.isArray(p.sectionTimestamps),
+        `Page "${p.name}" must have sectionTimestamps as a plain object`
+      );
+    }
+    if (after.flowchart) {
+      check(
+        typeof after.flowchart.nodeDeletedTimestamps === "object" && !Array.isArray(after.flowchart.nodeDeletedTimestamps),
+        "flowchart.nodeDeletedTimestamps must be a plain object"
+      );
+      check(
+        typeof after.flowchart.noteDeletedTimestamps === "object" && !Array.isArray(after.flowchart.noteDeletedTimestamps),
+        "flowchart.noteDeletedTimestamps must be a plain object"
+      );
+    }
+  }
+
   // Migration must not fabricate timestamps — all objects must be empty after migration
   const beforeVersion = before.schemaVersion || 1;
   if (beforeVersion < 13) {

@@ -95,6 +95,13 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
   const autoResolved = [];
   const merged = { ...server };
 
+  const lPDTs = local.pageDeletedTimestamps  || {};
+  const sPDTs = server.pageDeletedTimestamps || {};
+  const lTDTs = local.typeDeletedTimestamps  || {};
+  const sTDTs = server.typeDeletedTimestamps || {};
+  const lSDTs = local.statDeletedTimestamps  || {};
+  const sSDTs = server.statDeletedTimestamps || {};
+
   // ── Pages ─────────────────────────────────────────────────────────────────
 
   const localPages  = _byId(local.pages  || []);
@@ -105,8 +112,20 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
     const lp = localPages[id];
     const sp = serverPages[id];
 
-    if (!sp) { mergedPages.push(lp); autoResolved.push({ kind: "page-added-local", id, label: lp.name }); continue; }
-    if (!lp) { mergedPages.push(sp); autoResolved.push({ kind: "page-added-server", id, label: sp.name }); continue; }
+    if (!sp) {
+      // Server deleted it — check if server tombstone is newer than local's last edit
+      const serverDelMs = sPDTs[id] ? new Date(sPDTs[id]).getTime() : 0;
+      const localEditMs = Math.max(0, ...Object.values(lp.sectionTimestamps || {}).map(t => new Date(t).getTime()));
+      if (serverDelMs > localEditMs) { autoResolved.push({ kind: "page-deleted-server", id, label: lp.name }); continue; }
+      mergedPages.push(lp); autoResolved.push({ kind: "page-added-local", id, label: lp.name }); continue;
+    }
+    if (!lp) {
+      // Local deleted it — check if local tombstone is newer than server's last edit
+      const localDelMs = lPDTs[id] ? new Date(lPDTs[id]).getTime() : 0;
+      const serverEditMs = Math.max(0, ...Object.values(sp.sectionTimestamps || {}).map(t => new Date(t).getTime()));
+      if (localDelMs > serverEditMs) { autoResolved.push({ kind: "page-deleted-local", id, label: sp.name }); continue; }
+      mergedPages.push(sp); autoResolved.push({ kind: "page-added-server", id, label: sp.name }); continue;
+    }
     if (_deepEqual(lp, sp)) { mergedPages.push(sp); continue; }
 
     const lTs = lp.sectionTimestamps || {};
@@ -164,30 +183,59 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
     ...serverPageOrder.map(id => mergedPages.find(p => p.id === id)).filter(Boolean),
     ...mergedPages.filter(p => !serverPageOrder.includes(p.id)),
   ];
+  merged.pageDeletedTimestamps = { ...sPDTs, ...lPDTs };
 
   // ── pageTypes ─────────────────────────────────────────────────────────────
 
   const localTypes  = _byId(local.pageTypes  || []);
   const serverTypes = _byId(server.pageTypes || []);
-  const mergedTypes = [...(server.pageTypes || [])];
+  const mergedTypes = [];
 
-  for (const [id, lt] of Object.entries(localTypes)) {
-    if (!serverTypes[id]) { mergedTypes.push(lt); autoResolved.push({ kind: "pageType-added", id, label: lt.name }); }
-    else if (!_deepEqual(lt, serverTypes[id])) conflicts.push({ kind: "pageType-edited", id, label: lt.name });
+  for (const id of new Set([...Object.keys(localTypes), ...Object.keys(serverTypes)])) {
+    const lt = localTypes[id];
+    const st = serverTypes[id];
+    if (!st) {
+      const serverDelMs = sTDTs[id] ? new Date(sTDTs[id]).getTime() : 0;
+      if (serverDelMs > anchorMs) { autoResolved.push({ kind: "pageType-deleted-server", id, label: lt.name }); continue; }
+      mergedTypes.push(lt); autoResolved.push({ kind: "pageType-added", id, label: lt.name });
+    } else if (!lt) {
+      const localDelMs = lTDTs[id] ? new Date(lTDTs[id]).getTime() : 0;
+      if (localDelMs > anchorMs) { autoResolved.push({ kind: "pageType-deleted-local", id, label: st.name }); continue; }
+      mergedTypes.push(st);
+    } else if (!_deepEqual(lt, st)) {
+      mergedTypes.push(st); conflicts.push({ kind: "pageType-edited", id, label: lt.name });
+    } else {
+      mergedTypes.push(st);
+    }
   }
   merged.pageTypes = mergedTypes;
+  merged.typeDeletedTimestamps = { ...sTDTs, ...lTDTs };
 
   // ── statDefs ─────────────────────────────────────────────────────────────
 
   const localStats  = _byId(local.statDefs  || []);
   const serverStats = _byId(server.statDefs || []);
-  const mergedStats = [...(server.statDefs || [])];
+  const mergedStats = [];
 
-  for (const [id, ls] of Object.entries(localStats)) {
-    if (!serverStats[id]) { mergedStats.push(ls); autoResolved.push({ kind: "statDef-added", id, label: ls.name }); }
-    else if (!_deepEqual(ls, serverStats[id])) conflicts.push({ kind: "statDef-edited", id, label: ls.name });
+  for (const id of new Set([...Object.keys(localStats), ...Object.keys(serverStats)])) {
+    const ls = localStats[id];
+    const ss = serverStats[id];
+    if (!ss) {
+      const serverDelMs = sSDTs[id] ? new Date(sSDTs[id]).getTime() : 0;
+      if (serverDelMs > anchorMs) { autoResolved.push({ kind: "statDef-deleted-server", id, label: ls.name }); continue; }
+      mergedStats.push(ls); autoResolved.push({ kind: "statDef-added", id, label: ls.name });
+    } else if (!ls) {
+      const localDelMs = lSDTs[id] ? new Date(lSDTs[id]).getTime() : 0;
+      if (localDelMs > anchorMs) { autoResolved.push({ kind: "statDef-deleted-local", id, label: ss.name }); continue; }
+      mergedStats.push(ss);
+    } else if (!_deepEqual(ls, ss)) {
+      mergedStats.push(ss); conflicts.push({ kind: "statDef-edited", id, label: ls.name });
+    } else {
+      mergedStats.push(ss);
+    }
   }
   merged.statDefs = mergedStats;
+  merged.statDeletedTimestamps = { ...sSDTs, ...lSDTs };
 
   // ── Campaign meta fields ──────────────────────────────────────────────────
 
@@ -217,12 +265,16 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
 
   const lfc = local.flowchart  || {};
   const sfc = server.flowchart || {};
-  const lNTs = lfc.nodeTimestamps || {};
-  const sNTs = sfc.nodeTimestamps || {};
-  const lETs = lfc.edgeTimestamps || {};
-  const sETs = sfc.edgeTimestamps || {};
+  const lNTs  = lfc.nodeTimestamps        || {};
+  const sNTs  = sfc.nodeTimestamps        || {};
+  const lETs  = lfc.edgeTimestamps        || {};
+  const sETs  = sfc.edgeTimestamps        || {};
   const lEDTs = lfc.edgeDeletedTimestamps || {};
   const sEDTs = sfc.edgeDeletedTimestamps || {};
+  const lNDTs = lfc.nodeDeletedTimestamps || {};
+  const sNDTs = sfc.nodeDeletedTimestamps || {};
+  const lNoDTs = lfc.noteDeletedTimestamps || {};
+  const sNoDTs = sfc.noteDeletedTimestamps || {};
 
   const localNodes  = _byId(lfc.nodes || []);
   const serverNodes = _byId(sfc.nodes || []);
@@ -232,8 +284,18 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
   for (const id of new Set([...Object.keys(localNodes), ...Object.keys(serverNodes)])) {
     const ln = localNodes[id];
     const sn = serverNodes[id];
-    if (!sn) { mergedNodes.push(ln); mergedNTs[id] = lNTs[id]; autoResolved.push({ kind: "node-added", id }); continue; }
-    if (!ln) { mergedNodes.push(sn); continue; }
+    if (!sn) {
+      const serverDelMs = sNDTs[id] ? new Date(sNDTs[id]).getTime() : 0;
+      const localEditMs = lNTs[id]  ? new Date(lNTs[id]).getTime()  : 0;
+      if (serverDelMs > localEditMs) { autoResolved.push({ kind: "node-deleted-server", id }); continue; }
+      mergedNodes.push(ln); mergedNTs[id] = lNTs[id]; autoResolved.push({ kind: "node-added", id }); continue;
+    }
+    if (!ln) {
+      const localDelMs  = lNDTs[id] ? new Date(lNDTs[id]).getTime() : 0;
+      const serverEditMs = sNTs[id] ? new Date(sNTs[id]).getTime()  : 0;
+      if (localDelMs > serverEditMs) { autoResolved.push({ kind: "node-deleted-local", id }); continue; }
+      mergedNodes.push(sn); continue;
+    }
     const res = _resolveByTimestamp(ln, sn, lNTs[id], sNTs[id], anchorMs);
     if (res.conflict) { conflicts.push({ kind: "flowchart-node-edited", id, label: ln.pageId || id }); mergedNodes.push(sn); }
     else if (res.winner === "local") { mergedNodes.push(ln); mergedNTs[id] = lNTs[id]; autoResolved.push({ kind: "node-merged", id }); }
@@ -269,7 +331,39 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
     else mergedEdges.push(se);
   }
 
-  merged.flowchart = { ...sfc, nodes: mergedNodes, nodeTimestamps: mergedNTs, edges: mergedEdges, edgeTimestamps: mergedETs, edgeDeletedTimestamps: mergedEDTs };
+  // ── Flowchart notes ───────────────────────────────────────────────────────
+
+  const localNotes  = _byId(lfc.notes || []);
+  const serverNotes = _byId(sfc.notes || []);
+  const mergedNotes = [];
+
+  for (const id of new Set([...Object.keys(localNotes), ...Object.keys(serverNotes)])) {
+    const ln = localNotes[id];
+    const sn = serverNotes[id];
+    if (!sn) {
+      const serverDelMs = sNoDTs[id] ? new Date(sNoDTs[id]).getTime() : 0;
+      if (serverDelMs > anchorMs) { autoResolved.push({ kind: "note-deleted-server", id }); continue; }
+      mergedNotes.push(ln); autoResolved.push({ kind: "note-added", id }); continue;
+    }
+    if (!ln) {
+      const localDelMs = lNoDTs[id] ? new Date(lNoDTs[id]).getTime() : 0;
+      if (localDelMs > anchorMs) { autoResolved.push({ kind: "note-deleted-local", id }); continue; }
+      mergedNotes.push(sn); continue;
+    }
+    mergedNotes.push(sn); // last-write-wins for note content (no per-note timestamps)
+  }
+
+  merged.flowchart = {
+    ...sfc,
+    nodes: mergedNodes,
+    nodeTimestamps: mergedNTs,
+    nodeDeletedTimestamps: { ...sNDTs, ...lNDTs },
+    edges: mergedEdges,
+    edgeTimestamps: mergedETs,
+    edgeDeletedTimestamps: mergedEDTs,
+    notes: mergedNotes,
+    noteDeletedTimestamps: { ...sNoDTs, ...lNoDTs },
+  };
 
   return { merged, conflicts, autoResolved };
 }

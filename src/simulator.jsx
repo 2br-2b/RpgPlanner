@@ -265,7 +265,7 @@ export function SimulatorView({ campaign, onUpdate }) {
                   </label>
                 )}
                 <button style={{ ...css.btn("danger"), fontSize: 10, padding: "2px 6px", flexShrink: 0 }}
-                  onClick={() => onUpdate(data => ({ ...data, statDefs: data.statDefs.filter(d => d.id !== def.id) }))}>✕</button>
+                  onClick={() => onUpdate(data => ({ ...data, statDefs: data.statDefs.filter(d => d.id !== def.id), statDeletedTimestamps: { ...(data.statDeletedTimestamps || {}), [def.id]: new Date().toISOString() } }))}>✕</button>
               </div>
             ))}
           </div>

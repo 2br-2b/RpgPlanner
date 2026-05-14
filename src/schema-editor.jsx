@@ -140,11 +140,17 @@ export function SchemaEditor({ campaign, onUpdate }) {
   };
 
   const deleteType = (id) => {
-    onUpdate(c => ({
-      ...c,
-      pageTypes: (c.pageTypes || []).filter(t => t.id !== id),
-      pages: (c.pages || []).filter(p => p.type !== id),
-    }));
+    onUpdate(c => {
+      const ts = new Date().toISOString();
+      const deletedPageIds = (c.pages || []).filter(p => p.type === id).map(p => p.id);
+      return {
+        ...c,
+        pageTypes: (c.pageTypes || []).filter(t => t.id !== id),
+        pages: (c.pages || []).filter(p => p.type !== id),
+        typeDeletedTimestamps: { ...(c.typeDeletedTimestamps || {}), [id]: ts },
+        pageDeletedTimestamps: { ...(c.pageDeletedTimestamps || {}), ...Object.fromEntries(deletedPageIds.map(pid => [pid, ts])) },
+      };
+    });
     const remaining = pageTypes.filter(t => t.id !== id);
     setSelectedTypeId(remaining[0]?.id ?? null);
     setPendingDeleteType(null);
