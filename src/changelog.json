@@ -1,5 +1,12 @@
 [
   {
+    "id": "share-section-override-fix",
+    "date": "2026-05-14",
+    "title": "Fix share view ignoring per-page section visibility overrides",
+    "description": "Sections marked visible via the per-page override toggle (not the schema default) now correctly appear in the player share view, including all their subheaders.",
+    "priority": 3
+  },
+  {
     "id": "fix-whats-new-unseen-only",
     "date": "2026-05-14",
     "title": "What's New only shows entries you haven't seen",

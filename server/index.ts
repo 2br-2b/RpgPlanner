@@ -242,6 +242,7 @@ function filterSectionsForPage(schema: any[], page: any): { filteredSections: Re
     if (sec.type === "text") {
       const visibleSubheaders: string[] = (sec.subheaders || []).filter((sh: string) => {
         if (typeof override === "object" && override !== null && sh in override) return (override as any)[sh] === true;
+        if (override === true) return true; // whole section force-visible: show all subheaders
         return (sec.playerVisibleSubheaders || []).includes(sh);
       });
       const sectionData: Record<string, unknown> = {};
@@ -270,12 +271,21 @@ function filterSectionsForPage(schema: any[], page: any): { filteredSections: Re
   return { filteredSections };
 }
 
-function buildResponseSchema(schema: any[]): any[] {
+function buildResponseSchema(schema: any[], overrides: Record<string, any> = {}): any[] {
   return schema
-    .filter((sec: any) => sec.playerVisible === true)
+    .filter((sec: any) => {
+      const override = overrides[sec.id];
+      return typeof override === "boolean" ? override : sec.playerVisible === true;
+    })
     .map((sec: any) => {
+      const override = overrides[sec.id];
       if (sec.type === "text") {
-        return { id: sec.id, name: sec.name, type: sec.type, subheaders: sec.playerVisibleSubheaders || [], playerEditable: sec.playerEditable || false };
+        const visibleSubheaders = (sec.subheaders || []).filter((sh: string) => {
+          if (typeof override === "object" && override !== null && sh in override) return (override as any)[sh] === true;
+          if (override === true) return true; // whole section force-visible: show all subheaders
+          return (sec.playerVisibleSubheaders || []).includes(sh);
+        });
+        return { id: sec.id, name: sec.name, type: sec.type, subheaders: visibleSubheaders, playerEditable: sec.playerEditable || false };
       }
       if (sec.type === "waypoints") {
         return { id: sec.id, name: sec.name, type: sec.type, playerEditable: sec.playerEditable || false };
@@ -300,8 +310,9 @@ function filterCampaignForShare(raw: Record<string, unknown>): Record<string, un
     .filter((p: any) => p.playerVisible === true)
     .map((page: any) => {
       const schema = schemaByTypeId.get(page.type) || [];
+      const overrides: Record<string, any> = page.sectionVisibilityOverrides || {};
       const { filteredSections } = filterSectionsForPage(schema, page);
-      return { id: page.id, name: page.name, type: page.type, order: page.order, parentId: page.parentId, tags: page.tags || [], sections: filteredSections, costs: page.costs || [], awards: page.awards || [] };
+      return { id: page.id, name: page.name, type: page.type, order: page.order, parentId: page.parentId, tags: page.tags || [], sections: filteredSections, costs: page.costs || [], awards: page.awards || [], sectionSchema: buildResponseSchema(schema, overrides) };
     });
 
   // Add placeholder ancestors for visible child pages whose parent isn't visible

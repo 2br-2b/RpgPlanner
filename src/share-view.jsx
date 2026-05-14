@@ -317,7 +317,7 @@ function ShareInner({ data, shareGuid }) {
               </div>
             )
             : selectedPage
-              ? <SharePageView page={selectedPage} schema={(pageTypes.find(t => t.id === selectedPage.type) || pageTypes[0])?.sectionSchema || []} shareGuid={shareGuid} T={T} css={css} />
+              ? <SharePageView page={selectedPage} schema={selectedPage.sectionSchema || (pageTypes.find(t => t.id === selectedPage.type) || pageTypes[0])?.sectionSchema || []} shareGuid={shareGuid} T={T} css={css} />
               : <div style={{ color: T.textDim, textAlign: "center", padding: 48 }}>Select a page from the sidebar.</div>
           }
         </div>
