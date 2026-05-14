@@ -1,5 +1,19 @@
 [
   {
+    "id": "device-local-theme",
+    "date": "2026-05-14",
+    "title": "Theme is now per-device, not overwritten by sync",
+    "description": "Your theme choice is now saved locally on each device. Syncing with another device or clearing server data no longer resets your theme.",
+    "priority": 4
+  },
+  {
+    "id": "link-insertion",
+    "date": "2026-05-14",
+    "title": "Insert links in rich-text editors",
+    "description": "A link button (and Ctrl+K shortcut) in the rich-text toolbar lets you wrap selected text in a hyperlink or insert a new link.",
+    "priority": 6
+  },
+  {
     "id": "fix-share-view-blank",
     "date": "2026-05-14",
     "title": "Fix share view showing blank pages",
