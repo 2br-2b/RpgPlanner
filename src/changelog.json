@@ -1,5 +1,12 @@
 [
   {
+    "id": "bubblegum-theme",
+    "date": "2026-05-14",
+    "title": "New Bubblegum theme",
+    "description": "Added a soft pink Bubblegum theme inspired by the classic Winamp skin.",
+    "priority": 4
+  },
+  {
     "id": "node-add-viewport-center",
     "date": "2026-05-13",
     "title": "New nodes appear at center of visible canvas",

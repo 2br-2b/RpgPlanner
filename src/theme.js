@@ -163,6 +163,16 @@ export const THEMES = {
     tag: "#e8f0ff", tagText: "#004499", tagBorder: "#b0c8ff", radius: 4,
     chipShadow: "0 1px 3px rgba(0,0,0,0.1)",
   },
+  bubblegum: {
+    label: "Bubblegum",
+    font: "'Segoe UI', system-ui, sans-serif",
+    bg: "#ead0e8", surface: "#f5e8f8", surface2: "#ddc0e0",
+    border: "#c098c8", accent: "#9050b0", accentDim: "#dcc0e8",
+    accentBright: "#6a2890", text: "#280a38", textDim: "#9060a8",
+    textMuted: "#d0a8d8", danger: "#b03060", warn: "#c07830",
+    tag: "#e0c8f0", tagText: "#6a2890", tagBorder: "#c098c8", radius: 6,
+    chipShadow: "0 1px 4px rgba(120,60,160,0.2)",
+  },
   battletech: {
     label: "American Mecha",
     font: "'Courier New', monospace",

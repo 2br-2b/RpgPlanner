@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(node scripts/add-changelog.js --id node-add-viewport-center --title \"New nodes appear at center of visible canvas\" --description \"Adding a node or sticky note now places it at the center of your current view instead of a fixed position on the canvas.\" --priority 5)",
+      "Bash(ls -la \"c:\\\\Users\\\\abold\\\\Desktop\\\\RpgPlanner\\\\\" | head -30)",
+      "Read(//c/Users/abold/Desktop/**)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\abold\\\\Desktop\\\\RpgPlanner\" -Force)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\abold\\\\Desktop\\\\RpgPlanner\" -Force | Select-Object Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} | Format-List)",
+      "Bash(node scripts/add-changelog.js --id bubblegum-theme --title \"New Bubblegum theme\" --description \"Added a soft pink Bubblegum theme inspired by the classic Winamp skin.\" --priority 4)"
     ]
   }
 }

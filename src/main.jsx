@@ -9,6 +9,7 @@ import "./theme-corkboard.css";
 import "./theme-newspaper.css";
 import "./theme-blueprint.css";
 import "./theme-battletech.css";
+import "./theme-bubblegum.css";
 
 const shareMatch = window.location.pathname.match(/^\/share\/(.+)$/);
 const isThemeTest = window.location.pathname === "/themes";
