@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import EmojiPicker from "emoji-picker-react";
+import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
 import { useThemeCSS } from "./theme.js";
 
 export function IconPicker({ value, onChange }) {
@@ -47,6 +47,7 @@ export function IconPicker({ value, onChange }) {
             height={400}
             width={320}
             previewConfig={{ showPreview: false }}
+            emojiStyle={EmojiStyle.NATIVE}
           />
         </div>
       )}
