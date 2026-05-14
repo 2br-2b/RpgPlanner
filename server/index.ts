@@ -289,15 +289,17 @@ function buildResponseSchema(schema: any[]): any[] {
 
 function filterCampaignForShare(raw: Record<string, unknown>): Record<string, unknown> | null {
   if (!raw.shareEnabled) return null;
-  const schema = (raw.sectionSchema as any[]) || [];
+  const pageTypes = (raw.pageTypes as any[]) || [];
   const pages = (raw.pages as any[]) || [];
+
+  const schemaByTypeId = new Map<string, any[]>(
+    pageTypes.map((pt: any) => [pt.id, pt.sectionSchema || []])
+  );
 
   const visiblePages = pages
     .filter((p: any) => p.playerVisible === true)
     .map((page: any) => {
-      if (page.type === "free") {
-        return { id: page.id, name: page.name, type: page.type, order: page.order, parentId: page.parentId, tags: page.tags || [], content: page.content || "" };
-      }
+      const schema = schemaByTypeId.get(page.type) || [];
       const { filteredSections } = filterSectionsForPage(schema, page);
       return { id: page.id, name: page.name, type: page.type, order: page.order, parentId: page.parentId, tags: page.tags || [], sections: filteredSections, costs: page.costs || [], awards: page.awards || [] };
     });
@@ -325,7 +327,12 @@ function filterCampaignForShare(raw: Record<string, unknown>): Record<string, un
     name: raw.name,
     shareTheme: raw.shareTheme || "plain",
     shareCustomCss: raw.shareCustomCss || "",
-    sectionSchema: buildResponseSchema(schema),
+    pageTypes: pageTypes.map((pt: any) => ({
+      id: pt.id,
+      name: pt.name,
+      icon: pt.icon || "📄",
+      sectionSchema: buildResponseSchema(pt.sectionSchema || []),
+    })),
     pages: [...visiblePages, ...placeholders],
   };
 }

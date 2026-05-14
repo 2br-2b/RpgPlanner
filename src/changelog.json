@@ -1,5 +1,12 @@
 [
   {
+    "id": "fix-share-view-blank",
+    "date": "2026-05-14",
+    "title": "Fix share view showing blank pages",
+    "description": "Player-facing share links now correctly display page content. A schema migration had broken the share endpoint, causing all shared pages to appear empty.",
+    "priority": 8
+  },
+  {
     "id": "bubblegum-theme",
     "date": "2026-05-14",
     "title": "New Bubblegum theme",
