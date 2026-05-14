@@ -194,7 +194,7 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
   const lFT = local.fieldTimestamps  || {};
   const sFT = server.fieldTimestamps || {};
   const mergedFT = { ...sFT };
-  const META_FIELDS = ["name", "shareEnabled", "shareCustomCss", "shareTheme"];
+  const META_FIELDS = ["name", "shareEnabled", "shareCustomCss", "shareTheme", "theme"];
 
   for (const field of META_FIELDS) {
     if (_deepEqual(local[field], server[field])) continue;
@@ -211,8 +211,6 @@ export function mergeCampaigns(local, server, lastSyncedAt) {
   }
   // shareGuid → server always wins (never conflict-flagged)
   merged.shareGuid = server.shareGuid;
-  // theme → local always wins (device preference, never conflict-flagged)
-  merged.theme = local.theme;
   merged.fieldTimestamps = mergedFT;
 
   // ── Flowchart ─────────────────────────────────────────────────────────────

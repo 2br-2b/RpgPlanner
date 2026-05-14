@@ -2,8 +2,8 @@
   {
     "id": "device-local-theme",
     "date": "2026-05-14",
-    "title": "Theme is now per-device, not overwritten by sync",
-    "description": "Your theme choice is now saved locally on each device. Syncing with another device or clearing server data no longer resets your theme.",
+    "title": "Theme changes now sync across devices",
+    "description": "Changing the theme on one device now syncs to your other devices. Previously, theme was treated as a local-only preference and never propagated.",
     "priority": 4
   },
   {

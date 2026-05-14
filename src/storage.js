@@ -283,16 +283,6 @@ function preferredTheme() {
   return "materialLight";
 }
 
-const DEVICE_THEME_KEY = "campaign-manager-device-theme";
-
-export function getDeviceTheme() {
-  return localStorage.getItem(DEVICE_THEME_KEY) || null;
-}
-
-export function setDeviceTheme(key) {
-  localStorage.setItem(DEVICE_THEME_KEY, key);
-}
-
 export function defaultPageTypes() {
   const missionTypeId = uid();
   const freeTypeId = uid();

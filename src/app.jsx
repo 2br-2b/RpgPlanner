@@ -28,8 +28,6 @@ import {
   registerSaveFlush,
   MigrationError,
   logMigrationError,
-  getDeviceTheme,
-  setDeviceTheme,
 } from "./storage.js";
 import { diffCampaigns, mergeCampaigns } from "./conflict.js";
 
@@ -640,9 +638,7 @@ export function App() {
 
   const _finishLoad = useCallback((data) => {
     if (!data) {
-      let fresh = defaultCampaign();
-      const deviceTheme = getDeviceTheme();
-      if (deviceTheme) fresh = { ...fresh, theme: deviceTheme };
+      const fresh = defaultCampaign();
       setCampaign(fresh);
       historyRef.current = { stack: [fresh], idx: 0 };
       setLoading(false);
@@ -655,9 +651,7 @@ export function App() {
       saveSnapshot(`Auto-backup before schema v${SCHEMA_VERSION} migration — ${new Date().toLocaleString()}`).catch(() => {});
     }
     try {
-      let migrated = migrateCampaign(data);
-      const deviceTheme = getDeviceTheme();
-      if (deviceTheme && deviceTheme !== migrated.theme) migrated = { ...migrated, theme: deviceTheme };
+      const migrated = migrateCampaign(data);
       setCampaign(migrated);
       historyRef.current = { stack: [migrated], idx: 0 };
       setLoading(false);
@@ -916,7 +910,7 @@ export function App() {
             </button>
             <button style={{ ...css.btn(), fontSize: 11, padding: "4px 8px", opacity: canUndo ? 1 : 0.3 }} onClick={undo} title="Undo (Ctrl+Z)" disabled={!canUndo}>↩</button>
             <button style={{ ...css.btn(), fontSize: 11, padding: "4px 8px", opacity: canRedo ? 1 : 0.3 }} onClick={redo} title="Redo (Ctrl+Y)" disabled={!canRedo}>↪</button>
-            <ThemePicker current={campaign.theme} onChange={(key) => { setDeviceTheme(key); update((data) => ({ ...data, theme: key, fieldTimestamps: { ...(data.fieldTimestamps || {}), theme: new Date().toISOString() } })); }} />
+            <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key, fieldTimestamps: { ...(data.fieldTimestamps || {}), theme: new Date().toISOString() } }))} />
             <ExportDropdown campaign={campaign} currentPage={selectedPage} />
             {splitAvailable && showSidebar && (
               <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: T.textDim, cursor: "pointer", userSelect: "none", flexShrink: 0 }} title="Split screen — open two pages side by side">
@@ -942,7 +936,7 @@ export function App() {
             {showSidebar && <button style={{ ...css.btn(), padding: "6px 10px", fontSize: 18, lineHeight: 1, flexShrink: 0 }} onClick={() => setSidebarOpen((open) => !open)}>=</button>}
             <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{view === "editor" && selectedPage ? selectedPage.name : (NAV_ITEMS.find((item) => item.key === view)?.label || view)}</span>
             <button style={{ ...css.btn(), fontSize: 14, padding: "4px 8px", flexShrink: 0 }} onClick={() => setShowSearch(true)} title="Search">⌕</button>
-            <ThemePicker current={campaign.theme} onChange={(key) => { setDeviceTheme(key); update((data) => ({ ...data, theme: key, fieldTimestamps: { ...(data.fieldTimestamps || {}), theme: new Date().toISOString() } })); }} />
+            <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key, fieldTimestamps: { ...(data.fieldTimestamps || {}), theme: new Date().toISOString() } }))} />
             <ExportDropdown campaign={campaign} currentPage={selectedPage} />
             <span style={{ fontSize: 9, color: T.textMuted, flexShrink: 0 }}>{saveStatus === "saving" ? "*" : "o"}</span>
           </div>
