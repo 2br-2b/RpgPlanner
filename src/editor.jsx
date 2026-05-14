@@ -77,7 +77,7 @@ function OutlineCard({ page, pageType, showCosts, onSelect, onUpdate, onFilterBy
           <span key={tag} style={{ ...css.tag, display: "inline-flex", alignItems: "center", gap: 3 }}>
             <span style={{ cursor: "pointer" }} title="Filter by this tag" onClick={e => { e.stopPropagation(); onFilterByTag(tag); }}>{tag}</span>
             <span style={{ cursor: "pointer", opacity: 0.6 }} title="Remove tag"
-              onClick={e => { e.stopPropagation(); onUpdate(c => ({ ...c, pages: c.pages.map(p => p.id === page.id ? { ...p, tags: p.tags.filter(t => t !== tag) } : p) })); }}>×</span>
+              onClick={e => { e.stopPropagation(); onUpdate(c => ({ ...c, pages: c.pages.map(p => p.id === page.id ? { ...p, tags: (p.tags || []).filter(t => t !== tag) } : p) })); }}>×</span>
           </span>
         ))}
         <input style={{ ...css.input, width: 80, fontSize: 10, padding: "1px 5px" }} placeholder="+ tag" value={editTag}

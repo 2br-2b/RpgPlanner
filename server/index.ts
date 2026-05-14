@@ -408,7 +408,9 @@ app.patch("/api/share/:shareGuid/page/:pageId", asyncRoute(async (req, res) => {
   const page = pages[pageIdx];
   if (page.playerVisible !== true) throw new HttpError(403, "Page not visible");
 
-  const schema = (data.sectionSchema as any[]) || [];
+  const pageTypes = (data.pageTypes as any[]) || [];
+  const pageType = pageTypes.find((pt: any) => pt.id === page.type);
+  const schema = (pageType?.sectionSchema as any[]) || [];
   const patch = parsed.data;
   const sec = schema.find((s: any) => s.id === patch.sectionId);
   if (!sec || !sec.playerEditable) throw new HttpError(403, "Section not editable");

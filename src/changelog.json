@@ -1,5 +1,19 @@
 [
   {
+    "id": "fix-tag-remove-crash",
+    "date": "2026-05-14",
+    "title": "Fix crash when removing tags",
+    "description": "Removing a tag from a mission page no longer crashes in rare cases where the tag list was temporarily undefined during a rapid sequence of updates.",
+    "priority": 3
+  },
+  {
+    "id": "fix-player-edit-sections",
+    "date": "2026-05-14",
+    "title": "Fix player section editing",
+    "description": "Player editing of mission sections via the share link was silently broken since the page-types schema update. Edits are now saved correctly.",
+    "priority": 7
+  },
+  {
     "id": "emoji-picker-native-style",
     "date": "2026-05-14",
     "title": "Fix emoji picker not showing emojis",
