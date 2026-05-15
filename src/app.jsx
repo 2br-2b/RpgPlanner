@@ -675,6 +675,7 @@ export function App() {
         const diffs = diffCampaigns(conflict.local, conflict.server);
         if (diffs.length === 0) { _finishLoad(conflict.server); return; }
         const mergeResult = mergeCampaigns(conflict.local, conflict.server, conflict.lastSyncedAt);
+        if (mergeResult.conflicts.length === 0) { _finishLoad(mergeResult.merged); return; }
         setSyncConflict({ ...conflict, diffs, mergeResult });
         setLoading(false);
         return;
@@ -725,6 +726,10 @@ export function App() {
           const diffs = diffCampaigns(nextCampaign, result.conflict.server);
           if (diffs.length > 0) {
             const mergeResult = mergeCampaigns(nextCampaign, result.conflict.server, result.conflict.lastSyncedAt);
+            if (mergeResult.conflicts.length === 0) {
+              _finishLoad(mergeResult.merged);
+              return;
+            }
             setSyncConflict({ ...result.conflict, local: nextCampaign, diffs, mergeResult });
             setSaveStatus("conflict");
             return;

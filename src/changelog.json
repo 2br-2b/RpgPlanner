@@ -1,5 +1,12 @@
 [
   {
+    "id": "silent-auto-merge-sw-update",
+    "date": "2026-05-15",
+    "title": "Smoother sync: silent auto-merge + auto-update",
+    "description": "Sync conflicts that can be resolved automatically by timestamp are now applied silently without interrupting you. The app also updates itself automatically when a new version is available.",
+    "priority": 5
+  },
+  {
     "id": "deletion-sync-fix",
     "date": "2026-05-14",
     "title": "Fix deleted items reappearing after sync",
