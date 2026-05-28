@@ -1,4 +1,4 @@
-FROM node:26.2.0-alpine
+FROM node:24.15.0-alpine
 
 WORKDIR /app
 ENV DATA_DIR=/data
