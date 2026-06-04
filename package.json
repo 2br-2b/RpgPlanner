@@ -17,7 +17,7 @@
     "@milkdown/plugin-clipboard": "^7.21.1",
     "@milkdown/plugin-emoji": "^7.21.1",
     "@milkdown/plugin-history": "^7.21.1",
-    "@milkdown/plugin-listener": "^7.21.1",
+    "@milkdown/plugin-listener": "^7.21.2",
     "@milkdown/plugin-trailing": "^7.21.1",
     "@milkdown/plugin-upload": "^7.21.1",
     "@milkdown/preset-commonmark": "^7.21.1",
