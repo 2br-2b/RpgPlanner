@@ -736,8 +736,9 @@ export function App() {
           }
         }
       }
-      saveData(nextCampaign).then(({ localQuotaExceeded } = {}) => {
-        setSaveStatus(localQuotaExceeded ? "local storage full" : "saved");
+      saveData(nextCampaign).then(({ localQuotaExceeded, remoteSaveFailed } = {}) => {
+        if (remoteSaveFailed) setSaveStatus("remote save failed");
+        else setSaveStatus(localQuotaExceeded ? "local storage full" : "saved");
       });
     }, 800);
   }, []);
@@ -756,8 +757,9 @@ export function App() {
     setCampaign(chosenCampaign);
     historyRef.current = { stack: [chosenCampaign], idx: 0 };
     setSyncConflict(null);
-    saveData(chosenCampaign).then(({ localQuotaExceeded } = {}) => {
-      setSaveStatus(localQuotaExceeded ? "local storage full" : "saved");
+    saveData(chosenCampaign).then(({ localQuotaExceeded, remoteSaveFailed } = {}) => {
+      if (remoteSaveFailed) setSaveStatus("remote save failed");
+      else setSaveStatus(localQuotaExceeded ? "local storage full" : "saved");
     });
   }, []);
 
@@ -932,7 +934,13 @@ export function App() {
               </label>
             )}
             {isOffline && <span style={{ fontSize: 10, color: "#f59e0b", flexShrink: 0, fontWeight: "bold" }}>Offline</span>}
-            <span style={{ fontSize: 10, color: saveStatus === "local storage full" ? T.warn : T.textMuted, flexShrink: 0 }} title={saveStatus === "local storage full" ? "Local backup failed: browser storage is full. Data is saved to the server." : undefined}>{isOffline ? "" : saveStatus}</span>
+            <span style={{ fontSize: 10, color: saveStatus === "local storage full" || saveStatus === "remote save failed" ? T.warn : T.textMuted, flexShrink: 0 }}
+              title={saveStatus === "local storage full"
+                ? "Local backup failed: browser storage is full. Data is saved to the server."
+                : saveStatus === "remote save failed"
+                ? "Server save failed. Your local changes are stored in the browser, but the network save did not complete."
+                : undefined}
+            >{isOffline ? "" : saveStatus}</span>
           </div>
         )}
 

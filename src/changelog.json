@@ -1,5 +1,12 @@
 [
   {
+    "id": "remote-save-error-visibility",
+    "date": "2026-06-07",
+    "title": "Show warning when server save fails",
+    "description": "If saving to the server fails (server error, network issue, or payload too large), the app now shows 'remote save failed' instead of 'saved', so you know the server copy may be out of date. Your local browser backup is unaffected.",
+    "priority": 4
+  },
+  {
     "id": "silent-auto-merge-sw-update",
     "date": "2026-05-15",
     "title": "Smoother sync: silent auto-merge + auto-update",

@@ -363,12 +363,16 @@ export function getKnownCampaigns() {
 }
 
 export function registerCampaign(guid, name) {
-  const list = getKnownCampaigns();
-  const idx = list.findIndex(c => c.guid === guid);
-  const entry = { guid, name: name || "Unnamed Campaign", lastUsed: Date.now() };
-  if (idx >= 0) list[idx] = entry;
-  else list.push(entry);
-  localStorage.setItem("campaign-manager-campaigns", JSON.stringify(list));
+  try {
+    const list = getKnownCampaigns();
+    const idx = list.findIndex(c => c.guid === guid);
+    const entry = { guid, name: name || "Unnamed Campaign", lastUsed: Date.now() };
+    if (idx >= 0) list[idx] = entry;
+    else list.push(entry);
+    localStorage.setItem("campaign-manager-campaigns", JSON.stringify(list));
+  } catch (e) {
+    console.warn("Failed to update known campaign list:", e);
+  }
 }
 
 // Pending save callback — app.jsx sets this so switch/create can flush first.
@@ -497,13 +501,16 @@ export async function loadData() {
 }
 
 export async function saveData(data) {
-  registerCampaign(SESSION_GUID, data.name);
   let localQuotaExceeded = false;
+  let remoteSaveFailed = false;
   try {
+    registerCampaign(SESSION_GUID, data.name);
     localStorage.setItem("campaign-manager-local", JSON.stringify(data));
   } catch (e) {
     if (e instanceof DOMException && (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
       localQuotaExceeded = true;
+    } else {
+      console.warn("Local save failed:", e);
     }
   }
   try {
@@ -512,11 +519,18 @@ export async function saveData(data) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data }),
     });
-    if (r.ok) {
+    if (!r.ok) {
+      remoteSaveFailed = true;
+      const text = await r.text().catch(() => "");
+      console.warn("Remote save failed:", r.status, text);
+    } else {
       localStorage.setItem("campaign-manager-synced-at", String(Date.now() / 1000));
     }
-  } catch (e) { console.warn("Remote save failed (offline?):", e); }
-  return { localQuotaExceeded };
+  } catch (e) {
+    remoteSaveFailed = true;
+    console.warn("Remote save failed (offline?):", e);
+  }
+  return { localQuotaExceeded, remoteSaveFailed };
 }
 
 // ── Share API helpers ─────────────────────────────────────────────────────────
