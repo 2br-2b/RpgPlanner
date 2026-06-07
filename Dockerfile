@@ -5,6 +5,7 @@ ENV DATA_DIR=/data
 COPY package*.json ./
 RUN npm ci
 COPY index.html vite.config.js tsconfig.server.json ./
+COPY public/ public/
 COPY src/ src/
 COPY server/ server/
 RUN npm run build
