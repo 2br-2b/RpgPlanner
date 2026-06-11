@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@milkdown/core": "^7.21.1",
-    "@milkdown/plugin-clipboard": "^7.21.1",
+    "@milkdown/plugin-clipboard": "^7.21.2",
     "@milkdown/plugin-emoji": "^7.21.1",
     "@milkdown/plugin-history": "^7.21.1",
     "@milkdown/plugin-listener": "^7.21.2",
