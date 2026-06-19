@@ -7,6 +7,13 @@
     "priority": 4
   },
   {
+    "id": "underline-fix",
+    "date": "2026-06-19",
+    "title": "Fix underline button in rich text editor",
+    "description": "The underline (U) button in the free-page rich text editor was broken due to a Milkdown plugin registration error. Underline formatting now works correctly.",
+    "priority": 3
+  },
+  {
     "id": "milkdown-editor-crash-fix",
     "date": "2026-06-19",
     "title": "Fix editor crashes that caused changes to be lost",

@@ -37,7 +37,6 @@ const toggleUnderlineCommand = $command("ToggleUnderline", (ctx) => () =>
   toggleMark(underlineSchema.type(ctx))
 );
 
-const underlinePlugin = [underlineSchema, toggleUnderlineCommand];
 
 const TOOLBAR_GROUPS = [
   [
@@ -114,7 +113,8 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
         .use(clipboard)
         .use(upload)
         .use(emoji)
-        .use(underlinePlugin)
+        .use(underlineSchema)
+        .use(toggleUnderlineCommand)
         .use(history)
         .use(listener)
         .config((ctx) => {
