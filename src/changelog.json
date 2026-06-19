@@ -1,5 +1,12 @@
 [
   {
+    "id": "milkdown-editor-crash-fix",
+    "date": "2026-06-19",
+    "title": "Fix editor crashes that caused changes to be lost",
+    "description": "Fixed a bug in the rich-text editor where, after navigating between pages, typing or pasting could silently discard your changes and flood the console with errors. The editor now handles the brief initialization window after a page switch gracefully.",
+    "priority": 3
+  },
+  {
     "id": "remote-save-error-visibility",
     "date": "2026-06-07",
     "title": "Show warning when server save fails",

@@ -100,36 +100,41 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
   const [isOnLink, setIsOnLink] = useState(false);
   const linkInputRef = useRef(null);
 
-  const { get } = useEditor((root) =>
-    Editor.make()
-      .config((ctx) => {
-        ctx.set(rootCtx, root);
-        ctx.set(defaultValueCtx, value || "");
-      })
-      .use(commonmark)
-      .use(trailing)
-      .use(clipboard)
-      .use(upload)
-      .use(emoji)
-      .use(underlinePlugin)
-      .use(history)
-      .use(listener)
-      .config((ctx) => {
-        ctx.get(listenerCtx)
-          .markdownUpdated((_, markdown) => { onChangeRef.current?.(markdown); })
-          .selectionUpdated(() => {
-            const view = ctx.get(editorViewCtx);
-            const { state } = view;
-            const { from, to } = state.selection;
-            const linkType = linkSchema.type(ctx);
-            let found = false;
-            state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
-              if (found) return false;
-              if (node.marks.some((m) => m.type === linkType)) found = true;
+  const initialValueRef = useRef(value);
+
+  const { get } = useEditor(
+    useCallback((root) =>
+      Editor.make()
+        .config((ctx) => {
+          ctx.set(rootCtx, root);
+          ctx.set(defaultValueCtx, initialValueRef.current || "");
+        })
+        .use(commonmark)
+        .use(trailing)
+        .use(clipboard)
+        .use(upload)
+        .use(emoji)
+        .use(underlinePlugin)
+        .use(history)
+        .use(listener)
+        .config((ctx) => {
+          ctx.get(listenerCtx)
+            .markdownUpdated((_, markdown) => { onChangeRef.current?.(markdown); })
+            .selectionUpdated(() => {
+              const view = ctx.get(editorViewCtx);
+              if (!view?.state) return;
+              const { state } = view;
+              const { from, to } = state.selection;
+              const linkType = linkSchema.type(ctx);
+              let found = false;
+              state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
+                if (found) return false;
+                if (node.marks.some((m) => m.type === linkType)) found = true;
+              });
+              setIsOnLink(found);
             });
-            setIsOnLink(found);
-          });
-      })
+        }),
+    [])
   );
 
   const cmd = useCallback((command, payload) => {
@@ -140,6 +145,7 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
     let href = null;
     get()?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
+      if (!view?.state) return;
       const { state } = view;
       const { from, to } = state.selection;
       const linkType = linkSchema.type(ctx);
