@@ -1,11 +1,11 @@
 import { subscribeErrors, getConsoleSnapshot } from "./error-handler.js";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { App } from "./app.jsx";
 import { ShareApp } from "./share-view.jsx";
 import { ThemeTestPage } from "./theme-test.jsx";
+import { Toast } from "./ui.jsx";
 import "./theme-parchment.css";
 import "./theme-chalkboard.css";
 import "./theme-corkboard.css";
@@ -40,9 +40,9 @@ function ErrorToast({ errors, onDismiss }) {
 
   if (!errors.length) return null;
 
-  return createPortal(
-    <div style={{
-      position: "fixed", bottom: 20, right: 20, zIndex: 99999,
+  return (
+    <Toast zIndex={99999} style={{
+      bottom: 20, right: 20,
       maxWidth: 400, width: "calc(100vw - 40px)",
       background: "#1e1e2e", border: "1px solid #ef4444",
       borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
@@ -86,8 +86,7 @@ function ErrorToast({ errors, onDismiss }) {
           {copied ? "Copied!" : "Copy console output"}
         </button>
       </div>
-    </div>,
-    document.body
+    </Toast>
   );
 }
 
