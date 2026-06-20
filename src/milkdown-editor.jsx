@@ -123,15 +123,19 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
             .selectionUpdated(() => {
               const view = ctx.get(editorViewCtx);
               if (!view?.state) return;
-              const { state } = view;
-              const { from, to } = state.selection;
-              const linkType = linkSchema.type(ctx);
-              let found = false;
-              state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
-                if (found) return false;
-                if (node.marks.some((m) => m.type === linkType)) found = true;
-              });
-              setIsOnLink(found);
+              try {
+                const { state } = view;
+                const { from, to } = state.selection;
+                const linkType = linkSchema.type(ctx);
+                let found = false;
+                state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
+                  if (found) return false;
+                  if (node.marks.some((m) => m.type === linkType)) found = true;
+                });
+                setIsOnLink(found);
+              } catch {
+                // marks context not ready during editor initialization
+              }
             });
         }),
     [])
@@ -146,14 +150,18 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
     get()?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       if (!view?.state) return;
-      const { state } = view;
-      const { from, to } = state.selection;
-      const linkType = linkSchema.type(ctx);
-      state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
-        if (href) return false;
-        const mark = node.marks.find((m) => m.type === linkType);
-        if (mark) href = mark.attrs.href || "";
-      });
+      try {
+        const { state } = view;
+        const { from, to } = state.selection;
+        const linkType = linkSchema.type(ctx);
+        state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
+          if (href) return false;
+          const mark = node.marks.find((m) => m.type === linkType);
+          if (mark) href = mark.attrs.href || "";
+        });
+      } catch {
+        // marks context not ready during editor initialization
+      }
     });
     return href;
   }, [get]);
