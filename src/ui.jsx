@@ -1,4 +1,15 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+
+// Fixed-position toast shell. Renders via portal into document.body so it's
+// immune to ancestor stacking contexts. Pass all positioning and appearance
+// via `style` — callers own the visual look, this just handles the portal.
+export function Toast({ children, style = {}, zIndex = 2500 }) {
+  return createPortal(
+    <div style={{ position: "fixed", zIndex, ...style }}>{children}</div>,
+    document.body
+  );
+}
 
 // Reusable eye/ban badge for player-visibility toggles.
 // onClick is optional — omit for read-only display.

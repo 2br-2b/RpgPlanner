@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ModalOverlay, useEscapeKey } from "./ui.jsx";
+import { ModalOverlay, Toast, useEscapeKey } from "./ui.jsx";
 import { CHANGELOG_SORTED, COMPACT_LIMIT, getUnseenEntries, isFirstVisit } from "./changelog.js";
 
 function PriorityDot({ priority }) {
@@ -98,12 +98,10 @@ export function WhatsNewPopup({ onClose, onNeverShow, T, css, isMobile }) {
   if (isMobile) {
     // Mobile: notification-style banner at bottom
     return (
-      <div style={{
-        position: "fixed",
+      <Toast zIndex={2500} style={{
         bottom: 64, // above mobile nav bar
         left: 12,
         right: 12,
-        zIndex: 2500,
         background: T.surface,
         border: `1px solid ${T.border}`,
         borderRadius: T.radius,
@@ -120,24 +118,22 @@ export function WhatsNewPopup({ onClose, onNeverShow, T, css, isMobile }) {
           <div style={{ fontSize: 11, color: T.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {firstVisit
               ? "Tap to learn how to use the app"
-              : compact[0]?.title || "Updates available"}
+              : unseen[0]?.title || "Updates available"}
           </div>
         </div>
         <button style={{ ...css.btn("primary"), fontSize: 11, flexShrink: 0, whiteSpace: "nowrap" }} onClick={() => { onClose(); /* reopen as full modal via parent */ setShowAll(true); }}>
           See changes
         </button>
         <button style={{ ...css.btn(), fontSize: 11, flexShrink: 0, padding: "4px 8px" }} onClick={onClose}>✕</button>
-      </div>
+      </Toast>
     );
   }
 
   // Desktop: top-right corner popup
   return (
-    <div style={{
-      position: "fixed",
+    <Toast zIndex={2500} style={{
       top: 56, // below topbar
       right: 16,
-      zIndex: 2500,
       width: showAll ? 480 : 340,
       maxWidth: "92vw",
       maxHeight: "calc(100vh - 80px)",
@@ -201,6 +197,6 @@ export function WhatsNewPopup({ onClose, onNeverShow, T, css, isMobile }) {
         )}
         <button style={{ ...css.btn("primary"), fontSize: 11 }} onClick={onClose}>Got it</button>
       </div>
-    </div>
+    </Toast>
   );
 }

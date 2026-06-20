@@ -1,5 +1,12 @@
 [
   {
+    "id": "js-error-toast",
+    "date": "2026-06-20",
+    "title": "JavaScript error notifications",
+    "description": "When a JavaScript error occurs, a toast notification now appears with a 'Copy console output' button to easily capture all debug details for bug reports.",
+    "priority": 4
+  },
+  {
     "id": "milkdown-editor-crash-fix",
     "date": "2026-06-19",
     "title": "Fix editor crashes that caused changes to be lost",
