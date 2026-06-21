@@ -1,5 +1,12 @@
 [
   {
+    "id": "milkdown-nodes-context-fix",
+    "date": "2026-06-21",
+    "title": "Fix Milkdown 'nodes context not found' crash",
+    "description": "Fixed a crash in the rich-text editor where Milkdown would throw a 'nodes context not found' error when navigating between pages or during editor re-initialization. The error now also appears in the JavaScript error toast when it does occur.",
+    "priority": 3
+  },
+  {
     "id": "js-error-toast",
     "date": "2026-06-20",
     "title": "JavaScript error notifications",
