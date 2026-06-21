@@ -28,42 +28,38 @@ import { toggleMark } from "@milkdown/prose/commands";
 import { useThemeCSS } from "./theme.js";
 import "./milkdown-editor.css";
 
-const underlineSchema = $mark("underline", () => ({
-  parseDOM: [{ tag: "u" }],
-  toDOM: () => ["u", 0],
-}));
+// underlineSchema and toggleUnderlineCommand are created fresh per editor
+// instance (inside the useCallback factory) to avoid context conflicts when
+// React StrictMode mounts/unmounts editors or when navigating between pages.
 
-const toggleUnderlineCommand = $command("ToggleUnderline", (ctx) => () =>
-  toggleMark(underlineSchema.type(ctx))
-);
+function makeToolbarGroups(underlineCmdRef) {
+  return [
+    [
+      { label: "¶", title: "Plain text (remove heading)", cmd: (c) => c(turnIntoTextCommand) },
+      { label: "H1", title: "Heading 1", cmd: (c) => c(wrapInHeadingCommand, 1), cls: "mk-heading" },
+      { label: "H2", title: "Heading 2", cmd: (c) => c(wrapInHeadingCommand, 2), cls: "mk-heading" },
+      { label: "H3", title: "Heading 3", cmd: (c) => c(wrapInHeadingCommand, 3), cls: "mk-heading" },
+    ],
+    [
+      { label: "B", title: "Bold (Ctrl+B)", cmd: (c) => c(toggleStrongCommand), cls: "mk-bold" },
+      { label: "I", title: "Italic (Ctrl+I)", cmd: (c) => c(toggleEmphasisCommand), cls: "mk-italic" },
+      { label: "U", title: "Underline", cmd: (c) => underlineCmdRef.current && c(underlineCmdRef.current), cls: "mk-underline" },
+      { label: "</>", title: "Inline Code", cmd: (c) => c(toggleInlineCodeCommand), cls: "mk-code" },
+    ],
+    [
+      { label: "❝", title: "Blockquote", cmd: (c) => c(wrapInBlockquoteCommand) },
+      { label: "•", title: "Bullet List", cmd: (c) => c(wrapInBulletListCommand) },
+      { label: "1.", title: "Ordered List", cmd: (c) => c(wrapInOrderedListCommand) },
+      { label: "{ }", title: "Code Block", cmd: (c) => c(createCodeBlockCommand), cls: "mk-code" },
+    ],
+  ];
+}
 
-
-const TOOLBAR_GROUPS = [
-  [
-    { label: "¶", title: "Plain text (remove heading)", cmd: (c) => c(turnIntoTextCommand) },
-    { label: "H1", title: "Heading 1", cmd: (c) => c(wrapInHeadingCommand, 1), cls: "mk-heading" },
-    { label: "H2", title: "Heading 2", cmd: (c) => c(wrapInHeadingCommand, 2), cls: "mk-heading" },
-    { label: "H3", title: "Heading 3", cmd: (c) => c(wrapInHeadingCommand, 3), cls: "mk-heading" },
-  ],
-  [
-    { label: "B", title: "Bold (Ctrl+B)", cmd: (c) => c(toggleStrongCommand), cls: "mk-bold" },
-    { label: "I", title: "Italic (Ctrl+I)", cmd: (c) => c(toggleEmphasisCommand), cls: "mk-italic" },
-    { label: "U", title: "Underline", cmd: (c) => c(toggleUnderlineCommand), cls: "mk-underline" },
-    { label: "</>", title: "Inline Code", cmd: (c) => c(toggleInlineCodeCommand), cls: "mk-code" },
-  ],
-  [
-    { label: "❝", title: "Blockquote", cmd: (c) => c(wrapInBlockquoteCommand) },
-    { label: "•", title: "Bullet List", cmd: (c) => c(wrapInBulletListCommand) },
-    { label: "1.", title: "Ordered List", cmd: (c) => c(wrapInOrderedListCommand) },
-    { label: "{ }", title: "Code Block", cmd: (c) => c(createCodeBlockCommand), cls: "mk-code" },
-  ],
-];
-
-function EditorToolbar({ cmd, visible, onLinkOpen, onUnlink, isOnLink }) {
+function EditorToolbar({ cmd, visible, onLinkOpen, onUnlink, isOnLink, toolbarGroups }) {
   if (!visible) return null;
   return (
     <div className="mk-toolbar">
-      {TOOLBAR_GROUPS.map((group, gi) => (
+      {toolbarGroups.map((group, gi) => (
         <span key={gi} className="mk-toolbar-group">
           {group.map(({ label, title, cmd: action, cls }) => (
             <button
@@ -100,45 +96,67 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
   const linkInputRef = useRef(null);
 
   const initialValueRef = useRef(value);
+  // Holds the per-instance underline command so the toolbar can dispatch it.
+  const underlineCmdRef = useRef(null);
+  const toolbarGroups = makeToolbarGroups(underlineCmdRef);
 
   const { get } = useEditor(
-    useCallback((root) =>
-      Editor.make()
-        .config((ctx) => {
-          ctx.set(rootCtx, root);
-          ctx.set(defaultValueCtx, initialValueRef.current || "");
-        })
-        .use(commonmark)
-        .use(trailing)
-        .use(clipboard)
-        .use(upload)
-        .use(emoji)
-        .use(underlineSchema)
-        .use(toggleUnderlineCommand)
-        .use(history)
-        .use(listener)
-        .config((ctx) => {
-          ctx.get(listenerCtx)
-            .markdownUpdated((_, markdown) => { onChangeRef.current?.(markdown); })
-            .selectionUpdated(() => {
-              const view = ctx.get(editorViewCtx);
-              if (!view?.state) return;
-              try {
-                const { state } = view;
-                const { from, to } = state.selection;
-                const linkType = linkSchema.type(ctx);
-                let found = false;
-                state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
-                  if (found) return false;
-                  if (node.marks.some((m) => m.type === linkType)) found = true;
-                });
-                setIsOnLink(found);
-              } catch {
-                // marks context not ready during editor initialization
-              }
-            });
-        }),
-    [])
+    useCallback((root) => {
+      try {
+        // Create fresh plugin instances each time to avoid Milkdown context
+        // conflicts when the same singleton is registered in multiple editors
+        // (React StrictMode double-mount, page navigation, etc.).
+        const underlineSchema = $mark("underline", () => ({
+          parseDOM: [{ tag: "u" }],
+          toDOM: () => ["u", 0],
+        }));
+        const toggleUnderlineCommand = $command("ToggleUnderline", (ctx) => () =>
+          toggleMark(underlineSchema.type(ctx))
+        );
+        underlineCmdRef.current = toggleUnderlineCommand;
+
+        return Editor.make()
+          .config((ctx) => {
+            ctx.set(rootCtx, root);
+            ctx.set(defaultValueCtx, initialValueRef.current || "");
+          })
+          .use(commonmark)
+          .use(trailing)
+          .use(clipboard)
+          .use(upload)
+          .use(emoji)
+          .use(underlineSchema)
+          .use(toggleUnderlineCommand)
+          .use(history)
+          .use(listener)
+          .config((ctx) => {
+            ctx.get(listenerCtx)
+              .markdownUpdated((_, markdown) => { onChangeRef.current?.(markdown); })
+              .selectionUpdated(() => {
+                const view = ctx.get(editorViewCtx);
+                if (!view?.state) return;
+                try {
+                  const { state } = view;
+                  const { from, to } = state.selection;
+                  const linkType = linkSchema.type(ctx);
+                  let found = false;
+                  state.doc.nodesBetween(from, from === to ? to + 1 : to, (node) => {
+                    if (found) return false;
+                    if (node.marks.some((m) => m.type === linkType)) found = true;
+                  });
+                  setIsOnLink(found);
+                } catch {
+                  // marks/nodes context not ready during editor initialization
+                }
+              });
+          });
+      } catch (err) {
+        // Milkdown swallows context errors internally; rethrow via setTimeout
+        // so they reach window.onerror and appear in the error toast.
+        setTimeout(() => { throw err; }, 0);
+        return null;
+      }
+    }, [])
   );
 
   const cmd = useCallback((command, payload) => {
@@ -209,7 +227,7 @@ const EditorInner = forwardRef(function EditorInner({ value, onChange, onFocus, 
         }
       }}
     >
-      <EditorToolbar cmd={cmd} visible={focused} onLinkOpen={openLinkDialog} onUnlink={removeLink} isOnLink={isOnLink} />
+      <EditorToolbar cmd={cmd} visible={focused} onLinkOpen={openLinkDialog} onUnlink={removeLink} isOnLink={isOnLink} toolbarGroups={toolbarGroups} />
       <Milkdown />
       {linkDialogOpen && (
         <div className="mk-link-dialog">
