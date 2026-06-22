@@ -84,7 +84,7 @@ function ShareTextSection({ sec, sectionData, onSave, T, css }) {
     return (
       <div key={subheader}>
         {subheader && <div style={{ fontSize: 11, fontWeight: "bold", color: T.textDim, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>{subheader}</div>}
-        <div style={{ lineHeight: 1.7, fontSize: 13, color: T.text }} dangerouslySetInnerHTML={{ __html: renderMarkdown(value || "", T) }} />
+        <div style={{ lineHeight: 1.7, fontSize: 13, color: T.text }} dangerouslySetInnerHTML={{ __html: renderMarkdown(value || "", T, { shiftHeadings: false }) }} />
       </div>
     );
   };
@@ -206,7 +206,7 @@ function SharePageView({ page, schema, shareGuid, T, css }) {
       )}
       {isFree && (
         <div style={{ ...css.section }}>
-          <div style={{ lineHeight: 1.7, fontSize: 13, color: T.text }} dangerouslySetInnerHTML={{ __html: renderMarkdown(page.content || "", T) }} />
+          <div style={{ lineHeight: 1.7, fontSize: 13, color: T.text }} dangerouslySetInnerHTML={{ __html: renderMarkdown(page.content || "", T, { shiftHeadings: false }) }} />
         </div>
       )}
       {!isFree && schema.map(sec => {

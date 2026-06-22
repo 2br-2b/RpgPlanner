@@ -1,5 +1,12 @@
 [
   {
+    "id": "share-markdown-rendering",
+    "date": "2026-06-22",
+    "title": "Better text formatting in the player view",
+    "description": "The player share view now renders rich-text formatting faithfully — headings, bold/italic, lists, line breaks and spacing all match what you see in the editor. Previously some content showed stray characters or wrong spacing.",
+    "priority": 5
+  },
+  {
     "id": "share-free-page-fix",
     "date": "2026-06-22",
     "title": "Fix: free pages were blank in the player view",
