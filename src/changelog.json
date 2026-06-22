@@ -1,5 +1,12 @@
 [
   {
+    "id": "share-flat-text-fix",
+    "date": "2026-06-22",
+    "title": "Fix: player view hid text sections without subheaders",
+    "description": "Text sections that have no subheaders now show their content in the player share view. Previously these fields appeared blank to players even when the section was marked visible.",
+    "priority": 5
+  },
+  {
     "id": "credits-section",
     "date": "2026-06-22",
     "title": "Credits & open source licenses",

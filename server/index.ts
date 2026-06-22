@@ -240,18 +240,25 @@ function filterSectionsForPage(schema: any[], page: any): { filteredSections: Re
     const rawData: any = (page.sections || {})[sec.id];
 
     if (sec.type === "text") {
-      const visibleSubheaders: string[] = (sec.subheaders || []).filter((sh: string) => {
-        if (typeof override === "object" && override !== null && sh in override) return (override as any)[sh] === true;
-        if (override === true) return true; // whole section force-visible: show all subheaders
-        return (sec.playerVisibleSubheaders || []).includes(sh);
-      });
-      const sectionData: Record<string, unknown> = {};
-      if (typeof rawData === "object" && rawData !== null) {
-        for (const sh of visibleSubheaders) {
-          if (sh in rawData) sectionData[sh] = rawData[sh];
+      // Sections with no subheaders store a flat string (or legacy single-value
+      // object). The section is already known visible, so pass it through as-is —
+      // there are no per-subheader visibility choices to apply.
+      if ((sec.subheaders || []).length === 0) {
+        filteredSections[sec.id] = rawData ?? "";
+      } else {
+        const visibleSubheaders: string[] = (sec.subheaders || []).filter((sh: string) => {
+          if (typeof override === "object" && override !== null && sh in override) return (override as any)[sh] === true;
+          if (override === true) return true; // whole section force-visible: show all subheaders
+          return (sec.playerVisibleSubheaders || []).includes(sh);
+        });
+        const sectionData: Record<string, unknown> = {};
+        if (typeof rawData === "object" && rawData !== null) {
+          for (const sh of visibleSubheaders) {
+            if (sh in rawData) sectionData[sh] = rawData[sh];
+          }
         }
+        filteredSections[sec.id] = sectionData;
       }
-      filteredSections[sec.id] = sectionData;
 
     } else if (sec.type === "waypoints") {
       if (typeof rawData === "object" && rawData !== null) {

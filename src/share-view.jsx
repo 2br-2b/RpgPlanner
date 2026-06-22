@@ -90,10 +90,13 @@ function ShareTextSection({ sec, sectionData, onSave, T, css }) {
   };
 
   if (!hasSubheaders) {
+    // Flat content arrives as a string (current shape) or, for legacy saves, an
+    // object keyed by "" or the section name.
+    const flatValue = typeof sectionData === "string" ? sectionData : (content[""] || content[sec.name] || "");
     return (
       <div style={{ ...css.section }}>
         <div style={{ fontSize: 13, fontWeight: "bold", color: T.accentBright, marginBottom: 10 }}>{sec.name}</div>
-        {renderField("", content[""] || content[sec.name] || "")}
+        {renderField("", flatValue)}
       </div>
     );
   }
