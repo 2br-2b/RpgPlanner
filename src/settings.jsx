@@ -429,6 +429,15 @@ export function SettingsView({ campaign, onUpdate, onRestore, onImport, onClear,
         </Row>
       </div>
 
+      <div style={{ ...css.section, marginBottom: 24 }}>
+        <div style={{ fontSize: 11, color: T.accent, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>CREDITS</div>
+        <Row label="Credits & licenses" hint="Acknowledgements and the open source packages this app is built on." T={T} isMobile={isMobile}>
+          <button style={{ ...css.btn(), fontSize: 11 }} onClick={() => onNavigate && onNavigate("credits")} disabled={!onNavigate}>
+            View credits →
+          </button>
+        </Row>
+      </div>
+
       <div style={{ ...css.section, borderColor: T.danger }}>
         <div style={{ fontSize: 11, color: T.danger, fontWeight: "bold", letterSpacing: "0.1em", marginBottom: 12 }}>DANGER ZONE</div>
         {campaign.shareEnabled && (

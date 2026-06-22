@@ -4,6 +4,7 @@ import { ExportDropdown, ExportModal } from "./io.jsx";
 import { OutlineView, PageEditor } from "./editor.jsx";
 import { Sidebar } from "./sidebar.jsx";
 import { SettingsView } from "./settings.jsx";
+import { CreditsView } from "./credits.jsx";
 
 const FlowchartView = lazy(() => import("./flowchart.jsx").then(m => ({ default: m.FlowchartView })));
 const SchemaEditor  = lazy(() => import("./schema-editor.jsx").then(m => ({ default: m.SchemaEditor })));
@@ -947,7 +948,7 @@ export function App() {
         {isMobile && (
           <div className="sk-topbar" style={{ ...css.topbar, height: 52, padding: "0 10px", gap: 6, position: "sticky", top: 0, zIndex: 100 }}>
             {showSidebar && <button style={{ ...css.btn(), padding: "6px 10px", fontSize: 18, lineHeight: 1, flexShrink: 0 }} onClick={() => setSidebarOpen((open) => !open)}>=</button>}
-            <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{view === "editor" && selectedPage ? selectedPage.name : (NAV_ITEMS.find((item) => item.key === view)?.label || view)}</span>
+            <span style={{ color: T.accentBright, fontSize: 13, fontWeight: "bold", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{view === "editor" && selectedPage ? selectedPage.name : view === "credits" ? "Credits" : (NAV_ITEMS.find((item) => item.key === view)?.label || view)}</span>
             <button style={{ ...css.btn(), fontSize: 14, padding: "4px 8px", flexShrink: 0 }} onClick={() => setShowSearch(true)} title="Search">⌕</button>
             <ThemePicker current={campaign.theme} onChange={(key) => update((data) => ({ ...data, theme: key, fieldTimestamps: { ...(data.fieldTimestamps || {}), theme: new Date().toISOString() } }))} />
             <ExportDropdown campaign={campaign} currentPage={selectedPage} />
@@ -1034,6 +1035,7 @@ export function App() {
               {view === "flowchart" && <Suspense fallback={null}><FlowchartView campaign={campaign} onUpdate={update} onNavigate={navigateTo} /></Suspense>}
               {view === "simulate" && <Suspense fallback={null}><SimulatorView campaign={campaign} onUpdate={update} /></Suspense>}
               {view === "settings" && <SettingsView campaign={campaign} onUpdate={update} onRestore={(data) => { const m = migrateCampaign(data); setCampaign(m); persist(m); }} onImport={(data) => { setCampaign(data); persist(data); }} onClear={() => { const fresh = defaultCampaign(); setCampaign(fresh); persist(fresh); navigateTo("outline"); }} onNavigate={navigateTo} />}
+              {view === "credits" && <CreditsView onBack={() => navigateTo("settings")} />}
             </div>
           )}
         </div>

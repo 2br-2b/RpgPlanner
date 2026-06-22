@@ -1,5 +1,12 @@
 [
   {
+    "id": "credits-section",
+    "date": "2026-06-22",
+    "title": "Credits & open source licenses",
+    "description": "Settings now has a Credits section with the full list of open source packages this app is built on, including each one's license.",
+    "priority": 5
+  },
+  {
     "id": "console-error-toast",
     "date": "2026-06-22",
     "title": "console.error now shows the error toast",

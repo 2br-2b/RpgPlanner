@@ -4,8 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/gen-licenses.js",
     "dev": "concurrently -n vite,server -c cyan,yellow \"vite\" \"tsx watch server/index.ts\"",
     "dev:server": "tsx watch server/index.ts",
+    "gen-licenses": "node scripts/gen-licenses.js",
+    "prebuild": "node scripts/gen-licenses.js",
     "build": "vite build && tsc -p tsconfig.server.json",
     "typecheck": "tsc -p tsconfig.server.json --noEmit",
     "start": "node build/server/index.js",
