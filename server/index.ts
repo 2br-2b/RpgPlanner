@@ -316,6 +316,11 @@ function filterCampaignForShare(raw: Record<string, unknown>): Record<string, un
   const visiblePages = pages
     .filter((p: any) => p.playerVisible === true)
     .map((page: any) => {
+      // Free pages hold a flat rich-text `content` string instead of schema
+      // sections; the whole page's visibility governs it, so pass it through.
+      if (page.type === "free") {
+        return { id: page.id, name: page.name, type: page.type, order: page.order, parentId: page.parentId, tags: page.tags || [], content: page.content || "", sections: {}, costs: page.costs || [], awards: page.awards || [], sectionSchema: [] };
+      }
       const schema = schemaByTypeId.get(page.type) || [];
       const overrides: Record<string, any> = page.sectionVisibilityOverrides || {};
       const { filteredSections } = filterSectionsForPage(schema, page);

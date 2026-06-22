@@ -1,5 +1,12 @@
 [
   {
+    "id": "share-free-page-fix",
+    "date": "2026-06-22",
+    "title": "Fix: free pages were blank in the player view",
+    "description": "Free (rich-text) pages now show their content in the player share view. Previously a shared free page displayed only its title with no body text.",
+    "priority": 5
+  },
+  {
     "id": "share-flat-text-fix",
     "date": "2026-06-22",
     "title": "Fix: player view hid text sections without subheaders",

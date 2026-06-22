@@ -194,6 +194,8 @@ function SharePageView({ page, schema, shareGuid, T, css }) {
     await patchShareField(shareGuid, page.id, patch);
   };
 
+  const isFree = page.type === "free";
+
   return (
     <div>
       <h2 style={{ margin: "0 0 16px", color: T.accentBright, fontSize: 18 }}>{page.name}</h2>
@@ -202,7 +204,12 @@ function SharePageView({ page, schema, shareGuid, T, css }) {
           {page.tags.map(tag => <span key={tag} style={{ ...css.tag }}>{tag}</span>)}
         </div>
       )}
-      {schema.map(sec => {
+      {isFree && (
+        <div style={{ ...css.section }}>
+          <div style={{ lineHeight: 1.7, fontSize: 13, color: T.text }} dangerouslySetInnerHTML={{ __html: renderMarkdown(page.content || "", T) }} />
+        </div>
+      )}
+      {!isFree && schema.map(sec => {
         const sectionData = (page.sections || {})[sec.id];
         if (sec.type === "text") return <ShareTextSection key={sec.id} sec={sec} sectionData={sectionData} onSave={sec.playerEditable ? handleSave : null} T={T} css={css} />;
         if (sec.type === "waypoints") return <ShareWaypointsSection key={sec.id} sec={sec} sectionData={sectionData} onSave={sec.playerEditable ? handleSave : null} T={T} css={css} />;
