@@ -8,6 +8,7 @@ COPY index.html vite.config.js tsconfig.server.json ./
 COPY public/ public/
 COPY src/ src/
 COPY server/ server/
+COPY scripts/ scripts/
 RUN npm run build
 RUN npm prune --omit=dev
 

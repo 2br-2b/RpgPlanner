@@ -19,9 +19,17 @@ const MAX_LICENSE_CHARS = 8000; // keep the bundle reasonable; truncate huge tex
 
 // Collect the unique set of production package names from the npm tree.
 function collectNames() {
-  const json = JSON.parse(
-    execSync("npm ls --omit=dev --all --json", { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }),
-  );
+  // `npm ls` exits non-zero on benign tree discrepancies (extraneous/peer
+  // warnings) while still printing valid JSON to stdout, so read stdout even
+  // when it "fails" rather than letting the build die.
+  let out;
+  try {
+    out = execSync("npm ls --omit=dev --all --json", { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  } catch (e) {
+    out = e.stdout;
+    if (!out) throw e;
+  }
+  const json = JSON.parse(out);
   const names = new Set();
   const walk = (deps) => {
     for (const [name, info] of Object.entries(deps || {})) {
