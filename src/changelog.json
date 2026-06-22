@@ -1,5 +1,12 @@
 [
   {
+    "id": "fix-milkdown-marks-context-crash",
+    "date": "2026-06-22",
+    "title": "Fix blank rich-text editor on free pages",
+    "description": "The rich-text editor on free pages could fail to load and appear as an empty box. This was caused by mismatched editor library versions; all are now aligned so the editor renders reliably.",
+    "priority": 6
+  },
+  {
     "id": "milkdown-nodes-context-fix",
     "date": "2026-06-21",
     "title": "Fix Milkdown 'nodes context not found' crash",
