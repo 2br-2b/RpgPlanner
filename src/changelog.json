@@ -1,5 +1,12 @@
 [
   {
+    "id": "console-error-toast",
+    "date": "2026-06-22",
+    "title": "console.error now shows the error toast",
+    "description": "Errors logged via console.error now surface in the on-screen JavaScript error toast, not just uncaught exceptions — making it easier to notice and report problems.",
+    "priority": 3
+  },
+  {
     "id": "fix-milkdown-marks-context-crash",
     "date": "2026-06-22",
     "title": "Fix blank rich-text editor on free pages",

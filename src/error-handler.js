@@ -8,8 +8,30 @@ const _callbacks = new Set();
     orig(...args);
     _buf.push({ t: Date.now(), level: method, text: args.map(serialize).join(" ") });
     if (_buf.length > MAX_ENTRIES) _buf.shift();
+    if (method === "error") {
+      const errArg = args.find(a => a instanceof Error);
+      const stack = errArg?.stack || new Error().stack;
+      notify({
+        message: args.map(a => (a instanceof Error ? a.message : serialize(a))).join(" ") || "console.error",
+        location: callerLocation(stack),
+        stack,
+      });
+    }
   };
 });
+
+// Pull the first stack frame that isn't inside this error-handler module,
+// so console.error toasts can show where the call actually came from.
+function callerLocation(stack) {
+  if (!stack) return undefined;
+  const lines = stack.split("\n").slice(1); // drop the leading "Error"/message line
+  for (const line of lines) {
+    if (line.includes("error-handler.js")) continue;
+    const m = line.match(/\(?((?:https?:\/\/|\/|[a-zA-Z]:\\)[^\s()]+:\d+:\d+)\)?/);
+    if (m) return m[1].replace(/^https?:\/\/[^/]+/, "");
+  }
+  return undefined;
+}
 
 function serialize(a) {
   if (a instanceof Error) return `${a.name}: ${a.message}\n${a.stack || ""}`;
