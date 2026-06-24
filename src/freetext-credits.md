@@ -1,1 +1,1 @@
-Thanks to my testers for help finding bugs and for feature suggestions!
+Thanks to Benny Woolbert for being my primary QA tester!
