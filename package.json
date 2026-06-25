@@ -28,7 +28,7 @@
     "@milkdown/react": "^7.21.2",
     "@milkdown/utils": "^7.21.2",
     "@types/dompurify": "^3.2.0",
-    "@xyflow/react": "^12.11.0",
+    "@xyflow/react": "^12.11.1",
     "docx": "^9.6.1",
     "dompurify": "^3.4.11",
     "emoji-picker-react": "^4.19.1",
